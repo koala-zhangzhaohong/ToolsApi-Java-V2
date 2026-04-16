@@ -52,6 +52,10 @@ services:
   dashboard:
     image: apacherocketmq/rocketmq-dashboard:1.0.0
     container_name: rocketmq-dashboard
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     ports:
       - 55003:8080
     links:
