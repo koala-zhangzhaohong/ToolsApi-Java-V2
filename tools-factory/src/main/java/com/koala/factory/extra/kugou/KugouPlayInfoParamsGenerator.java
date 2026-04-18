@@ -88,6 +88,6 @@ public class KugouPlayInfoParamsGenerator {
     }
 
     private static String getKey(String hash, String mid, String userId) {
-        return MD5Utils.md5(hash + "kgcloudv21155" + mid + userId);
+        return MD5Utils.md5(hash.toLowerCase() + "kgcloudv21155" + mid + userId);
     }
 }
