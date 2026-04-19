@@ -1,9 +1,6 @@
 package com.koala.web.controller;
 
-import com.koala.base.enums.KugouMvRequestQualityEnums;
-import com.koala.base.enums.KugouNewSongEnums;
-import com.koala.base.enums.KugouRequestQualityEnums;
-import com.koala.base.enums.KugouRequestTypeEnums;
+import com.koala.base.enums.*;
 import com.koala.data.models.kugou.KugouMusicDataRespModel;
 import com.koala.data.models.kugou.config.KugouProductConfigModel;
 import com.koala.data.models.kugou.mvInfo.KugouMvInfoRespDataModel;
@@ -43,7 +40,6 @@ import java.util.*;
 
 import static com.koala.base.enums.KugouResponseEnums.*;
 import static com.koala.factory.extra.kugou.KugouSearchParamsGenerator.getSearchParams;
-import static com.koala.factory.extra.kugou.KugouSearchParamsGenerator.getSearchTextParams;
 import static com.koala.factory.path.KugouWebPathCollector.*;
 import static com.koala.service.data.redis.RedisKeyPrefix.*;
 import static com.koala.service.utils.RespUtil.formatRespData;
@@ -78,11 +74,7 @@ public class KugouToolsController {
     public String search(@RequestParam(required = false) String key, @RequestParam(required = false, defaultValue = "1") Long page, @RequestParam(required = false, defaultValue = "30") Long limit) throws IOException, URISyntaxException {
         Long timestamp = System.currentTimeMillis();
         String mid = KugouMidGenerator.getMid();
-        String signature = MD5Utils.md5(getSearchTextParams(timestamp, key, mid, page, limit, customParams));
-        if (!StringUtils.hasLength(signature)) {
-            return formatRespData(GET_SIGNATURE_FAILED, null);
-        }
-        String response = HttpClientUtil.doGet(KUGOU_SEARCH_WEB_SERVER_URL_V1, HeaderUtil.getKugouPublicHeader(null, null), getSearchParams(timestamp, key, mid, page, limit, signature, customParams));
+        String response = HttpClientUtil.doGet(KUGOU_SEARCH_WEB_SERVER_URL_V1, HeaderUtil.getKugouPublicHeader(null, null), getSearchParams(timestamp, key, mid, page, limit, customParams));
         if (StringUtils.hasLength(response)) {
             return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
         }
@@ -175,10 +167,27 @@ public class KugouToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/playInfo", produces = {"application/json;charset=utf-8"})
-    public String playInfo(@RequestParam(required = false) String hash, @RequestParam(required = false) String albumId) throws IOException, URISyntaxException {
+    public String playInfo(@RequestParam(required = false) String hash, @RequestParam(required = false) String albumId, @RequestParam(required = false, defaultValue = "2") Integer quality, @RequestParam(required = false, defaultValue = "3") Integer version) throws IOException, URISyntaxException {
+        long timestamp = System.currentTimeMillis();
         String mid = KugouMidGenerator.getMid();
         String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
-        String response = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParams(hash, mid, albumId, customParams));
+        String response = null;
+        try {
+            switch (version) {
+                case 3 -> {
+                    response = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, KugouRequestInfoQualityEnums.getEnumsByType(quality).getType(), customParams));
+                }
+                case 2 -> {
+                    // 暂时 后续更新v2兜底
+                    response = null;
+                }
+                case 1 -> {
+                    response = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         if (StringUtils.hasLength(response)) {
             return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
         }
@@ -244,7 +253,7 @@ public class KugouToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "download/music/short", produces = "application/json;charset=UTF-8")
-    public void downloadMusic(@RequestParam(required = false) String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, HttpServletRequest request, HttpServletResponse response) {
+    public void downloadMusic(@RequestParam(required = false) String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, @RequestParam(required = false, defaultValue = "3") Integer version, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[musicPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -259,7 +268,22 @@ public class KugouToolsController {
                 String albumId = tmp.getMusicInfo().getAlbumInfo().getAlbumId();
                 String mid = KugouMidGenerator.getMid();
                 String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
-                String resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParams(hash, mid, albumId, customParams));
+                long timestamp = System.currentTimeMillis();
+                String resp = null;
+                switch (version) {
+                    case 3 -> {
+                        resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, quality, customParams));
+                    }
+                    case 2 -> {
+                        // v2接口兜底
+                    }
+                    case 1 -> {
+                        resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
+                    }
+                    default -> {
+                        return;
+                    }
+                }
                 KugouPlayInfoRespDataModel respData = null;
                 if (StringUtils.hasLength(resp)) {
                     respData = GsonUtil.toBean(resp, KugouPlayInfoRespDataModel.class);

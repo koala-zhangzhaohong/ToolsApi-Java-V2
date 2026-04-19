@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_SEARCH_SECRET_KEY;
+import static com.koala.factory.extra.kugou.KugouSingnatureGenerator.generateKugouSignatureV1;
+
 /**
  * @author koala
  * @version 1.0
@@ -14,34 +17,7 @@ public class KugouSearchParamsGenerator {
 
     private static final String CURRENT_UUID = UUID.randomUUID().toString().replace("-", "");
 
-    public static String getSearchTextParams(Long timestamp, String key, String mid, Long page, Long limit, KugouCustomParamsUtil customParams) {
-        String[] paramsArray = {
-                "NVPh5oo715z5DIWAeQlhMDsWXXQV4hwt",
-                "bitrate=0",
-                // "callback=callback123",
-                "clienttime=" + timestamp,
-                "clientver=2000",
-                "dfid=-",
-                "filter=10",
-                "inputtype=0",
-                "iscorrection=1",
-                "isfuzzy=0",
-                "keyword=" + key,
-                "mid=" + mid,
-                "page=" + page,
-                "pagesize=" + limit,
-                "platform=WebFilter",
-                "privilege_filter=0",
-                "srcappid=2919",
-                "token=" + customParams.getKugouCustomParams().get("token"),
-                "userid=" + customParams.getKugouCustomParams().get("userId"),
-                "uuid=" + CURRENT_UUID,
-                "NVPh5oo715z5DIWAeQlhMDsWXXQV4hwt"
-        };
-        return String.join("", paramsArray);
-    }
-
-    public static Map<String, String> getSearchParams(Long timestamp, String key, String mid, Long page, Long limit, String signature, KugouCustomParamsUtil customParams) {
+    public static Map<String, String> getSearchParams(Long timestamp, String key, String mid, Long page, Long limit, KugouCustomParamsUtil customParams) {
         Map<String, String> params = new HashMap<>();
         params.put("bitrate", "0");
         params.put("clienttime", String.valueOf(timestamp));
@@ -61,7 +37,7 @@ public class KugouSearchParamsGenerator {
         params.put("token", customParams.getKugouCustomParams().get("token").toString());
         params.put("userid", customParams.getKugouCustomParams().get("userId").toString());
         params.put("uuid", CURRENT_UUID);
-        params.put("signature", signature);
+        params.put("signature", generateKugouSignatureV1(KUGOU_SEARCH_SECRET_KEY, params));
         return params;
     }
 }

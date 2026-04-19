@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.Objects;
 
 import static com.koala.factory.path.KugouWebPathCollector.KUGOU_DETAIL_SERVER_URL_V2;
+import static com.koala.factory.path.KugouWebPathCollector.KUGOU_DETAIL_SERVER_URL_V5;
 import static com.koala.service.data.redis.RedisKeyPrefix.KUGOU_DATA_KEY_PREFIX;
 
 /**
@@ -50,7 +51,7 @@ public class KugouPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/music/short")
-    public String musicWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, @RequestParam(value = "version", required = false, defaultValue = "1") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String musicWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, @RequestParam(value = "version", required = false, defaultValue = "1") String version, @RequestParam(value = "extra", required = false, defaultValue = "3") Integer extra, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[musicPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -67,7 +68,21 @@ public class KugouPlayerController {
                     String albumId = tmp.getMusicInfo().getAlbumInfo().getAlbumId();
                     String mid = KugouMidGenerator.getMid();
                     String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
-                    String resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParams(hash, mid, albumId, customParams));
+                    long timestamp = System.currentTimeMillis();
+                    String resp = null;
+                    switch (extra) {
+                        case 3 -> {
+                            resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, quality, customParams));
+                        }
+                        case 2 -> {}
+                        case 1 -> {
+                            resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
+                        }
+                        default -> {
+                            response.setStatus(HttpStatus.SC_NOT_FOUND);
+                            return "404/index";
+                        }
+                    }
                     KugouPlayInfoRespDataModel respData = null;
                     if (StringUtils.hasLength(resp)) {
                         respData = GsonUtil.toBean(resp, KugouPlayInfoRespDataModel.class);
