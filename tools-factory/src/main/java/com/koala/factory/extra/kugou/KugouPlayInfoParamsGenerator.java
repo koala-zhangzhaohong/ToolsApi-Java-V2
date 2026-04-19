@@ -19,47 +19,31 @@ public class KugouPlayInfoParamsGenerator {
     public static Map<String, String> getPlayInfoParamsV3(long timestamp, String hash, String mid, String albumId, KugouCustomParamsUtil customParams) {
         String userId = customParams.getKugouCustomParams().get("userId").toString();
         String token = customParams.getKugouCustomParams().get("token").toString();
-        String dfid = "2lOrgp0YdjFP47krxK4B8tye";
-        String pid = "2";
-        String cmd = "26";
-        String clienttime = String.valueOf(timestamp / 1000);
-        String uuid = CURRENT_UUID;
-        String areaCode = "1";//1代表中国地区，如果IP为海外或者港澳台，需要加上这个参数
-        String behavior = "play";//需要配置为play，不消耗下载次数。如果配置为download，则会消耗下载次数。
         String appId = "1005";
-        String module = "";
-        String vipType = "6";
-        String ptype = "0";
-        String mtype = "2";
-        String pidversion = "3001";//用jadx反编译apk后，可以在res目录下找到一个配置文件，里面存储了这个值
-        String clientver = "10479";
-        String version = "10479";
-        String albumAudioId = albumId;
 
         Map<String, String> params = new HashMap<>();
-        params.put("dfid", dfid);
+        params.put("dfid", "2lOrgp0YdjFP47krxK4B8tye");
         params.put("hash", hash);
-        params.put("mtype", mtype);
+        params.put("mtype", "2");
         params.put("album_id", albumId);
-        params.put("album_audio_id", albumAudioId);
-        params.put("module", module);
-        params.put("behavior", behavior);
-        params.put("cmd", cmd);
-        params.put("uuid", uuid);
-        params.put("clientver", clientver);
-        params.put("clienttime", clienttime);
-        params.put("pid", pid);
+        params.put("album_audio_id", albumId);
+        params.put("module", "");
+        params.put("behavior", "play");
+        params.put("cmd", "26");
+        params.put("uuid", CURRENT_UUID);
+        params.put("clientver", "10479");
+        params.put("clienttime", String.valueOf(timestamp / 1000));
+        params.put("pid", "2");
         params.put("appid", appId);
         params.put("mid", mid);
-        params.put("version", version);
+        params.put("version", "10479");
         params.put("token", token);
         params.put("quality", "flac");
-        params.put("vipType", vipType);
+        params.put("vipType", "6");
         params.put("userid", userId);
-        params.put("area_code", areaCode);
-        params.put("dfid", dfid);
-        params.put("ptype", ptype);
-        params.put("pidversion", pidversion);
+        params.put("area_code", "1");
+        params.put("ptype", "0");
+        params.put("pidversion", "3001");
         params.put("key", generateKugouKey(hash, appId, mid, userId));
         params.put("signature", generateKugouSignatureV1(params));
         return params;
