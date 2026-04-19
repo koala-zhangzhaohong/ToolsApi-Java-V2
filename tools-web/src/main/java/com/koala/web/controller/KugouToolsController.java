@@ -179,7 +179,7 @@ public class KugouToolsController {
         long timestamp = System.currentTimeMillis();
         String mid = KugouMidGenerator.getMid();
         String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
-        String response = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV4(timestamp, hash, mid, albumId, customParams));
+        String response = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, customParams));
         if (StringUtils.hasLength(response)) {
             return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
         }
