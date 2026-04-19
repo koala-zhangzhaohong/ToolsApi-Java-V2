@@ -67,7 +67,7 @@ public class KugouPlayerController {
                     String albumId = tmp.getMusicInfo().getAlbumInfo().getAlbumId();
                     String mid = KugouMidGenerator.getMid();
                     String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
-                    String resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParams(hash, mid, albumId, customParams));
+                    String resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
                     KugouPlayInfoRespDataModel respData = null;
                     if (StringUtils.hasLength(resp)) {
                         respData = GsonUtil.toBean(resp, KugouPlayInfoRespDataModel.class);

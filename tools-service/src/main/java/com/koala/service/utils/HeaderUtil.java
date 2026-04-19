@@ -278,6 +278,7 @@ public class HeaderUtil {
             header.put("User-Agent", RandomUserAgentGenerator.getUserAgent());
         }
         header.put("Referer", "https://www.kugou.com/");
+        header.put("x-router","tracker.kugou.com");
         if (StringUtils.hasLength(cookie)) {
             header.put("Cookie", cookie);
         }
