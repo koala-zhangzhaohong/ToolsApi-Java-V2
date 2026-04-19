@@ -1,6 +1,5 @@
 package com.koala.factory.extra.kugou
 
-import com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_ITEM_SECRET_KEY
 import com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_PID_VERSION_SECRET_KEY
 import com.koala.service.utils.MD5Utils
 import java.util.*
@@ -14,20 +13,26 @@ class KugouSingnatureGenerator {
         }
 
         @JvmStatic
-        fun generateKugouSignatureV2(params: HashMap<String, String?>?): String? {
+        fun generateKugouSignatureV2(
+            secret: String,
+            params: MutableMap<String, String?>?
+        ): String? {
             var result = ""
             params?.values?.let {
-                result = "$result$KUGOU_ITEM_SECRET_KEY"
+                result = "$result$secret"
                 for ((key, value) in params) {
                     result = "$result$key=${value ?: ""}"
                 }
-                return MD5Utils.md5("$result$KUGOU_ITEM_SECRET_KEY")
+                return MD5Utils.md5("$result$secret")
             }
             return null
         }
 
         @JvmStatic
-        fun generateKugouSignatureV1(map: MutableMap<String?, String?>?): String? {
+        fun generateKugouSignatureV1(
+            secret: String,
+            map: MutableMap<String?, String?>?
+        ): String? {
             if (map == null) {
                 return ""
             }
@@ -42,7 +47,7 @@ class KugouSingnatureGenerator {
                 sb.append("=")
                 sb.append(map[str3])
             }
-            return MD5Utils.md5(KUGOU_ITEM_SECRET_KEY + sb + KUGOU_ITEM_SECRET_KEY)
+            return MD5Utils.md5(secret + sb + secret)
         }
 
         @JvmStatic

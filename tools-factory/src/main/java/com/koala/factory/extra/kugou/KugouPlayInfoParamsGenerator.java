@@ -4,6 +4,7 @@ import com.koala.service.utils.MD5Utils;
 
 import java.util.*;
 
+import static com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_ITEM_SECRET_KEY;
 import static com.koala.factory.extra.kugou.KugouSingnatureGenerator.*;
 
 /**
@@ -45,7 +46,7 @@ public class KugouPlayInfoParamsGenerator {
         params.put("ptype", "0");
         params.put("pidversion", "3001");
         params.put("key", generateKugouKey(hash, appId, mid, userId));
-        params.put("signature", generateKugouSignatureV1(params));
+        params.put("signature", generateKugouSignatureV1(KUGOU_ITEM_SECRET_KEY, params));
         return params;
     }
 
