@@ -36,6 +36,7 @@ public class ToolsWebApplication {
         String ip = env.getProperty("server.real.address");
         String port = env.getProperty("server.port");
         String realPort = env.getProperty("server.real.port");
+        String cdnHost = env.getProperty("backend.server.cdn.address");
         String property = env.getProperty("server.servlet.context-path");
         String rocketmqAdminServerUrl = env.getProperty("rocketmq.admin-server");
         String esAnalyticsServerUrl = env.getProperty("spring.elasticsearch.kibana.uris");
@@ -54,6 +55,7 @@ public class ToolsWebApplication {
                         "BuildTime: \t\t" + buildTime + "\n\t" +
                         "Local: \t\t\thttp://localhost:" + port + path + "/\n\t" +
                         "External: \t\thttp://" + ip + ":" + Optional.ofNullable(realPort).orElse(port) + path + "/\n\t" +
+                        "CdnHost: \t\thttp://" + cdnHost + "/\n\t" +
                         "ServiceData: \t" + folderDir + "\n\t" +
                         "------------------------------------------------------------\n\t" +
                         "RocketMqAdminManagementSystem:\n\t" +

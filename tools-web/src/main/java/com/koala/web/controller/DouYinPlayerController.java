@@ -57,7 +57,7 @@ public class DouYinPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/video/short")
-    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "3") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "3") String version, @RequestParam(required = false, defaultValue = "false") Boolean proxy, @RequestParam(required = false, defaultValue = "0") Integer proxyExtra, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[videoPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -65,7 +65,11 @@ public class DouYinPlayerController {
                 ShortDouYinItemDataModel tmp = GsonUtil.toBean(redisService.get(TIKTOK_DATA_KEY_PREFIX + itemKey), ShortDouYinItemDataModel.class);
                 model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() : "VideoPlayer");
                 model.addAttribute("path", tmp.getPath());
-                model.addAttribute("multi", tmp.getMultiVideoQualityInfo());
+                if (proxy == false) {
+                    model.addAttribute("multi", tmp.getMultiVideoQualityInfo());
+                } else {
+                    model.addAttribute("multi", tmp.getProxyMultiVideoQualityInfoList().get(proxyExtra - 1));
+                }
                 if ("3".equals(version)) {
                     return "video/dplayer/tiktok/index";
                 } else if ("2".equals(version)) {

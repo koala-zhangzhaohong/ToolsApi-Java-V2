@@ -25,6 +25,12 @@ public class ConcreteDouYinApiBuilder extends DouYinApiBuilder {
     }
 
     @Override
+    public DouYinApiBuilder cdnHost(String cdnHost) {
+        product.setCdnHost(cdnHost);
+        return this;
+    }
+
+    @Override
     public DouYinApiBuilder getRedirectUrl() throws IOException, URISyntaxException {
         product.getRedirectUrl();
         return this;

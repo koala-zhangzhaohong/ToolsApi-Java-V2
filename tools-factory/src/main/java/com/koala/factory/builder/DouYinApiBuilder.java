@@ -23,6 +23,8 @@ public abstract class DouYinApiBuilder {
 
     public abstract DouYinApiBuilder host(String host);
 
+    public abstract DouYinApiBuilder cdnHost(String cdnHost);
+
     public abstract DouYinApiBuilder getRedirectUrl() throws IOException, URISyntaxException;
 
     /**

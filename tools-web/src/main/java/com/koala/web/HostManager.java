@@ -6,6 +6,7 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import static com.koala.service.data.redis.RedisKeyPrefix.SERVICE_CDN_HOST;
 import static com.koala.service.data.redis.RedisKeyPrefix.SERVICE_HOST;
 
 /**
@@ -15,11 +16,14 @@ import static com.koala.service.data.redis.RedisKeyPrefix.SERVICE_HOST;
  * @description
  */
 @Component
-@DependsOn({"beanContext", "getHost", "RedisService"})
+@DependsOn({"beanContext", "getHost", "getCdnHost", "RedisService"})
 public class HostManager {
 
     @Resource(name = "getHost")
     private String host;
+
+    @Resource(name = "getCdnHost")
+    private String cdnHost;
 
     @Resource
     private RedisService redisService;
@@ -31,4 +35,13 @@ public class HostManager {
         }
         return host;
     }
+
+    public String getCdnHost() {
+        String cachedHost = redisService.getAndPersist(SERVICE_CDN_HOST);
+        if (StringUtils.hasLength(cachedHost)) {
+            return cachedHost;
+        }
+        return cdnHost;
+    }
+
 }

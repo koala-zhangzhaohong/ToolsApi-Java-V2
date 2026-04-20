@@ -140,7 +140,7 @@ public class DouYinToolsController {
         DouYinApiManager manager = new DouYinApiManager(builder);
         DouYinApiProduct product = null;
         try {
-            product = manager.construct(redisService, hostManager.getHost(), url, version, isMobile, tiktokCookieUtil.getTiktokCookie());
+            product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), url, version, isMobile, tiktokCookieUtil.getTiktokCookie());
         } catch (Exception e) {
             e.printStackTrace();
             return formatRespData(FAILURE, null);

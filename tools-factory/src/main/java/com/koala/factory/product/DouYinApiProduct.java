@@ -1,6 +1,7 @@
 package com.koala.factory.product;
 
 import com.koala.base.enums.DouYinTypeEnums;
+import com.koala.base.enums.DouyinMiddlewareServerEnums;
 import com.koala.data.models.abogus.AbogusDataModel;
 import com.koala.data.models.douyin.MultiLiveQualityDetailInfoModel;
 import com.koala.data.models.douyin.MultiLiveQualityInfoModel;
@@ -62,6 +63,7 @@ public class DouYinApiProduct {
     private RoomInfoDataRespModel roomInfoData = null;
     private RedisService redisService;
     private String cookieData;
+    private String cdnHost;
 
     public void setUrl(String url) {
         this.url = url;
@@ -215,7 +217,7 @@ public class DouYinApiProduct {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.musicItemInfo.getAwemeMusicDetail().get(0).getMusic().getTitle();
                             String link = this.musicItemInfo.getAwemeMusicDetail().get(0).getMusic().getPlayUrl().getUri();
-                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null)), EXPIRE_TIME);
+                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null, null)), EXPIRE_TIME);
                             if (isMobile) {
                                 this.musicItemInfo.getAwemeMusicDetail().get(0).getMusic().setRealPath(link);
                             } else {
@@ -279,7 +281,7 @@ public class DouYinApiProduct {
                                             getPullUrl(Objects.isNull(hlsPullUrl) ? null : hlsPullUrl.getSd2())
                                     )
                             );
-                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, multiQualityInfo)), EXPIRE_TIME);
+                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null, multiQualityInfo)), EXPIRE_TIME);
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePath(host + "tools/DouYin/pro/player/live/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&type=hls");
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePathBackup(host + "tools/DouYin/pro/player/live/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&type=flv");
                         } else if (this.version.equals(3)) {
@@ -318,18 +320,42 @@ public class DouYinApiProduct {
                                 playAddr265 = this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr265();
                             } catch (Exception ignored) {
                             }
+                            ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList = new ArrayList<>();
+                            ArrayList<MultiVideoQualityInfoModel> mockProxyMultiVideoDownloadInfoList = new ArrayList<>();
+                            for (int i = 0; i < DouyinMiddlewareServerEnums.values().length; i++) {
+                                try {
+                                    if (i >= Objects.requireNonNull(playAddr).getUrlList().size() && i >= Objects.requireNonNull(playAddr265).getUrlList().size() && i >= Objects.requireNonNull(playAddrH264).getUrlList().size()) {
+                                        break;
+                                    }
+                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
+                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
+                                    proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
+                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
+                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(hd.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
+                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(sd.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
+                                    ));
+                                } catch (Exception e) {
+                                    break;
+                                }
+                            }
                             MultiVideoQualityInfoModel multiQualityInfo = new MultiVideoQualityInfoModel(
                                     getVideoUrl(Objects.isNull(playAddrH264) ? Objects.isNull(playAddr) ? null : playAddr.getUrlList().get(0) : playAddrH264.getUrlList().get(0)),
                                     getVideoUrl(Objects.isNull(playAddr265) ? null : playAddr265.getUrlList().get(0))
                             );
-                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, multiQualityInfo, null)), EXPIRE_TIME);
+                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, multiQualityInfo, proxyMultiVideoQualityInfoList, null)), EXPIRE_TIME);
                             if (isMobile) {
                                 this.itemInfo.getAwemeDetailModel().getVideo().setRealPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0));
                             } else {
                                 this.itemInfo.getAwemeDetailModel().getVideo().setRealPath(ShortKeyGenerator.generateShortUrl(link, EXPIRE_TIME, host, redisService).getUrl());
                             }
+                            ArrayList<String> mockPreviewProxyVidPathList = new ArrayList<>();
+                            for (int i = 0; i < proxyMultiVideoQualityInfoList.size(); i++) {
+                                mockPreviewProxyVidPathList.add(host + "tools/DouYin/pro/player/video/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&proxy=true&proxyExtra=" + (i + 1));
+                            }
                             this.itemInfo.getAwemeDetailModel().getVideo().setMockPreviewVidPath(host + "tools/DouYin/pro/player/video/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)));
                             this.itemInfo.getAwemeDetailModel().getVideo().setMockDownloadVidPath(ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(link.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl());
+                            this.itemInfo.getAwemeDetailModel().getVideo().setMockPreviewProxyVidPathList(mockPreviewProxyVidPathList);
+                            this.itemInfo.getAwemeDetailModel().getVideo().setMockDownloadProxyVidPathList(mockProxyMultiVideoDownloadInfoList);
                         } else if (this.version.equals(3)) {
                             String title = this.itemInfo.getAwemeDetailModel().getDesc();
                             String link = this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0);
@@ -360,6 +386,21 @@ public class DouYinApiProduct {
         publicData = new PublicTiktokDataRespModel(this.itemTypeId, this.itemInfo, this.musicItemInfo, this.roomInfoData);
         logger.info("[DouYinApiProduct]({}, {}) publicData: {}", id, itemId, publicData);
         return publicData;
+    }
+
+    private String reformatPath(String path) {
+        try {
+            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
+            DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
+            if (middlewareServerEnum != null) {
+                path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                return path;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
     }
 
     private String doGetXbogusRequest(String inputUrl) throws IOException, URISyntaxException {
@@ -441,5 +482,9 @@ public class DouYinApiProduct {
 
     public void setCookie(String cookie) {
         this.cookieData = cookie;
+    }
+
+    public void setCdnHost(String cdnHost) {
+        this.cdnHost = cdnHost;
     }
 }
