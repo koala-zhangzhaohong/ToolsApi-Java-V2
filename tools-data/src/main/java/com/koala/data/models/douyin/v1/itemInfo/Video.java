@@ -56,6 +56,6 @@ public class Video<Object extends Serializable> implements Serializable {
     private ArrayList<String> mockPreviewProxyVidPathList = null;
     @SerializedName("mock_download_vid_path")
     private String mockDownloadVidPath = null;
-    @SerializedName("mock_download_proxy_vid_path")
+    @SerializedName("mock_download_proxy_vid_path_list")
     private ArrayList<MultiVideoQualityInfoModel> mockDownloadProxyVidPathList = null;
 }
