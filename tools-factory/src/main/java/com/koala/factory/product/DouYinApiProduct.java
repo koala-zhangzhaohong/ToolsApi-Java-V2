@@ -321,17 +321,19 @@ public class DouYinApiProduct {
                             } catch (Exception ignored) {
                             }
                             ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList = new ArrayList<>();
+                            ArrayList<MultiVideoQualityInfoModel> mockProxyMultiVideoDownloadInfoList = new ArrayList<>();
                             for (int i = 0; i < DouyinMiddlewareServerEnums.values().length; i++) {
                                 try {
                                     if (i >= Objects.requireNonNull(playAddr).getUrlList().size() && i >= Objects.requireNonNull(playAddr265).getUrlList().size() && i >= Objects.requireNonNull(playAddrH264).getUrlList().size()) {
                                         break;
                                     }
-                                    proxyMultiVideoQualityInfoList.add(
-                                            new MultiVideoQualityInfoModel(
-                                                    getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i))),
-                                                    getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)))
-                                            )
-                                    );
+                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
+                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
+                                    proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
+                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
+                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(hd.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
+                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(sd.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
+                                    ));
                                 } catch (Exception e) {
                                     break;
                                 }
@@ -353,6 +355,7 @@ public class DouYinApiProduct {
                             this.itemInfo.getAwemeDetailModel().getVideo().setMockPreviewVidPath(host + "tools/DouYin/pro/player/video/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)));
                             this.itemInfo.getAwemeDetailModel().getVideo().setMockDownloadVidPath(ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(link.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl());
                             this.itemInfo.getAwemeDetailModel().getVideo().setMockPreviewProxyVidPathList(mockPreviewProxyVidPathList);
+                            this.itemInfo.getAwemeDetailModel().getVideo().setMockDownloadProxyVidPathList(mockProxyMultiVideoDownloadInfoList);
                         } else if (this.version.equals(3)) {
                             String title = this.itemInfo.getAwemeDetailModel().getDesc();
                             String link = this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0);
