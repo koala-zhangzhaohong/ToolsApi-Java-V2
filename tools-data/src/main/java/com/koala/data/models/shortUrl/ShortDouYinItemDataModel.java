@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 
 /**
  * @author koala
@@ -19,5 +20,6 @@ public class ShortDouYinItemDataModel implements Serializable {
     private String title;
     private String path;
     private MultiVideoQualityInfoModel multiVideoQualityInfo;
+    private ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList;
     private MultiLiveQualityInfoModel multiLiveQualityInfo;
 }

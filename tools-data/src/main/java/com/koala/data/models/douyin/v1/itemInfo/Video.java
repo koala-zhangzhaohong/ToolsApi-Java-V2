@@ -5,6 +5,7 @@ import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -50,6 +51,8 @@ public class Video<Object extends Serializable> implements Serializable {
     private String realPath = null;
     @SerializedName("mock_preview_vid_path")
     private String mockPreviewVidPath = null;
+    @SerializedName("mock_preview_proxy_vid_path_list")
+    private ArrayList<String> mockPreviewProxyVidPathList = null;
     @SerializedName("mock_download_vid_path")
     private String mockDownloadVidPath = null;
 }

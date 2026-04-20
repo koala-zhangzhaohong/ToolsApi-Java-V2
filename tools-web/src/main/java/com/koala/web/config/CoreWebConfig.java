@@ -25,6 +25,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
 import jakarta.annotation.Resource;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -150,6 +151,13 @@ public class CoreWebConfig implements WebMvcConfigurer {
         String property = env.getProperty("server.servlet.context-path");
         String path = property == null ? "" : property;
         return "http://" + ip + (StringUtils.hasLength(port) ? ":" + port : "") + path + "/";
+    }
+
+    @Bean
+    public String getCdnHost() {
+        Environment env = applicationContext.getEnvironment();
+        String ip = env.getProperty("backend.server.cdn.address");
+        return "http://" + ip + "/";
     }
 
     @Bean
