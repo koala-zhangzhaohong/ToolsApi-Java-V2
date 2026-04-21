@@ -34,11 +34,6 @@
     height: 100vh;
 }
 
-.swiper-img-style {
-    height: 100%;
-    object-fit: cover;
-}
-
 .custom-pagination-style {
     background: darkgray;
     opacity: 0.8;
@@ -55,4 +50,47 @@
 
 .dk-video-player-custom {
     height: 100vh;
+}
+
+/*iphone X 适配*/
+@media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) {
+    .dplayer-mobile-play {
+        width: 125px !important;
+        height: 125px !important;
+    }
+}
+
+/*iphone 6/7/8 适配*/
+@media only screen and (device-width: 375px) and (device-height: 667px) {
+    .dplayer-mobile-play {
+        width: 125px !important;
+        height: 125px !important;
+    }
+}
+
+/*iPhone 5/SE适配*/
+@media only screen and (device-width: 320px) and (device-height: 568px) {
+    .dplayer-mobile-play {
+        width: 125px !important;
+        height: 125px !important;
+    }
+}
+
+@media only screen and (max-width: 1200px) {
+    .swiper-img-style {
+        width: 100%;
+        height: auto;
+    }
+    .swiper-item-container {
+        display: grid;
+        place-items: center; /* 同时实现水平和垂直居中 */
+        height: 100vh;       /* 容器高度，根据需要设置 */
+    }
+}
+
+@media only screen and (min-width: 1200px) {
+    .swiper-img-style {
+        height: 100%;
+        object-fit: cover;
+    }
 }

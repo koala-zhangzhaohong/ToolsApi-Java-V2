@@ -217,7 +217,7 @@ public class DouYinApiProduct {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.musicItemInfo.getAwemeMusicDetail().get(0).getMusic().getTitle();
                             String link = this.musicItemInfo.getAwemeMusicDetail().get(0).getMusic().getPlayUrl().getUri();
-                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null, null)), EXPIRE_TIME);
+                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null, null, null)), EXPIRE_TIME);
                             if (isMobile) {
                                 this.musicItemInfo.getAwemeMusicDetail().get(0).getMusic().setRealPath(link);
                             } else {
@@ -281,7 +281,7 @@ public class DouYinApiProduct {
                                             getPullUrl(Objects.isNull(hlsPullUrl) ? null : hlsPullUrl.getSd2())
                                     )
                             );
-                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null, multiQualityInfo)), EXPIRE_TIME);
+                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, null, null, null, multiQualityInfo)), EXPIRE_TIME);
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePath(host + "tools/DouYin/pro/player/live/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&type=hls");
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePathBackup(host + "tools/DouYin/pro/player/live/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&type=flv");
                         } else if (this.version.equals(3)) {
@@ -305,6 +305,7 @@ public class DouYinApiProduct {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.itemInfo.getAwemeDetailModel().getDesc();
                             String link = ShortKeyGenerator.generateShortUrl(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0), EXPIRE_TIME, host, redisService).getUrl();
+                            String proxyLink = ShortKeyGenerator.generateShortUrl(reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0)), EXPIRE_TIME, host, redisService).getUrl();
                             PlayAddrInfoModel playAddr = null;
                             PlayAddrInfoModel playAddrH264 = null;
                             PlayAddrInfoModel playAddr265 = null;
@@ -342,7 +343,7 @@ public class DouYinApiProduct {
                                     getVideoUrl(Objects.isNull(playAddrH264) ? Objects.isNull(playAddr) ? null : playAddr.getUrlList().get(0) : playAddrH264.getUrlList().get(0)),
                                     getVideoUrl(Objects.isNull(playAddr265) ? null : playAddr265.getUrlList().get(0))
                             );
-                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, multiQualityInfo, proxyMultiVideoQualityInfoList, null)), EXPIRE_TIME);
+                            redisService.set(TIKTOK_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortDouYinItemDataModel(title, link, proxyLink, multiQualityInfo, proxyMultiVideoQualityInfoList, null)), EXPIRE_TIME);
                             if (isMobile) {
                                 this.itemInfo.getAwemeDetailModel().getVideo().setRealPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0));
                             } else {
