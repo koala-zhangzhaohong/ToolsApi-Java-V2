@@ -56,3 +56,27 @@
 .dk-video-player-custom {
     height: 100vh;
 }
+
+/*iphone X 适配*/
+@media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) {
+    .dplayer-mobile-play {
+        width: 125px !important;
+        height: 125px !important;
+    }
+}
+
+/*iphone 6/7/8 适配*/
+@media only screen and (device-width: 375px) and (device-height: 667px) {
+    .dplayer-mobile-play {
+        width: 125px !important;
+        height: 125px !important;
+    }
+}
+
+/*iPhone 5/SE适配*/
+@media only screen and (device-width: 320px) and (device-height: 568px) {
+    .dplayer-mobile-play {
+        width: 125px !important;
+        height: 125px !important;
+    }
+}
