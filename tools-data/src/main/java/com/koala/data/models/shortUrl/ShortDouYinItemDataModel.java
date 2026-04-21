@@ -19,6 +19,7 @@ import java.util.ArrayList;
 public class ShortDouYinItemDataModel implements Serializable {
     private String title;
     private String path;
+    private String proxyPath;
     private MultiVideoQualityInfoModel multiVideoQualityInfo;
     private ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList;
     private MultiLiveQualityInfoModel multiLiveQualityInfo;

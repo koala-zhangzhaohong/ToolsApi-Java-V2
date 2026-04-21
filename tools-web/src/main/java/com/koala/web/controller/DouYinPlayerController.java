@@ -64,10 +64,11 @@ public class DouYinPlayerController {
             if (StringUtils.hasLength(itemKey)) {
                 ShortDouYinItemDataModel tmp = GsonUtil.toBean(redisService.get(TIKTOK_DATA_KEY_PREFIX + itemKey), ShortDouYinItemDataModel.class);
                 model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() : "VideoPlayer");
-                model.addAttribute("path", tmp.getPath());
                 if (proxy == false) {
+                    model.addAttribute("path", tmp.getPath());
                     model.addAttribute("multi", tmp.getMultiVideoQualityInfo());
                 } else {
+                    model.addAttribute("path", tmp.getProxyPath());
                     model.addAttribute("multi", tmp.getProxyMultiVideoQualityInfoList().get(proxyExtra - 1));
                 }
                 if ("3".equals(version)) {
