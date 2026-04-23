@@ -1,8 +1,6 @@
 package com.koala.factory.director;
 
-import com.koala.factory.builder.LanZouApiV1Builder;
 import com.koala.factory.builder.LanZouApiV2Builder;
-import com.koala.factory.product.LanZouApiV1Product;
 import com.koala.factory.product.LanZouApiV2Product;
 
 import java.io.IOException;

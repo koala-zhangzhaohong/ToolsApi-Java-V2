@@ -1,14 +1,20 @@
 package com.koala.service.utils;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,7 +29,17 @@ public class RestTemplateUtils {
     private final RestTemplate restTemplate;
 
     public RestTemplateUtils() {
-        this.restTemplate = new RestTemplate();
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5000);
+        this.restTemplate = new RestTemplate(requestFactory);
+        this.restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
+        List<HttpMessageConverter<?>> httpMessageConverters = this.restTemplate.getMessageConverters();
+        httpMessageConverters.forEach(httpMessageConverter -> {
+            if(httpMessageConverter instanceof StringHttpMessageConverter messageConverter){
+                //设置编码为UTF-8
+                messageConverter.setDefaultCharset(StandardCharsets.UTF_8);
+            }
+        });
     }
 
     // ----------------------------------GET-------------------------------------------------------

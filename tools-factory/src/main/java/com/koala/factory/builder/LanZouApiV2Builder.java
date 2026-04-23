@@ -1,6 +1,7 @@
 package com.koala.factory.builder;
 
 import com.koala.factory.product.LanZouApiV2Product;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
