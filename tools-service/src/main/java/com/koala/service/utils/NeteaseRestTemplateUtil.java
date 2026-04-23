@@ -14,7 +14,7 @@ import java.util.Map;
 
 import static com.koala.service.utils.IpUtil.getRandomIpAddress;
 
-public class RestTemplateUtil {
+public class NeteaseRestTemplateUtil {
 
     /**
      * 产生随机的User Agent

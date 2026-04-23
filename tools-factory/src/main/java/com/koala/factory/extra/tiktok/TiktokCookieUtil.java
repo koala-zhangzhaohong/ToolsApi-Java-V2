@@ -2,7 +2,7 @@ package com.koala.factory.extra.tiktok;
 
 import cn.hutool.json.JSONObject;
 import com.koala.service.data.redis.service.RedisService;
-import com.koala.service.utils.RestTemplateUtil;
+import com.koala.service.utils.NeteaseRestTemplateUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ResourceLoader;
@@ -92,7 +92,7 @@ public class TiktokCookieUtil {
                 e.printStackTrace();
             }
         });
-        ResponseEntity<String> responseEntity = RestTemplateUtil.post(new JSONObject(), BASE_URL_TIKTOK, cookies, restTemplate);
+        ResponseEntity<String> responseEntity = NeteaseRestTemplateUtil.post(new JSONObject(), BASE_URL_TIKTOK, cookies, restTemplate);
         List<String> cookieData = responseEntity.getHeaders().get("Set-Cookie");
         StringBuilder cookieString = new StringBuilder(cookieContent);
         if (Objects.isNull(cookieData)) {

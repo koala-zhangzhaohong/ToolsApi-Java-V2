@@ -5,7 +5,7 @@ import com.koala.base.module.*;
 import com.koala.factory.service.netease.BaseService;
 import com.koala.service.utils.CookieUtil;
 import com.koala.service.utils.CryptoUtil;
-import com.koala.service.utils.RestTemplateUtil;
+import com.koala.service.utils.NeteaseRestTemplateUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,11 +49,11 @@ public class BaseServiceImpl implements BaseService {
         BaseModule baseModule = initModule.getService(key);
         baseModule.execute(object,queryMap,cookies);
         if (baseModule instanceof BaseModuleApi) {
-            return RestTemplateUtil.postApi(object, baseModule.getUrl(), cookies, restTemplate);
+            return NeteaseRestTemplateUtil.postApi(object, baseModule.getUrl(), cookies, restTemplate);
         }
         if (baseModule instanceof BaseModuleEApi) {
             final String param = CryptoUtil.eapiEncrypt(baseModule.getOptionsUrl(), object.toString());
-            return RestTemplateUtil.postEApi(param,
+            return NeteaseRestTemplateUtil.postEApi(param,
                     // baseModule.getUrl().replaceAll("api",baseModule.getOptionsUrl()),
                     baseModule.getUrl().replaceAll("/api","/" + baseModule.getType()),
                     cookies,
@@ -61,15 +61,15 @@ public class BaseServiceImpl implements BaseService {
         }
         if (baseModule instanceof BaseModuleWeApi) {
             String[] encrypt = CryptoUtil.weapiEncrypt(object.toString());
-            return RestTemplateUtil.postWeApi(encrypt[0],
+            return NeteaseRestTemplateUtil.postWeApi(encrypt[0],
                     encrypt[1],
                     baseModule.getUrl().replaceAll("/api","/" + baseModule.getType()) +"?csrf_token=" + cookies.get("__csrf"),
                     cookies,
                     restTemplate);
         }
         if (baseModule instanceof BaseModuleGetType) {
-            return RestTemplateUtil.get(baseModule.getUrl(),cookies,restTemplate);
+            return NeteaseRestTemplateUtil.get(baseModule.getUrl(),cookies,restTemplate);
         }
-        return RestTemplateUtil.post(object, baseModule.getUrl(),cookies,restTemplate);
+        return NeteaseRestTemplateUtil.post(object, baseModule.getUrl(),cookies,restTemplate);
     }
 }
