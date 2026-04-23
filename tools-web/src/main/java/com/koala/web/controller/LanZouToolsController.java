@@ -3,10 +3,10 @@ package com.koala.web.controller;
 import com.koala.base.enums.LanZouResponseEnums;
 import com.koala.base.enums.LanZouTypeEnums;
 import com.koala.data.models.file.FileInfoModel;
-import com.koala.factory.builder.ConcreteLanZouApiBuilder;
-import com.koala.factory.builder.LanZouApiBuilder;
-import com.koala.factory.director.LanZouApiManager;
-import com.koala.factory.product.LanZouApiProduct;
+import com.koala.factory.builder.ConcreteLanZouApiV1Builder;
+import com.koala.factory.builder.LanZouApiV1Builder;
+import com.koala.factory.director.LanZouApiV1Manager;
+import com.koala.factory.product.LanZouApiV1Product;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -62,9 +62,9 @@ public class LanZouToolsController {
             return formatRespData(LanZouResponseEnums.INVALID_TYPE, null);
         }
         // 初始化product
-        LanZouApiBuilder builder = new ConcreteLanZouApiBuilder();
-        LanZouApiManager manager = new LanZouApiManager(builder);
-        LanZouApiProduct product = null;
+        LanZouApiV1Builder builder = new ConcreteLanZouApiV1Builder();
+        LanZouApiV1Manager manager = new LanZouApiV1Manager(builder);
+        LanZouApiV1Product product = null;
         try {
             product = manager.construct(url, password);
         } catch (Exception e) {
