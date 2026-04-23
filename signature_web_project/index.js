@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const express = require("express");
 const {sign_x_bogus} = require("./lib/js/xbogus.js");
 const {sign_a_bogus} = require("./lib/js/abogus.js");
+const {acw_sc_v2_simple} = require("./lib/js/anti_acw_sc__v2")
 const cryptoJs = require('crypto-js');
 const {EventEmitter} = require('events');
 const emitter = new EventEmitter();
@@ -12,6 +13,33 @@ emitter.setMaxListeners(0);
 
 const app = express();
 app.use(express.json());
+
+app.post("/lanzou/acw", async (req, res) => {
+    try {
+        const {arg1} = req.body;
+
+        if (!arg1) {
+            throw new Error("Missing required parameters.");
+        }
+
+        console.info({
+            arg1: arg1,
+        });
+
+        res.status(200).json({
+            code: 200,
+            msg: "success",
+            data: {
+                acw: acw_sc_v2_simple(arg1).toString(),
+                args1: arg1
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(400).json({code: 201, msg: err.message});
+    }
+});
+
 
 app.post("/netease/generator", async (req, res) => {
 
