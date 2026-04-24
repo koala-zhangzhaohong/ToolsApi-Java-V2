@@ -1,6 +1,9 @@
 package com.koala.factory.product;
 
+import com.koala.data.models.lanzou.LanZouAcwRespModel;
+import com.koala.service.utils.AcwUtils;
 import com.koala.service.utils.GsonUtil;
+import com.koala.service.utils.PatternUtil;
 import com.koala.service.utils.RestTemplateUtils;
 import lombok.Setter;
 import org.slf4j.Logger;
@@ -33,10 +36,9 @@ public class LanZouApiV2Product {
     private String password;
     private String htmlData;
     private ArrayList<String> htmlCookies;
+    private String acw;
     private static final ArrayList<String> HOST_LIST = new ArrayList<>();
     private static final HashMap<Integer, List<String>> INVALID_LIST = new HashMap<>();
-    @Setter
-    private RestTemplate restTemplate;
     private RestTemplateUtils restTemplateUtils;
 
     static {
@@ -82,8 +84,24 @@ public class LanZouApiV2Product {
             this.host = currentHost;
             this.htmlData = response;
             this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
+            checkAcw();
             break;
         }
+    }
+
+    private void checkAcw() {
+        if (ObjectUtils.isEmpty(this.htmlData)) {
+            return;
+        }
+        String arg1 = PatternUtil.matchData("var arg1='(.*?)'", this.htmlData);
+        Map<String, String> params = new HashMap<>();
+        params.put("arg1", arg1);
+        LanZouAcwRespModel acwResp = restTemplateUtils.post(AcwUtils.getAcwPath(), params, LanZouAcwRespModel.class).getBody();
+        if (!ObjectUtils.isEmpty(acwResp) && !ObjectUtils.isEmpty(acwResp.getData().getAcw())) {
+            this.acw = acwResp.getData().getAcw();
+            this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
+        }
+        logger.info("[LanZouApiProduct]({}) arg1: {}, resp: {}", id, arg1, GsonUtil.toString(acwResp));
     }
 
     public Map<Integer, String> checkStatus() {

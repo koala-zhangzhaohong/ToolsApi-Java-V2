@@ -31,7 +31,7 @@ app.post("/lanzou/acw", async (req, res) => {
             msg: "success",
             data: {
                 acw: acw_sc_v2_simple(arg1).toString(),
-                args1: arg1
+                arg1: arg1
             }
         });
     } catch (err) {
