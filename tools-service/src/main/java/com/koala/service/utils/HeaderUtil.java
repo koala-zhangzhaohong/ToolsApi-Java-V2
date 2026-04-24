@@ -48,7 +48,7 @@ public class HeaderUtil {
         return header;
     }
 
-    public static Map<String, String> getLanZouInfoHeader(String host, String url, String cookie) {
+    public static Map<String, String> getLanZouInfoHeader(String url, String cookie) {
         HashMap<String, String> header = new HashMap<>(0);
         header.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         header.put("Accept-Encoding", "gzip, deflate");
@@ -57,7 +57,6 @@ public class HeaderUtil {
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         header.put("Referer", url);
-        header.put("Host", host);
         if (!Objects.isNull(cookie)) {
             header.put("Cookie", cookie);
         }

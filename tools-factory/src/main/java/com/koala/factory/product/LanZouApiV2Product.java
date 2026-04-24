@@ -13,7 +13,6 @@ import java.net.URISyntaxException;
 import java.util.*;
 
 import static com.koala.base.enums.LanZouResponseEnums.GET_FILE_SUCCESS;
-import static com.koala.service.utils.HeaderUtil.getHeader;
 
 /**
  * @author koala
@@ -30,7 +29,7 @@ public class LanZouApiV2Product {
     @Setter
     private String password;
     private String htmlData;
-    private ArrayList<String> htmlCookies;
+    private ArrayList<String> htmlCookies = new ArrayList<>();
     private String acw;
     private static final ArrayList<String> HOST_LIST = new ArrayList<>();
     private static final HashMap<Integer, List<String>> INVALID_LIST = new HashMap<>();
@@ -73,7 +72,7 @@ public class LanZouApiV2Product {
         restTemplateUtils = new RestTemplateUtils();
         for (String currentHost : HOST_LIST) {
             String url = currentHost + (mode == 0 ? "/" : "/tp/") + this.id;
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getHeader(), String.class);
+            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
             String response = responseEntity.getBody();
             if (ObjectUtils.isEmpty(response)) {
                 continue;
@@ -96,6 +95,8 @@ public class LanZouApiV2Product {
         String arg1 = PatternUtil.matchData("var arg1='(.*?)'", this.htmlData);
         Map<String, String> params = new HashMap<>();
         params.put("arg1", arg1);
+        if (ObjectUtils.isEmpty(arg1))
+            return;
         LanZouAcwRespModel acwResp = restTemplateUtils.post(AcwUtils.getAcwPath(), params, LanZouAcwRespModel.class).getBody();
         if (!ObjectUtils.isEmpty(acwResp) && !ObjectUtils.isEmpty(acwResp.getData().getAcw())) {
             this.acw = acwResp.getData().getAcw();
@@ -108,7 +109,7 @@ public class LanZouApiV2Product {
             }
             if (!acwStatus) this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
             String url = this.host + (mode == 0 ? "/" : "/tp/") + this.id;
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getHeader(), String.class);
+            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
             String response = responseEntity.getBody();
             if (ObjectUtils.isEmpty(response)) {
                 return;
