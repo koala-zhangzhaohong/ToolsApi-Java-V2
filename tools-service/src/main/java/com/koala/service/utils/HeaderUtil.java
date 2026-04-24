@@ -53,9 +53,10 @@ public class HeaderUtil {
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         header.put("Referer", url);
-        header.put("Host", url);
+        header.put("Host", host);
         header.put("Cookie", cookie);
         header.put("Accept-Language", "zh-CN,zh;q=0.8");
+        header.put("Accept", "*/*");
         header.put("Connection", "Keep-Alive");
         return header;
     }

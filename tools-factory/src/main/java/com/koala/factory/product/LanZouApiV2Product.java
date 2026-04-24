@@ -8,9 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.*;
 
 import static com.koala.base.enums.LanZouResponseEnums.GET_FILE_SUCCESS;
+import static com.koala.service.utils.HeaderUtil.getHeader;
 
 /**
  * @author koala
@@ -52,21 +55,25 @@ public class LanZouApiV2Product {
     }
 
     public void init() {
-        int mode = 0;
-        if (!ObjectUtils.isEmpty(this.id)) {
-            initHtmlData(mode);
-        }
-        if (ObjectUtils.isEmpty(this.htmlData)) {
-            mode++;
-            initHtmlData(mode);
+        try {
+            int mode = 0;
+            if (!ObjectUtils.isEmpty(this.id)) {
+                initHtmlData(mode);
+            }
+            if (ObjectUtils.isEmpty(this.htmlData)) {
+                mode++;
+                initHtmlData(mode);
+            }
+        } catch (Exception e) {
+            logger.error(e.toString());
         }
     }
 
-    private void initHtmlData(int mode) {
+    private void initHtmlData(int mode) throws IOException, URISyntaxException {
         restTemplateUtils = new RestTemplateUtils();
         for (String currentHost : HOST_LIST) {
             String url = currentHost + (mode == 0 ? "/" : "/tp/") + this.id;
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, String.class);
+            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getHeader(), String.class);
             String response = responseEntity.getBody();
             if (ObjectUtils.isEmpty(response)) {
                 continue;
@@ -81,7 +88,7 @@ public class LanZouApiV2Product {
         }
     }
 
-    private void checkAcw(int mode) {
+    private void checkAcw(int mode) throws IOException, URISyntaxException {
         boolean acwStatus = false;
         if (ObjectUtils.isEmpty(this.htmlData)) {
             return;
@@ -101,13 +108,11 @@ public class LanZouApiV2Product {
             }
             if (!acwStatus) this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
             String url = this.host + (mode == 0 ? "/" : "/tp/") + this.id;
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(host, url, getCookiesStr()), String.class);
-            String response = responseEntity.getBody();
+            String response = HttpClientUtil.doGet(url, HeaderUtil.getLanZouInfoHeader(host, url, getCookiesStr()), new HashMap<>(0));;
             if (ObjectUtils.isEmpty(response)) {
                 return;
             }
-            List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
-            logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
+            logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}", id, response);
         }
         logger.info("[LanZouApiProduct]({}) arg1: {}, resp: {}", id, arg1, GsonUtil.toString(acwResp));
     }
@@ -133,6 +138,7 @@ public class LanZouApiV2Product {
         for (String cookie : this.htmlCookies) {
             cookies.append(" ").append(cookie.split(";")[0]).append(";");
         }
+        cookies.append(" codelen=1; pc_ad1=1;");
         return cookies.toString().trim();
     }
 }
