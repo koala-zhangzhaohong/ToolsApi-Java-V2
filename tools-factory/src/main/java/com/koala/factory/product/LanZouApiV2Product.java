@@ -1,21 +1,13 @@
 package com.koala.factory.product;
 
 import com.koala.data.models.lanzou.LanZouAcwRespModel;
-import com.koala.service.utils.AcwUtils;
-import com.koala.service.utils.GsonUtil;
-import com.koala.service.utils.PatternUtil;
-import com.koala.service.utils.RestTemplateUtils;
+import com.koala.service.utils.*;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
-import org.springframework.web.client.RestTemplate;
 
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static com.koala.base.enums.LanZouResponseEnums.GET_FILE_SUCCESS;
@@ -84,12 +76,13 @@ public class LanZouApiV2Product {
             this.host = currentHost;
             this.htmlData = response;
             this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
-            checkAcw();
+            checkAcw(mode);
             break;
         }
     }
 
-    private void checkAcw() {
+    private void checkAcw(int mode) {
+        boolean acwStatus = false;
         if (ObjectUtils.isEmpty(this.htmlData)) {
             return;
         }
@@ -99,7 +92,22 @@ public class LanZouApiV2Product {
         LanZouAcwRespModel acwResp = restTemplateUtils.post(AcwUtils.getAcwPath(), params, LanZouAcwRespModel.class).getBody();
         if (!ObjectUtils.isEmpty(acwResp) && !ObjectUtils.isEmpty(acwResp.getData().getAcw())) {
             this.acw = acwResp.getData().getAcw();
-            this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
+            for (int index = 0; index < this.htmlCookies.size(); index++) {
+                if (this.htmlCookies.get(index).startsWith("acw_sc__v2=")) {
+                    this.htmlCookies.set(index, "acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
+                    acwStatus = true;
+                    break;
+                }
+            }
+            if (!acwStatus) this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
+            String url = this.host + (mode == 0 ? "/" : "/tp/") + this.id;
+            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(host, url, getCookiesStr()), String.class);
+            String response = responseEntity.getBody();
+            if (ObjectUtils.isEmpty(response)) {
+                return;
+            }
+            List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+            logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
         }
         logger.info("[LanZouApiProduct]({}) arg1: {}, resp: {}", id, arg1, GsonUtil.toString(acwResp));
     }
@@ -118,5 +126,13 @@ public class LanZouApiV2Product {
             result.put(GET_FILE_SUCCESS.getCode(), GET_FILE_SUCCESS.getMessage());
         }
         return result;
+    }
+
+    private String getCookiesStr() {
+        StringBuilder cookies = new StringBuilder();
+        for (String cookie : this.htmlCookies) {
+            cookies.append(" ").append(cookie.split(";")[0]).append(";");
+        }
+        return cookies.toString().trim();
     }
 }
