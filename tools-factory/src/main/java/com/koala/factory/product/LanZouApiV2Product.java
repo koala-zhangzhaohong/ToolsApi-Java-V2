@@ -88,7 +88,7 @@ public class LanZouApiV2Product {
         }
     }
 
-    private void checkAcw(int mode) throws IOException, URISyntaxException {
+    private void checkAcw(int mode) {
         boolean acwStatus = false;
         if (ObjectUtils.isEmpty(this.htmlData)) {
             return;
@@ -108,10 +108,12 @@ public class LanZouApiV2Product {
             }
             if (!acwStatus) this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
             String url = this.host + (mode == 0 ? "/" : "/tp/") + this.id;
-            String response = HttpClientUtil.doGet(url, HeaderUtil.getLanZouInfoHeader(host, url, getCookiesStr()), new HashMap<>(0));;
+            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getHeader(), String.class);
+            String response = responseEntity.getBody();
             if (ObjectUtils.isEmpty(response)) {
                 return;
             }
+            List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
             logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}", id, response);
         }
         logger.info("[LanZouApiProduct]({}) arg1: {}, resp: {}", id, arg1, GsonUtil.toString(acwResp));

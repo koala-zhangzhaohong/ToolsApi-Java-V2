@@ -7,6 +7,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import static com.koala.service.utils.IpUtil.getRandomIpAddress;
@@ -49,14 +50,17 @@ public class HeaderUtil {
 
     public static Map<String, String> getLanZouInfoHeader(String host, String url, String cookie) {
         HashMap<String, String> header = new HashMap<>(0);
+        header.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+        header.put("Accept-Encoding", "gzip, deflate");
+        header.put("Accept-Language", "zh-CN,zh;q=0.8");
         header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         header.put("Referer", url);
         header.put("Host", host);
-        header.put("Cookie", cookie);
-        header.put("Accept-Language", "zh-CN,zh;q=0.8");
-        header.put("Accept", "*/*");
+        if (!Objects.isNull(cookie)) {
+            header.put("Cookie", cookie);
+        }
         header.put("Connection", "Keep-Alive");
         return header;
     }
@@ -292,7 +296,7 @@ public class HeaderUtil {
             header.put("User-Agent", RandomUserAgentGenerator.getUserAgent());
         }
         header.put("Referer", "https://www.kugou.com/");
-        header.put("x-router","tracker.kugou.com");
+        header.put("x-router", "tracker.kugou.com");
         if (StringUtils.hasLength(cookie)) {
             header.put("Cookie", cookie);
         }
