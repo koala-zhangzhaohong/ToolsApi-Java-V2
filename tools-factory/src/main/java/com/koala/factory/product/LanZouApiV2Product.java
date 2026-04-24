@@ -25,7 +25,7 @@ public class LanZouApiV2Product {
     private String id;
     @Setter
     private String url;
-    private String host;
+    private String host = "https://www.lanzou.com";
     @Setter
     private String password;
     private String htmlData;
@@ -83,8 +83,27 @@ public class LanZouApiV2Product {
             this.htmlData = response;
             this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
             checkAcw(mode);
+            reloadHtmlData();
+            getFileInfo();
             break;
         }
+    }
+
+    private void reloadHtmlData() {
+        if (ObjectUtils.isEmpty(this.htmlData)) {
+            return;
+        }
+        String redirectPath = PatternUtil.matchData("<div class=\"mh\"><a href=\"(.*?)\" id=\"downurl\">", this.htmlData);
+        String url = this.host + redirectPath;
+        ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
+        String response = responseEntity.getBody();
+        if (ObjectUtils.isEmpty(response)) {
+            return;
+        }
+        List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+        logger.info("[LanZouApiProduct]({}) redirect html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
+        this.htmlData = response;
+        this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
     }
 
     private void checkAcw(int mode) {
@@ -115,9 +134,22 @@ public class LanZouApiV2Product {
                 return;
             }
             List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+            this.htmlData = response;
+            this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
             logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}", id, response);
         }
         logger.info("[LanZouApiProduct]({}) arg1: {}, resp: {}", id, arg1, GsonUtil.toString(acwResp));
+    }
+
+    private void getFileInfo() {
+        if (ObjectUtils.isEmpty(this.htmlData)) {
+            return;
+        }
+        String sign1 = PatternUtil.matchData("'sign':'(.*?)'", this.htmlData);
+        String sign2 = PatternUtil.matchData("var postsign = '(.*?)';", this.htmlData);
+        String sign3 = PatternUtil.matchData("var vidksek = '(.*?)';", this.htmlData);
+        String sign = !ObjectUtils.isEmpty(sign1) && !sign1.equals("c") ? sign1.trim() : !ObjectUtils.isEmpty(sign2) && !sign2.equals("c") ? sign2.trim() : !ObjectUtils.isEmpty(sign3) && !sign3.equals("c") ? sign3.trim() : "";
+        
     }
 
     public Map<Integer, String> checkStatus() {
@@ -134,6 +166,32 @@ public class LanZouApiV2Product {
             result.put(GET_FILE_SUCCESS.getCode(), GET_FILE_SUCCESS.getMessage());
         }
         return result;
+    }
+
+    private HashMap<String, String> generateDownloadPathData() {
+        HashMap<String, String> downloadData = new HashMap<>();
+        StringBuilder fileUrl = new StringBuilder();
+        if (!ObjectUtils.isEmpty(this.htmlData)) {
+            String method = PatternUtil.matchData("submit.href\\ =\\ ([^\\n]*)", this.htmlData);
+            if (method != null) {
+                String[] prefixList = method.split("\\+");
+                for (int index = 0; index < prefixList.length; index++) {
+                    String tmp = PatternUtil.matchData("var\\ " + prefixList[index].trim() + "\\ =\\ '(.*?)';", this.htmlData);
+                    if (index == 0) {
+                        downloadData.put("host", tmp != null && tmp.isEmpty() ? null : tmp);
+                    }
+                    if (tmp != null && !tmp.isEmpty()) {
+                        fileUrl.append(tmp);
+                    }
+                }
+                String path = fileUrl.toString();
+                path = path.replaceFirst(downloadData.get("host").isEmpty() ? "" : downloadData.get("host"), "");
+                downloadData.put("path", path.isEmpty() ? null : path);
+                downloadData.put("url", fileUrl.toString());
+            }
+            logger.info("[LanZouApiProduct]({}) method: {}, fileUrl: {}", id, method, fileUrl);
+        }
+        return downloadData;
     }
 
     private String getCookiesStr() {
