@@ -149,7 +149,7 @@ public class LanZouApiV2Product {
         String sign2 = PatternUtil.matchData("var postsign = '(.*?)';", this.htmlData);
         String sign3 = PatternUtil.matchData("var vidksek = '(.*?)';", this.htmlData);
         String sign = !ObjectUtils.isEmpty(sign1) && !sign1.equals("c") ? sign1.trim() : !ObjectUtils.isEmpty(sign2) && !sign2.equals("c") ? sign2.trim() : !ObjectUtils.isEmpty(sign3) && !sign3.equals("c") ? sign3.trim() : "";
-        
+        generateDownloadPathData();
     }
 
     public Map<Integer, String> checkStatus() {
