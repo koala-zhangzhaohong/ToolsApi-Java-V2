@@ -163,7 +163,7 @@ public class LanZouApiV2Product {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        ResponseEntity<String> responseEntity = restTemplateUtils.post(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()), GsonUtil.toString(params), String.class, new HashMap<>());
+        ResponseEntity<String> responseEntity = restTemplateUtils.post(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()), null, String.class, params);
         String response = responseEntity.getBody();
         if (ObjectUtils.isEmpty(response)) {
             return;

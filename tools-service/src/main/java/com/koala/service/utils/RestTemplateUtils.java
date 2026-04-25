@@ -10,7 +10,10 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.http.converter.json.GsonHttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -35,6 +38,8 @@ public class RestTemplateUtils {
         this.restTemplate = new RestTemplate(new BufferingClientHttpRequestFactory(getClientHttpRequestFactory()));
         this.restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
         List<HttpMessageConverter<?>> httpMessageConverters = this.restTemplate.getMessageConverters();
+        httpMessageConverters.add(new GsonHttpMessageConverter());
+        httpMessageConverters.add(new MappingJackson2HttpMessageConverter());
         httpMessageConverters.forEach(httpMessageConverter -> {
             if (httpMessageConverter instanceof StringHttpMessageConverter messageConverter) {
                 //设置编码为UTF-8
