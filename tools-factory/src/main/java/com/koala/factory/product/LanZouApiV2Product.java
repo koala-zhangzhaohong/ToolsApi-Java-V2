@@ -163,12 +163,12 @@ public class LanZouApiV2Product {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        ResponseEntity<String> responseEntity = restTemplateUtils.post(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()), null, String.class, params);
-        String response = responseEntity.getBody();
-        if (ObjectUtils.isEmpty(response)) {
-            return;
+        try {
+            String response = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
+            logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, response);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, response);
         generateDownloadPathData();
     }
 

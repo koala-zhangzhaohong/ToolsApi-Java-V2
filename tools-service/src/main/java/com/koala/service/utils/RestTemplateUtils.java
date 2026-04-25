@@ -8,17 +8,21 @@ import org.springframework.http.*;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.GsonHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,15 +41,23 @@ public class RestTemplateUtils {
     public RestTemplateUtils() {
         this.restTemplate = new RestTemplate(new BufferingClientHttpRequestFactory(getClientHttpRequestFactory()));
         this.restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+        converter.setSupportedMediaTypes(Arrays.asList(
+                MediaType.APPLICATION_JSON,
+                MediaType.TEXT_HTML // Add this to handle HTML responses as JSON/String
+        ));
         List<HttpMessageConverter<?>> httpMessageConverters = this.restTemplate.getMessageConverters();
+//        httpMessageConverters.forEach(httpMessageConverter -> {
+//            if (httpMessageConverter instanceof StringHttpMessageConverter messageConverter) {
+//                //设置编码为UTF-8
+//                // messageConverter.setDefaultCharset(StandardCharsets.UTF_8);
+//                httpMessageConverters.remove(httpMessageConverter);
+//            }
+//        });
+        httpMessageConverters.add(new FormHttpMessageConverter());
         httpMessageConverters.add(new GsonHttpMessageConverter());
-        httpMessageConverters.add(new MappingJackson2HttpMessageConverter());
-        httpMessageConverters.forEach(httpMessageConverter -> {
-            if (httpMessageConverter instanceof StringHttpMessageConverter messageConverter) {
-                //设置编码为UTF-8
-                messageConverter.setDefaultCharset(StandardCharsets.UTF_8);
-            }
-        });
+        httpMessageConverters.add(converter);
+        httpMessageConverters.add(0, new StringHttpMessageConverter(StandardCharsets.UTF_8));
     }
 
     // ----------------------------------GET-------------------------------------------------------
@@ -251,6 +263,43 @@ public class RestTemplateUtils {
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setAll(headers);
         return post(url, httpHeaders, requestBody, responseType, uriVariables);
+    }
+
+    public String doPost(String url, Map<String, String> headers, String body, HashMap<String, String> params) throws URISyntaxException {
+        URI uri = new URI(url);
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setAll(headers);
+        //设置请求信息
+        RequestEntity<String> requestEntity = RequestEntity
+                .post(uri)
+                .headers(httpHeaders)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .accept(MediaType.ALL)
+                .acceptCharset(StandardCharsets.UTF_8)
+                .body(body);
+        return restTemplate.postForObject(url, requestEntity, String.class, params);
+    }
+
+    public String doPost(String url, HashMap<String, String> params, Map<String, String> headers) {
+        try {
+            URI uri = new URI(url);
+            HttpHeaders httpHeaders = new HttpHeaders();
+            httpHeaders.setAll(headers);
+            RequestEntity<String> requestEntity = RequestEntity
+                    .post(uri)
+                    .headers(httpHeaders)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .accept(MediaType.ALL)
+                    .acceptCharset(StandardCharsets.UTF_8)
+                    .body(GsonUtil.toString(params));
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<byte[]> responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, byte[].class);
+            return GzipUtils.decodeIfGzip(responseEntity.getHeaders(), responseEntity.getBody());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
     }
 
     /**
