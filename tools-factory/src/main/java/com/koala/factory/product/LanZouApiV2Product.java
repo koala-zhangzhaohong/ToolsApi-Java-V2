@@ -149,6 +149,26 @@ public class LanZouApiV2Product {
         String sign2 = PatternUtil.matchData("var postsign = '(.*?)';", this.htmlData);
         String sign3 = PatternUtil.matchData("var vidksek = '(.*?)';", this.htmlData);
         String sign = !ObjectUtils.isEmpty(sign1) && !sign1.equals("c") ? sign1.trim() : !ObjectUtils.isEmpty(sign2) && !sign2.equals("c") ? sign2.trim() : !ObjectUtils.isEmpty(sign3) && !sign3.equals("c") ? sign3.trim() : "";
+        String kdns = PatternUtil.matchData("var kdns =(.*?);", this.htmlData);
+        String infoPath = PatternUtil.matchData("url : '(.*?)',", this.htmlData);
+        HashMap<String, String> params = new HashMap<>(0);
+        params.put("action", "downprocess");
+        params.put("signs", "?ctdf");
+        params.put("sign", sign);
+        params.put("p", password);
+        params.put("kd", kdns);
+        try {
+            String tmp = HttpClientUtil.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()), params);
+            logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, tmp);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        ResponseEntity<String> responseEntity = restTemplateUtils.post(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()), GsonUtil.toString(params), String.class, new HashMap<>());
+        String response = responseEntity.getBody();
+        if (ObjectUtils.isEmpty(response)) {
+            return;
+        }
+        logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, response);
         generateDownloadPathData();
     }
 

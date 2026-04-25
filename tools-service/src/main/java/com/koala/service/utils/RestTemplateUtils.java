@@ -1,11 +1,13 @@
 package com.koala.service.utils;
 
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.core5.util.Timeout;
+import org.springframework.http.*;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,7 @@ import org.springframework.web.client.RestTemplate;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -29,13 +32,11 @@ public class RestTemplateUtils {
     private final RestTemplate restTemplate;
 
     public RestTemplateUtils() {
-        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(5000);
-        this.restTemplate = new RestTemplate(requestFactory);
+        this.restTemplate = new RestTemplate(new BufferingClientHttpRequestFactory(getClientHttpRequestFactory()));
         this.restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
         List<HttpMessageConverter<?>> httpMessageConverters = this.restTemplate.getMessageConverters();
         httpMessageConverters.forEach(httpMessageConverter -> {
-            if(httpMessageConverter instanceof StringHttpMessageConverter messageConverter){
+            if (httpMessageConverter instanceof StringHttpMessageConverter messageConverter) {
                 //设置编码为UTF-8
                 messageConverter.setDefaultCharset(StandardCharsets.UTF_8);
             }
@@ -674,6 +675,24 @@ public class RestTemplateUtils {
     public <T> ResponseEntity<T> exchange(String url, HttpMethod method, HttpEntity<?> requestEntity,
                                           Class<T> responseType, Map<String, ?> uriVariables) throws RestClientException {
         return restTemplate.exchange(url, method, requestEntity, responseType, uriVariables);
+    }
+
+    /**
+     * 使用HttpClient作为底层客户端
+     *
+     * @return
+     */
+    private ClientHttpRequestFactory getClientHttpRequestFactory() {
+        int timeout = 5000;
+        RequestConfig config = RequestConfig.custom()
+                .setConnectTimeout(Timeout.of(timeout, TimeUnit.MILLISECONDS))
+                .setConnectionRequestTimeout(Timeout.of(timeout, TimeUnit.MILLISECONDS))
+                .build();
+        CloseableHttpClient client = HttpClientBuilder
+                .create()
+                .setDefaultRequestConfig(config)
+                .build();
+        return new HttpComponentsClientHttpRequestFactory(client);
     }
 
 }
