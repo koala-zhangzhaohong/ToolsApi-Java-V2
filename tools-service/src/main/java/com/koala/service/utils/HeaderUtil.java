@@ -48,7 +48,7 @@ public class HeaderUtil {
         return header;
     }
 
-    public static Map<String, String> getLanZouInfoHeader(String url, String cookie) {
+    public static HashMap<String, String> getLanZouInfoHeader(String url, String cookie) {
         HashMap<String, String> header = new HashMap<>(0);
         header.put("Accept", "text/html,application/xhtml+xml,application/xml,application/json,application/x-www-form-urlencoded;q=0.9,image/webp,*/*;q=0.8");
         header.put("Accept-Encoding", "gzip, deflate");

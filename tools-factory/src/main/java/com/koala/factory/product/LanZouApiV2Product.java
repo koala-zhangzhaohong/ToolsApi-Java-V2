@@ -158,13 +158,8 @@ public class LanZouApiV2Product {
         params.put("p", password);
         params.put("kd", kdns);
         try {
-            String tmp = HttpClientUtil.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()), params);
-            logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, tmp);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        try {
-            String response = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
+            ResponseEntity<String> responseEntity = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
+            String response = responseEntity.getBody();
             logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, response);
         } catch (Exception e) {
             e.printStackTrace();

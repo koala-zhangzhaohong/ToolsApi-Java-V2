@@ -14,6 +14,8 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.GsonHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -280,26 +282,13 @@ public class RestTemplateUtils {
         return restTemplate.postForObject(url, requestEntity, String.class, params);
     }
 
-    public String doPost(String url, HashMap<String, String> params, Map<String, String> headers) {
-        try {
-            URI uri = new URI(url);
-            HttpHeaders httpHeaders = new HttpHeaders();
-            httpHeaders.setAll(headers);
-            RequestEntity<String> requestEntity = RequestEntity
-                    .post(uri)
-                    .headers(httpHeaders)
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .accept(MediaType.ALL)
-                    .acceptCharset(StandardCharsets.UTF_8)
-                    .body(GsonUtil.toString(params));
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<byte[]> responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, byte[].class);
-            return GzipUtils.decodeIfGzip(responseEntity.getHeaders(), responseEntity.getBody());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-
+    public ResponseEntity<String> doPost(String url, HashMap<String, String> params, HashMap<String, String> headers) {
+        MultiValueMap<String, String> paramsData = new LinkedMultiValueMap<>();
+        params.forEach(paramsData::add);
+        MultiValueMap<String, String> headersData = new LinkedMultiValueMap<>();
+        headers.forEach(headersData::add);
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
+        return restTemplate.postForEntity(url, entity, String.class);
     }
 
     /**
