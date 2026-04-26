@@ -26,7 +26,7 @@ public class HeaderUtil {
         header.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         header.put("Accept-Encoding", "gzip, deflate");
         header.put("Accept-Language", "zh-CN,zh;q=0.8");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -51,7 +51,7 @@ public class HeaderUtil {
         header.put("Accept", "text/html,application/xhtml+xml,application/xml,application/json,application/x-www-form-urlencoded;q=0.9,image/webp,*/*;q=0.8");
         header.put("Accept-Encoding", "gzip, deflate");
         header.put("Accept-Language", "zh-CN,zh;q=0.8");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         header.put("Referer", url);
@@ -67,7 +67,7 @@ public class HeaderUtil {
         header.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         header.put("Accept-Encoding", "gzip, deflate");
         header.put("Accept-Language", "zh-CN,zh;q=0.8");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25");
         header.put("Referer", host);
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
@@ -83,7 +83,7 @@ public class HeaderUtil {
         header.put("Sec-Fetch-Dest", "video");
         header.put("Sec-Fetch-Mode", "no-cors");
         header.put("Sec-Fetch-Site", "cross-sit");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -98,7 +98,7 @@ public class HeaderUtil {
         header.put("Sec-Fetch-Dest", "video");
         header.put("Sec-Fetch-Mode", "no-cors");
         header.put("Sec-Fetch-Site", "cross-sit");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -113,7 +113,7 @@ public class HeaderUtil {
         header.put("Sec-Fetch-Dest", "audio");
         header.put("Sec-Fetch-Mode", "no-cors");
         header.put("Sec-Fetch-Site", "cross-sit");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -128,7 +128,7 @@ public class HeaderUtil {
         header.put("Sec-Fetch-Dest", "audio");
         header.put("Sec-Fetch-Mode", "no-cors");
         header.put("Sec-Fetch-Site", "cross-sit");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -141,7 +141,7 @@ public class HeaderUtil {
         header.put("Cache-Control", "max-age=604800, must-revalidate");
         header.put("Content-Type", "video/mp4");
         header.put("Content-Disposition", (Boolean.TRUE.equals(isDownload) ? "attachment" : "inline") + "; " + "filename=" + UUID.randomUUID().toString().replace("-", "") + ".mp4");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -154,7 +154,7 @@ public class HeaderUtil {
         header.put("Pragma", "no-cache");
         header.put("Content-Type", "application/octet-stream");
         header.put("Content-Disposition", "attachment; " + "filename=" + currentFileName + "." + fileType);
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -167,7 +167,7 @@ public class HeaderUtil {
         header.put("Pragma", "no-cache");
         header.put("Content-Type", "application/octet-stream");
         header.put("Content-Disposition", "attachment; " + "filename=" + currentFileName + "." + fileType);
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -180,7 +180,7 @@ public class HeaderUtil {
         header.put("Cache-Control", "max-age=604800, must-revalidate");
         header.put("Content-Type", "video/x-flv");
         header.put("Content-Disposition", "inline");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -193,7 +193,7 @@ public class HeaderUtil {
         header.put("Cache-Control", "max-age=604800, must-revalidate");
         header.put("Content-Type", "audio/mp3");
         header.put("Content-Disposition", (Boolean.TRUE.equals(isDownload) ? "attachment" : "inline") + "; " + "filename=" + UUID.randomUUID().toString().replace("-", "") + ".mp3");
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -201,7 +201,7 @@ public class HeaderUtil {
 
     public static Map<String, String> getDouYinSpecialHeader(String token, String ticket, String cookieData, boolean isLive) {
         HashMap<String, String> header = new HashMap<>(0);
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         header.put("Accept-Encoding", "None");
         header.put("referer", "https://www.douyin.com/");
         // header.put("Cookie", "ttwid=" + ticket + "; " + cookieData + " msToken=" + token + ";");
@@ -226,7 +226,7 @@ public class HeaderUtil {
 
     public static Map<String, String> getDouYinWebRequestSpecialHeader(String ticket) {
         HashMap<String, String> header = new HashMap<>(0);
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         header.put("Accept-Encoding", "None");
         header.put("referer", "https://www.douyin.com/");
         header.put("Cookie", "ttwid=" + ticket + "; __ac_nonce=0644f93010042b1aedcae; __ac_signature=_02B4Z6wo00f01hyw.YAAAIDD4vyBsOcQreYckPkAAONx9e; __ac_referer=__ac_blank;");
@@ -237,7 +237,7 @@ public class HeaderUtil {
 
     public static Map<String, String> getDouYinTicketGeneratorHeader() {
         HashMap<String, String> header = new HashMap<>(0);
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         header.put("X-FORWARDED-FOR", getRandomIpAddress());
         header.put("CLIENT-IP", getRandomIpAddress());
         return header;
@@ -274,7 +274,7 @@ public class HeaderUtil {
 
     public static Map<String, String> getNeteaseHttpHeader(@Nullable String cookies) {
         HashMap<String, String> header = new HashMap<>(0);
-        header.put("User-Agent", getUserAgent());
+        header.put("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:46.0) Gecko/20100101 Firefox/46.0");
         header.put("Referer", "http://music.163.com");
         header.put("Host", "music.163.com");
         if (StringUtils.hasLength(cookies)) {
