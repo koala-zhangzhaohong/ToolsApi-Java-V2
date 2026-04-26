@@ -303,7 +303,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "0") String config) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "0") String config) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
