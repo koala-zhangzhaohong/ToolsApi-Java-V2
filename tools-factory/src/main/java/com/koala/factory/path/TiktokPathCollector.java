@@ -10,4 +10,6 @@ public class TiktokPathCollector {
     public static final String TIKTOK_FEED_RECOMMEND_V1 = "https://aweme-hl.snssdk.com/aweme/v1/feed/";
     public static final String TIKTOK_FEED_RECOMMEND_V2 = "https://aweme.snssdk.com/aweme/v1/feed/";
     public static final String TIKTOK_FEED_NEARBY_V2 = "https://aweme.snssdk.com/aweme/v1/nearby/feed/";
+    public static final String TIKTOK_RANKLIST_AUDIENCE = "https://live.douyin.com/webcast/ranklist/audience/";
+    public static final String TIKTOK_USER_PROFILE_OTHER = "https://www.douyin.com/aweme/v1/web/user/profile/other/";
 }

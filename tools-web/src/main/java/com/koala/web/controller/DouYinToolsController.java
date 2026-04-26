@@ -1,11 +1,16 @@
 package com.koala.web.controller;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.koala.base.enums.DouYinRequestTypeEnums;
 import com.koala.base.enums.DouYinTypeEnums;
+import com.koala.data.models.abogus.AbogusDataModel;
+import com.koala.data.models.douyin.profile.TiktokUserProfileDataModel;
+import com.koala.data.models.douyin.rank.*;
 import com.koala.data.models.douyin.v1.PublicTiktokDataRespModel;
 import com.koala.data.models.douyin.v1.itemInfo.ItemInfoRespModel;
 import com.koala.data.models.douyin.v1.musicInfo.MusicInfoRespModel;
 import com.koala.data.models.douyin.v1.roomInfoData.RoomInfoDataRespModel;
+import com.koala.data.models.xbogus.XbogusDataModel;
 import com.koala.factory.builder.ConcreteDouYinApiBuilder;
 import com.koala.factory.builder.DouYinApiBuilder;
 import com.koala.factory.director.DouYinApiManager;
@@ -15,16 +20,14 @@ import com.koala.factory.product.DouYinApiProduct;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.custom.http.annotation.MixedHttpRequest;
 import com.koala.service.data.redis.service.RedisService;
-import com.koala.service.utils.Base64Utils;
-import com.koala.service.utils.GsonUtil;
-import com.koala.service.utils.HeaderUtil;
-import com.koala.service.utils.HttpClientUtil;
+import com.koala.service.utils.*;
 import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
@@ -299,6 +302,88 @@ public class DouYinToolsController {
     }
 
     @HttpRequestRecorder
+    @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra) throws IOException, URISyntaxException {
+        if (ObjectUtils.isEmpty(roomId)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        String url = TIKTOK_RANKLIST_AUDIENCE + "?aid=6383&app_name=douyin_web&live_id=1&device_platform=web&language=zh-CN&enter_from=web_homepage_follow&cookie_enabled=true&screen_width=2304&screen_height=1296&browser_language=zh-CN&browser_platform=MacIntel&browser_name=Chrome&browser_version=147.0.0.0&os_name=Mac+OS&os_version=10.15.7&webcast_sdk_version=2450&room_id=" + roomId + "&rank_type=30";
+        AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
+        if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
+            return formatRespData(ENCRYPT_URL_ERROR, null);
+        }
+        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        if (StringUtils.hasLength(response)) {
+            switch (version) {
+                case "1" -> {
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
+                }
+                case "2" -> {
+                    TiktokLiveRankDataRespModel originResponseData = GsonUtil.toBean(response, TiktokLiveRankDataRespModel.class);
+                    TiktokLiveRankResponseDataModel responseData = new TiktokLiveRankResponseDataModel();
+                    responseData.setRoomId(roomId);
+                    ArrayList<TiktokLiveRankUserInfoModel> userInfoList = new ArrayList<>();
+                    originResponseData.getData().getRanks().forEach(item -> {
+                        TiktokLiveRankUserInfoModel userInfoModel = new TiktokLiveRankUserInfoModel();
+                        BeanUtils.copyProperties(item.getUser(), userInfoModel);
+                        userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid());
+                        if (extra.equals("1")) {
+                            try {
+                                userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        userInfoList.add(userInfoModel);
+                    });
+                    responseData.setUserList(userInfoList);
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
+                }
+                case "3" -> {
+                    TiktokLiveRankDataRespModel originResponseData = GsonUtil.toBean(response, TiktokLiveRankDataRespModel.class);
+                    TiktokLiveRankSimpleResponseDataModel responseData = new TiktokLiveRankSimpleResponseDataModel();
+                    responseData.setRoomId(roomId);
+                    ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoList = new ArrayList<>();
+                    originResponseData.getData().getRanks().forEach(item -> {
+                        TiktokLiveRankSimpleUserInfoModel simpleUserInfoModel = new TiktokLiveRankSimpleUserInfoModel();
+                        BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
+                        simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid());
+                        if (extra.equals("1")) {
+                            try {
+                                simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        userInfoList.add(simpleUserInfoModel);
+                    });
+                    responseData.setUserList(userInfoList);
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
+                }
+            }
+        }
+        return formatRespData(GET_INFO_ERROR, null);
+    }
+
+    @HttpRequestRecorder
+    @GetMapping(value = "api/user/profile/other", produces = {"application/json;charset=utf-8"})
+    public String getUserProfileOther(@RequestParam String secUserId) throws IOException, URISyntaxException {
+        if (ObjectUtils.isEmpty(secUserId)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        String url = TIKTOK_USER_PROFILE_OTHER + "?device_platform=webapp&aid=6383&channel=channel_pc_web&publish_video_strategy_type=2&source=channel_pc_web&sec_user_id=" + secUserId + "&version_code=160100&version_name=16.1.0&_signature=_02B4Z6wo00d01A8CVfgAAIDB2MR4gyyTjxgPAlFAAGMe23";
+        AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
+        if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
+            return formatRespData(ENCRYPT_URL_ERROR, null);
+        }
+        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        if (StringUtils.hasLength(response)) {
+            return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
+        }
+        return formatRespData(GET_INFO_ERROR, null);
+    }
+
+    @HttpRequestRecorder
     @GetMapping("set/ttwid")
     public String setToken(@RequestParam(required = false) String ttwid) {
         redisService.set(TIKTOK_TTWID_DATA, ttwid);
@@ -335,6 +420,20 @@ public class DouYinToolsController {
 
     private Boolean checkCanPreview(Integer itemTypeId) {
         return itemTypeId.equals(VIDEO_TYPE.getCode()) || itemTypeId.equals(LIVE_TYPE_1.getCode()) || itemTypeId.equals(LIVE_TYPE_2.getCode()) || itemTypeId.equals(MUSIC_TYPE.getCode());
+    }
+
+    private String getRealNickName(String secUserId) throws IOException, URISyntaxException {
+        String url = TIKTOK_USER_PROFILE_OTHER + "?device_platform=webapp&aid=6383&channel=channel_pc_web&publish_video_strategy_type=2&source=channel_pc_web&sec_user_id=" + secUserId + "&version_code=160100&version_name=16.1.0&_signature=_02B4Z6wo00d01A8CVfgAAIDB2MR4gyyTjxgPAlFAAGMe23";
+        AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
+        if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
+            return null;
+        }
+        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        if (StringUtils.hasLength(response)) {
+            TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
+            return profileData.getUser().getNickname();
+        }
+        return null;
     }
 
 }
