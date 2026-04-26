@@ -46,6 +46,7 @@ public class LanZouApiV2Product {
         HOST_LIST.add("https://wwx.lanzouj.com");
         HOST_LIST.add("https://wwi.lanzouj.com");
         HOST_LIST.add("https://wwtr.lanzoue.com");
+        HOST_LIST.add("https://wwbgd.lanzouw.com");
         INVALID_LIST.put(201, Arrays.asList("文件取消分享了", "文件不存在", "访问地址错误，请核查"));
         INVALID_LIST.put(202, List.of("输入密码"));
     }
@@ -276,7 +277,9 @@ public class LanZouApiV2Product {
         }
         fileInfo.setDownloadHost(downloadInfo.getDownloadHost());
         fileInfo.setDownloadPath(downloadInfo.getDownloadPath());
-        fileInfo.setDownloadUrl(downloadInfo.getDownloadHost() + downloadInfo.getDownloadPath());
+        ResponseEntity<String> redirectResponseEntity = restTemplateUtils.get(downloadInfo.getDownloadHost() + "/file/" + downloadInfo.getDownloadPath(), HeaderUtil.getLanZouInfoHeader(this.url, getCookiesStr()), String.class);
+        String redirectResponse = redirectResponseEntity.getBody();
+        fileInfo.setDownloadUrl(PatternUtil.matchData("<a href=\"(.*?)\" class=\"d_pclink2\">", redirectResponse));
         logger.info("[LanZouApiProduct]({}) get file info, info: {}", id, GsonUtil.toString(fileInfo));
         return fileInfo;
     }

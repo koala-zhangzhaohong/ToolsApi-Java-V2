@@ -19,6 +19,7 @@ import com.koala.data.models.shortUrl.ShortImageDataModel;
 import com.koala.data.models.xbogus.XbogusDataModel;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
+import lombok.Setter;
 import org.apache.hc.client5.http.cookie.Cookie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +52,9 @@ public class DouYinApiProduct {
     private static final String TICKET_REGISTER_BODY = "{\"region\":\"cn\",\"aid\":1768,\"needFid\":false,\"service\":\"www.ixigua.com\",\"migrate_info\":{\"ticket\":\"\",\"source\":\"node\"},\"cbUrlProtocol\":\"https\",\"union\":true}";
     private static final Integer MAX_RETRY_TIMES = 10;
     private Integer version = 4;
+    @Setter
     private String url;
+    @Setter
     private String host;
     private String directUrl;
     private String id;
@@ -64,14 +67,6 @@ public class DouYinApiProduct {
     private RedisService redisService;
     private String cookieData;
     private String cdnHost;
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
 
     public void getIdByUrl() {
         if (!Objects.isNull(this.url)) {
@@ -252,6 +247,10 @@ public class DouYinApiProduct {
                     }
                 }
                 case LIVE_TYPE_1, LIVE_TYPE_2 -> {
+                    if (!Objects.isNull(this.roomInfoData.getData().getData().get(0))) {
+                        String roomId = this.roomInfoData.getData().getEnterRoomId();
+                        this.roomInfoData.getData().getData().get(0).setRankListData(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1");
+                    }
                     if (!Objects.isNull(this.roomInfoData.getData().getData().get(0).getStreamUrl())) {
                         if (this.version.equals(4)) {
                             String key = ShortKeyGenerator.getKey(null);
