@@ -249,7 +249,8 @@ public class DouYinApiProduct {
                 case LIVE_TYPE_1, LIVE_TYPE_2 -> {
                     if (!Objects.isNull(this.roomInfoData.getData().getData().get(0))) {
                         String roomId = this.roomInfoData.getData().getEnterRoomId();
-                        this.roomInfoData.getData().getData().get(0).setRankListData(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1");
+                        this.roomInfoData.getData().getData().get(0).setRankListData(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=0");
+                        this.roomInfoData.getData().getData().get(0).setRankListDataBackup(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1");
                     }
                     if (!Objects.isNull(this.roomInfoData.getData().getData().get(0).getStreamUrl())) {
                         if (this.version.equals(4)) {
