@@ -16,6 +16,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -302,6 +303,17 @@ public class RestTemplateUtils {
         headers.forEach(headersData::add);
         HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
         return restTemplate.postForEntity(url, entity, responseType);
+    }
+
+    public String doRedirect(String url, HashMap<String, String> params, HashMap<String, String> headers) {
+        MultiValueMap<String, String> paramsData = new LinkedMultiValueMap<>();
+        params.forEach(paramsData::add);
+        MultiValueMap<String, String> headersData = new LinkedMultiValueMap<>();
+        headers.forEach(headersData::add);
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
+        ResponseEntity<String> exchange = restTemplate.exchange(URI.create(url), HttpMethod.GET, entity, String.class);
+        URI uri = exchange.getHeaders().getLocation();
+        return ObjectUtils.isEmpty(uri) ? null : uri.toString();
     }
 
     /**
