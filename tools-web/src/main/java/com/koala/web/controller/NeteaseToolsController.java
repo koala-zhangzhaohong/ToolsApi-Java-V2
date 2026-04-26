@@ -336,7 +336,7 @@ public class NeteaseToolsController {
                 }
             }
             if (StringUtils.hasLength(response)) {
-                return formatRespData(GET_INFO_ERROR, GsonUtil.toBean(response, Object.class));
+                return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
             }
         } catch (Exception e) {
             return formatRespData(FAILURE, null);

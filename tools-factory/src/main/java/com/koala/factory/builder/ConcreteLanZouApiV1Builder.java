@@ -9,27 +9,27 @@ import java.net.URISyntaxException;
  * @date 2022/2/15 16:28
  * @description
  */
-public class ConcreteLanZouApiBuilder extends LanZouApiBuilder{
+public class ConcreteLanZouApiV1Builder extends LanZouApiV1Builder {
     @Override
-    public LanZouApiBuilder url(String url) {
+    public LanZouApiV1Builder url(String url) {
         product.setUrl(url);
         return this;
     }
 
     @Override
-    public LanZouApiBuilder password(String password) {
+    public LanZouApiV1Builder password(String password) {
         product.setPassword(password);
         return this;
     }
 
     @Override
-    public LanZouApiBuilder initPageData() throws IOException, URISyntaxException {
+    public LanZouApiV1Builder initPageData() throws IOException, URISyntaxException {
         product.initPageData();
         return this;
     }
 
     @Override
-    public LanZouApiBuilder getIdByUrl() {
+    public LanZouApiV1Builder getIdByUrl() {
         product.getIdByUrl();
         return this;
     }

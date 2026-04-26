@@ -1,6 +1,6 @@
 package com.koala.factory.builder;
 
-import com.koala.factory.product.LanZouApiProduct;
+import com.koala.factory.product.LanZouApiV1Product;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -11,34 +11,34 @@ import java.net.URISyntaxException;
  * @date 2022/2/15 16:09
  * @description
  */
-public abstract class LanZouApiBuilder {
+public abstract class LanZouApiV1Builder {
     /**
      * 创建产品对象
      */
-    protected LanZouApiProduct product = new LanZouApiProduct();
+    protected LanZouApiV1Product product = new LanZouApiV1Product();
 
     /**
      * @param url 分享文件入参
      * @return Builder
      */
-    public abstract LanZouApiBuilder url(String url);
+    public abstract LanZouApiV1Builder url(String url);
 
     /**
      * @param password 密码
      * @return Builder
      */
-    public abstract LanZouApiBuilder password(String password);
+    public abstract LanZouApiV1Builder password(String password);
 
     /**
      * @return Builder
      * 仅用来初始化页面数据
      */
-    public abstract LanZouApiBuilder initPageData() throws IOException, URISyntaxException;
+    public abstract LanZouApiV1Builder initPageData() throws IOException, URISyntaxException;
 
     /**
      * @return Builder
      */
-    public abstract LanZouApiBuilder getIdByUrl();
+    public abstract LanZouApiV1Builder getIdByUrl();
 
     /**
      * 打印初始化入参
@@ -50,7 +50,7 @@ public abstract class LanZouApiBuilder {
      */
     public abstract void printPageData();
 
-    public LanZouApiProduct getProduct() {
+    public LanZouApiV1Product getProduct() {
         return product;
     }
 }

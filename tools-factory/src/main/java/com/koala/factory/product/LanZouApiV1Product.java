@@ -25,8 +25,8 @@ import static com.koala.service.utils.HeaderUtil.*;
  * @date 2022/2/15 16:08
  * @description
  */
-public class LanZouApiProduct {
-    private static final Logger logger = LoggerFactory.getLogger(LanZouApiProduct.class);
+public class LanZouApiV1Product {
+    private static final Logger logger = LoggerFactory.getLogger(LanZouApiV1Product.class);
     private String id;
     private String url;
     private String host;

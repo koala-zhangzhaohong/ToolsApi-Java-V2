@@ -1,7 +1,7 @@
 package com.koala.factory.director;
 
-import com.koala.factory.builder.LanZouApiBuilder;
-import com.koala.factory.product.LanZouApiProduct;
+import com.koala.factory.builder.LanZouApiV1Builder;
+import com.koala.factory.product.LanZouApiV1Product;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -12,15 +12,15 @@ import java.net.URISyntaxException;
  * @date 2022/2/15 16:05
  * @description
  */
-public class LanZouApiManager {
+public class LanZouApiV1Manager {
 
-    private final LanZouApiBuilder builder;
+    private final LanZouApiV1Builder builder;
 
-    public LanZouApiManager(LanZouApiBuilder builder) {
+    public LanZouApiV1Manager(LanZouApiV1Builder builder) {
         this.builder = builder;
     }
 
-    public LanZouApiProduct construct(String url, String password) throws IOException, URISyntaxException {
+    public LanZouApiV1Product construct(String url, String password) throws IOException, URISyntaxException {
         /*
         * 初始化顺序
         * 1. url

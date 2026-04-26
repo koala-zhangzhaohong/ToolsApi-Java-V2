@@ -3,11 +3,12 @@ package com.koala.web.controller;
 import com.koala.base.enums.LanZouResponseEnums;
 import com.koala.base.enums.LanZouTypeEnums;
 import com.koala.data.models.file.FileInfoModel;
-import com.koala.factory.builder.ConcreteLanZouApiBuilder;
-import com.koala.factory.builder.LanZouApiBuilder;
-import com.koala.factory.director.LanZouApiManager;
-import com.koala.factory.product.LanZouApiProduct;
+import com.koala.factory.builder.ConcreteLanZouApiV2Builder;
+import com.koala.factory.builder.LanZouApiV2Builder;
+import com.koala.factory.director.LanZouApiV2Manager;
+import com.koala.factory.product.LanZouApiV2Product;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -36,6 +38,9 @@ import static com.koala.service.utils.RespUtil.formatRespDataWithCustomMsg;
 @RestController
 @RequestMapping("tools/LanZou")
 public class LanZouToolsController {
+
+    @Resource
+    private RestTemplate restTemplate;
 
     private static final Logger logger = LoggerFactory.getLogger(LanZouToolsController.class);
 
@@ -62,16 +67,16 @@ public class LanZouToolsController {
             return formatRespData(LanZouResponseEnums.INVALID_TYPE, null);
         }
         // 初始化product
-        LanZouApiBuilder builder = new ConcreteLanZouApiBuilder();
-        LanZouApiManager manager = new LanZouApiManager(builder);
-        LanZouApiProduct product = null;
+        LanZouApiV2Builder builder = new ConcreteLanZouApiV2Builder();
+        LanZouApiV2Manager manager = new LanZouApiV2Manager(builder);
+        LanZouApiV2Product product = null;
         try {
             product = manager.construct(url, password);
         } catch (Exception e) {
             e.printStackTrace();
             return formatRespData(LanZouResponseEnums.FAILURE, null);
         }
-        if (Objects.isNull(product.getPageData())) {
+        if (Objects.isNull(product.getHtmlData())) {
             return formatRespData(LanZouResponseEnums.GET_DATA_ERROR, null);
         }
         Optional<Map.Entry<Integer, String>> optional = product.checkStatus().entrySet().stream().findFirst();
@@ -83,45 +88,17 @@ public class LanZouToolsController {
                 return formatRespDataWithCustomMsg(optional.get().getKey(), optional.get().getValue(), null);
             }
             // 处理数据
-            if (Objects.equals(optional.get().getKey(), LanZouResponseEnums.GET_FILE_WITH_PASSWORD.getCode()) && !ObjectUtils.isEmpty(password)) {
-                Object fileInfo = product.getFileWithPassword();
-                if (fileInfo instanceof FileInfoModel) {
-                    switch (Objects.requireNonNull(LanZouTypeEnums.getEnumsByType(type))) {
-                        case DOWNLOAD:
-                            if (ObjectUtils.isEmpty(((FileInfoModel) fileInfo).getDownloadUrl())) {
-                                return formatRespData(LanZouResponseEnums.FAILURE, fileInfo);
-                            } else {
-                                if (!Objects.isNull(((FileInfoModel) fileInfo).getRedirectUrl())) {
-                                    response.sendRedirect(((FileInfoModel) fileInfo).getRedirectUrl());
-                                } else if (!Objects.isNull(((FileInfoModel) fileInfo).getDownloadUrl())) {
-                                    response.sendRedirect(((FileInfoModel) fileInfo).getDownloadUrl());
-                                }
-                                return formatRespData(LanZouResponseEnums.REDIRECT_TO_DOWNLOAD, fileInfo);
-                            }
-                        case INFO:
-                            return formatRespData(LanZouResponseEnums.GET_FILE_SUCCESS, fileInfo);
-                        default:
-                            return formatRespData(LanZouResponseEnums.INVALID_TYPE, null);
-                    }
-                } else if (fileInfo instanceof ArrayList) {
-                    return formatRespData(LanZouResponseEnums.GET_FILE_SUCCESS, fileInfo);
-                } else {
-                    return formatRespData(LanZouResponseEnums.GET_FILE_ERROR_WITH_PASSWORD, null);
-                }
-            } else {
-                FileInfoModel fileInfo = product.getFileInfo(null);
-                if (Objects.isNull(fileInfo)) {
-                    return formatRespData(LanZouResponseEnums.FAILURE, null);
-                }
+            Object fileInfo = product.getInfo(product.getHtmlData());
+            if (fileInfo instanceof FileInfoModel) {
                 switch (Objects.requireNonNull(LanZouTypeEnums.getEnumsByType(type))) {
                     case DOWNLOAD:
-                        if (ObjectUtils.isEmpty(fileInfo.getDownloadUrl())) {
+                        if (ObjectUtils.isEmpty(((FileInfoModel) fileInfo).getDownloadUrl())) {
                             return formatRespData(LanZouResponseEnums.FAILURE, fileInfo);
                         } else {
-                            if (!Objects.isNull(fileInfo.getRedirectUrl())) {
-                                response.sendRedirect(fileInfo.getRedirectUrl());
-                            } else if (!Objects.isNull(fileInfo.getDownloadUrl())) {
-                                response.sendRedirect(fileInfo.getDownloadUrl());
+                            if (!Objects.isNull(((FileInfoModel) fileInfo).getRedirectUrl())) {
+                                response.sendRedirect(((FileInfoModel) fileInfo).getRedirectUrl());
+                            } else if (!Objects.isNull(((FileInfoModel) fileInfo).getDownloadUrl())) {
+                                response.sendRedirect(((FileInfoModel) fileInfo).getDownloadUrl());
                             }
                             return formatRespData(LanZouResponseEnums.REDIRECT_TO_DOWNLOAD, fileInfo);
                         }
@@ -130,6 +107,10 @@ public class LanZouToolsController {
                     default:
                         return formatRespData(LanZouResponseEnums.INVALID_TYPE, null);
                 }
+            } else if (fileInfo instanceof ArrayList<?>) {
+                return formatRespData(LanZouResponseEnums.GET_FILE_SUCCESS, fileInfo);
+            } else {
+                return formatRespData(LanZouResponseEnums.GET_FILE_ERROR_WITH_PASSWORD, null);
             }
         }
         return formatRespData(LanZouResponseEnums.FAILURE, null);

@@ -5,7 +5,7 @@ import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HttpClientUtil;
 import com.koala.service.utils.PatternUtil;
-import com.koala.service.utils.RestTemplateUtil;
+import com.koala.service.utils.NeteaseRestTemplateUtil;
 import jakarta.annotation.Resource;
 import org.apache.hc.client5.http.cookie.Cookie;
 import org.springframework.core.io.ResourceLoader;
@@ -101,7 +101,7 @@ public class NeteaseCookieUtil {
                 e.printStackTrace();
             }
         });
-        ResponseEntity<String> responseEntity = RestTemplateUtil.post(new JSONObject(), getCurrentHost() + "tools/Netease/weapi/login/token/refresh", cookies, restTemplate);
+        ResponseEntity<String> responseEntity = NeteaseRestTemplateUtil.post(new JSONObject(), getCurrentHost() + "tools/Netease/weapi/login/token/refresh", cookies, restTemplate);
         if (StringUtils.hasLength(responseEntity.getBody())) {
             Map<String, Object> data = GsonUtil.toMaps(responseEntity.getBody());
             if ((Double) data.get("code") == 200) {
