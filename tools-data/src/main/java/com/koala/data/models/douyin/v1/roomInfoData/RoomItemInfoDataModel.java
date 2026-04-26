@@ -58,6 +58,8 @@ public class RoomItemInfoDataModel implements Serializable {
     @SerializedName("like_count")
     private Integer likeCount;
     private Others others;
-    @SerializedName("rank_list_data")
+    @SerializedName("rank_list_data_extra_0")
     private String rankListData = null;
+    @SerializedName("rank_list_data_extra_1")
+    private String rankListDataBackup = null;
 }

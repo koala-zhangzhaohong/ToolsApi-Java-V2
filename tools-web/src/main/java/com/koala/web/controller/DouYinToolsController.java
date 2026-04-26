@@ -303,7 +303,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -328,10 +328,20 @@ public class DouYinToolsController {
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid());
                         if (extra.equals("1")) {
-                            try {
-                                userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                            if (nickname != null && !nickname.isEmpty()) {
+                                if (userInfoModel.getNickname().equals(nickname)) {
+                                    try {
+                                        userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            } else {
+                                try {
+                                    userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
                         userInfoList.add(userInfoModel);
@@ -349,10 +359,20 @@ public class DouYinToolsController {
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid());
                         if (extra.equals("1")) {
-                            try {
-                                simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                            if (nickname != null && !nickname.isEmpty()) {
+                                if (simpleUserInfoModel.getNickname().equals(nickname)) {
+                                    try {
+                                        simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            } else {
+                                try {
+                                    simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
                         userInfoList.add(simpleUserInfoModel);
