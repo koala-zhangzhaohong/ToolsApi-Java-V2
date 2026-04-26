@@ -291,6 +291,15 @@ public class RestTemplateUtils {
         return restTemplate.postForEntity(url, entity, String.class);
     }
 
+    public <T> ResponseEntity<T> doPost(String url, HashMap<String, String> params, HashMap<String, String> headers, Class<T> responseType) {
+        MultiValueMap<String, String> paramsData = new LinkedMultiValueMap<>();
+        params.forEach(paramsData::add);
+        MultiValueMap<String, String> headersData = new LinkedMultiValueMap<>();
+        headers.forEach(headersData::add);
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
+        return restTemplate.postForEntity(url, entity, responseType);
+    }
+
     /**
      * 带请求头的POST请求调用方式
      *

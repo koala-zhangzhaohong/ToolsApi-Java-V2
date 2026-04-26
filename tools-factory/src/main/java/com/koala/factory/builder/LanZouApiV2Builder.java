@@ -41,7 +41,6 @@ public abstract class LanZouApiV2Builder {
      */
     public abstract LanZouApiV2Builder getIdByUrl();
 
-
     public LanZouApiV2Product getProduct() {
         return product;
     }
