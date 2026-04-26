@@ -314,9 +314,6 @@ public class LanZouApiV2Product {
                     }
                     if (tmp != null && !tmp.isEmpty()) {
                         fileUrl.append(tmp);
-                        if (index == 0) {
-                            fileUrl.append("/");
-                        }
                     }
                 }
                 String path = fileUrl.toString();
