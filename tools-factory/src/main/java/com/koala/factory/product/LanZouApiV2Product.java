@@ -318,7 +318,7 @@ public class LanZouApiV2Product {
                 downloadData.put("path", path.isEmpty() ? null : path);
                 downloadData.put("url", fileUrl.toString());
             }
-            logger.info("[LanZouApiProduct]({}) method: {}, fileUrl: {}", id, method, ObjectUtils.isEmpty(fileUrl) ? fileUrl : null);
+            logger.info("[LanZouApiProduct]({}) method: {}, fileUrl: {}", id, method, !ObjectUtils.isEmpty(fileUrl) ? fileUrl : null);
         }
         return downloadData;
     }

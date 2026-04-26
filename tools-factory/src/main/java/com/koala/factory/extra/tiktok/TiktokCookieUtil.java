@@ -1,8 +1,8 @@
 package com.koala.factory.extra.tiktok;
 
-import cn.hutool.json.JSONObject;
 import com.koala.service.data.redis.service.RedisService;
-import com.koala.service.utils.NeteaseRestTemplateUtil;
+import com.koala.service.utils.HeaderUtil;
+import com.koala.service.utils.RestTemplateUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ResourceLoader;
@@ -92,7 +92,8 @@ public class TiktokCookieUtil {
                 e.printStackTrace();
             }
         });
-        ResponseEntity<String> responseEntity = NeteaseRestTemplateUtil.post(new JSONObject(), BASE_URL_TIKTOK, cookies, restTemplate);
+        RestTemplateUtils restTemplateUtils = new RestTemplateUtils(restTemplate);
+        ResponseEntity<String> responseEntity = restTemplateUtils.doPost(BASE_URL_TIKTOK, new HashMap<>(), HeaderUtil.getTiktokRefreshTokenHeader(getCookiesStr(cookies)));
         List<String> cookieData = responseEntity.getHeaders().get("Set-Cookie");
         StringBuilder cookieString = new StringBuilder(cookieContent);
         if (Objects.isNull(cookieData)) {
@@ -119,6 +120,12 @@ public class TiktokCookieUtil {
         Date currentTime = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
         return formatter.format(currentTime);
+    }
+
+    private String getCookiesStr(Map<String, String> cookies) {
+        StringBuilder data = new StringBuilder();
+        cookies.forEach((key, value) -> data.append(" ").append(key).append("=").append(value).append(";"));
+        return cookies.toString().trim();
     }
 
 }

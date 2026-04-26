@@ -40,6 +40,10 @@ public class RestTemplateUtils {
 
     private final RestTemplate restTemplate;
 
+    public RestTemplateUtils(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
     public RestTemplateUtils() {
         this.restTemplate = new RestTemplate(new BufferingClientHttpRequestFactory(getClientHttpRequestFactory()));
         this.restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
