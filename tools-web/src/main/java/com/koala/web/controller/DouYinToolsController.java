@@ -303,7 +303,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "0") String config) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -329,7 +329,7 @@ public class DouYinToolsController {
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid());
                         if (extra.equals("1")) {
                             if (nickname != null && !nickname.isEmpty()) {
-                                if (userInfoModel.getNickname().equals(nickname)) {
+                                if (userInfoModel.getNickname().contains(nickname)) {
                                     try {
                                         userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
                                     } catch (Exception e) {
@@ -346,7 +346,13 @@ public class DouYinToolsController {
                         }
                         userInfoList.add(userInfoModel);
                     });
-                    responseData.setUserList(userInfoList);
+                    if (config.equals("0")) {
+                        responseData.setUserList(userInfoList);
+                    } else if (config.equals("1")) {
+                        responseData.setUserList(getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                    } else {
+                        responseData.setUserList(userInfoList);
+                    }
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
                 case "3" -> {
@@ -360,7 +366,7 @@ public class DouYinToolsController {
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid());
                         if (extra.equals("1")) {
                             if (nickname != null && !nickname.isEmpty()) {
-                                if (simpleUserInfoModel.getNickname().equals(nickname)) {
+                                if (simpleUserInfoModel.getNickname().contains(nickname)) {
                                     try {
                                         simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
                                     } catch (Exception e) {
@@ -377,7 +383,13 @@ public class DouYinToolsController {
                         }
                         userInfoList.add(simpleUserInfoModel);
                     });
-                    responseData.setUserList(userInfoList);
+                    if (config.equals("0")) {
+                        responseData.setUserList(userInfoList);
+                    } else if (config.equals("1")) {
+                        responseData.setUserList(getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                    } else {
+                        responseData.setUserList(userInfoList);
+                    }
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
             }
@@ -454,6 +466,26 @@ public class DouYinToolsController {
             return profileData.getUser().getNickname();
         }
         return null;
+    }
+
+    private ArrayList<TiktokLiveRankUserInfoModel> getDataListByPrefix(ArrayList<TiktokLiveRankUserInfoModel> data, String prefix) {
+        ArrayList<TiktokLiveRankUserInfoModel> tmp = new ArrayList<>();
+        for (TiktokLiveRankUserInfoModel userInfo : data) {
+            if (userInfo.getNickname().contains(prefix)) {
+                tmp.add(userInfo);
+            }
+        }
+        return tmp;
+    }
+
+    private ArrayList<TiktokLiveRankSimpleUserInfoModel> getSimpleDataListByPrefix(ArrayList<TiktokLiveRankSimpleUserInfoModel> data, String prefix) {
+        ArrayList<TiktokLiveRankSimpleUserInfoModel> tmp = new ArrayList<>();
+        for (TiktokLiveRankSimpleUserInfoModel userInfo : data) {
+            if (userInfo.getNickname().contains(prefix)) {
+                tmp.add(userInfo);
+            }
+        }
+        return tmp;
     }
 
 }
