@@ -1,6 +1,9 @@
 package com.koala.factory.product;
 
+import com.google.gson.Gson;
+import com.koala.data.models.file.FileInfoModel;
 import com.koala.data.models.lanzou.LanZouAcwRespModel;
+import com.koala.data.models.lanzou.LanZouFileInfoRespModel;
 import com.koala.service.utils.*;
 import lombok.Setter;
 import org.slf4j.Logger;
@@ -145,6 +148,23 @@ public class LanZouApiV2Product {
         if (ObjectUtils.isEmpty(this.htmlData)) {
             return;
         }
+        FileInfoModel fileInfo = new FileInfoModel();
+        fileInfo.setFileName(PatternUtil.matchData("<div class=\"md\">(.*?)<span class=\"mtt\">", this.htmlData));
+        fileInfo.setFileSize(PatternUtil.matchData("<span class=\"mtt\">\\((.*?)\\)</span>", this.htmlData));
+        String updateTime = PatternUtil.matchData("<span class=\"mt2\"></span>(.*?)<span class=\"mt2\">", this.htmlData);
+        if (Objects.isNull(updateTime)) {
+            updateTime = PatternUtil.matchData("时间:<\\/span>(.*?)<span class=\"mt2\">", this.htmlData);
+        }
+        fileInfo.setUpdateTime(updateTime);
+        fileInfo.setAuthor(PatternUtil.matchData("发布者:<\\/span>(.*?)<span class=\"mt2\">", this.htmlData));
+        if (ObjectUtils.isEmpty(this.password)) {
+            HashMap<String, String> downloadInfo = generateDownloadPathData();
+            fileInfo.setDownloadHost(downloadInfo.get("host"));
+            fileInfo.setDownloadPath(downloadInfo.get("path"));
+            fileInfo.setDownloadUrl(downloadInfo.get("url"));
+            logger.info("[LanZouApiProduct]({}) get file info, info: {}", id, GsonUtil.toString(fileInfo));
+            return;
+        }
         String sign1 = PatternUtil.matchData("'sign':'(.*?)'", this.htmlData);
         String sign2 = PatternUtil.matchData("var postsign = '(.*?)';", this.htmlData);
         String sign3 = PatternUtil.matchData("var vidksek = '(.*?)';", this.htmlData);
@@ -157,14 +177,15 @@ public class LanZouApiV2Product {
         params.put("sign", sign);
         params.put("p", password);
         params.put("kd", kdns);
-        try {
-            ResponseEntity<String> responseEntity = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
-            String response = responseEntity.getBody();
-            logger.info("[LanZouApiProduct]({}) get file info, html: {}", id, response);
-        } catch (Exception e) {
-            e.printStackTrace();
+        ResponseEntity<String> responseEntity = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
+        LanZouFileInfoRespModel downloadInfo = GsonUtil.toBean(responseEntity.getBody(), LanZouFileInfoRespModel.class);
+        if (ObjectUtils.isEmpty(downloadInfo)) {
+            return;
         }
-        generateDownloadPathData();
+        fileInfo.setDownloadHost(downloadInfo.getDownloadHost());
+        fileInfo.setDownloadPath(downloadInfo.getDownloadPath());
+        fileInfo.setDownloadUrl(downloadInfo.getDownloadHost() + downloadInfo.getDownloadPath());
+        logger.info("[LanZouApiProduct]({}) get file info, info: {}", id, GsonUtil.toString(fileInfo));
     }
 
     public Map<Integer, String> checkStatus() {
