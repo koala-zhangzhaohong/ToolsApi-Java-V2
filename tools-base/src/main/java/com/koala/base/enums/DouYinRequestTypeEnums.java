@@ -13,6 +13,7 @@ import java.util.Optional;
  */
 @Getter
 public enum DouYinRequestTypeEnums {
+    SIMPLE("simple", 3),
     PREVIEW("preview", 2),
     DOWNLOAD("download", 1),
     INFO("info", 0),

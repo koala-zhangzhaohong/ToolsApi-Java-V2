@@ -4,6 +4,9 @@ import cn.hutool.core.bean.BeanUtil;
 import com.koala.base.enums.DouYinRequestTypeEnums;
 import com.koala.base.enums.DouYinTypeEnums;
 import com.koala.data.models.abogus.AbogusDataModel;
+import com.koala.data.models.douyin.live.TiktokLiveRankData;
+import com.koala.data.models.douyin.live.TiktokMediaData;
+import com.koala.data.models.douyin.live.TiktokSimpleData;
 import com.koala.data.models.douyin.profile.TiktokUserProfileDataModel;
 import com.koala.data.models.douyin.rank.*;
 import com.koala.data.models.douyin.v1.PublicTiktokDataRespModel;
@@ -184,17 +187,76 @@ public class DouYinToolsController {
                                         redirectStrategy.sendRedirect(request, response, tmp.getData().getData().get(0).getStreamUrl().getMockPreviewLivePath());
                                     }
                                 }
+                                case NOTE_TYPE -> {
+                                    ItemInfoRespModel tmp = productData.getItemInfoData();
+                                    if (!Objects.isNull(tmp) && !Objects.isNull(tmp.getAwemeDetailModel()) && !ObjectUtils.isEmpty(tmp.getAwemeDetailModel().getMockPreviewPicturePath())) {
+                                        redirectStrategy.sendRedirect(request, response, tmp.getAwemeDetailModel().getMockPreviewPicturePath());
+                                    }
+                                }
                                 default -> {
                                     return formatRespData(UNSUPPORTED_OPERATION, null);
                                 }
                             }
-
                         } else {
                             return formatRespData(UNSUPPORTED_OPERATION, null);
                         }
                         break;
                     case INFO, INVALID_TYPE:
                         break;
+                    case SIMPLE:
+                        DouYinTypeEnums douYinTypeEnum = DouYinTypeEnums.getEnumsByCode(productData.getItemTypeId());
+                        TiktokSimpleData simpleData = new TiktokSimpleData();
+                        TiktokLiveRankData rankData = new TiktokLiveRankData();
+                        TiktokMediaData mediaData = new TiktokMediaData();
+                        switch (Objects.requireNonNull(douYinTypeEnum)) {
+                            case MUSIC_TYPE -> {
+                                simpleData.setUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthorUserId().toString());
+                                simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
+                                simpleData.setNickname(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getNickname());
+                                simpleData.setUid(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getUid());
+                                mediaData.setPreviewPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockPreviewMusicPath());
+                                mediaData.setDownloadPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockDownloadMusicPath());
+                            }
+                            case VIDEO_TYPE -> {
+                                simpleData.setUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthorUserId().toString());
+                                simpleData.setSecUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSecUid());
+                                simpleData.setNickname(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getNickname());
+                                simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
+                                simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
+                                simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                simpleData.setDesc(productData.getItemInfoData().getAwemeDetailModel().getDesc());
+                                mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockPreviewVidPath());
+                                mediaData.setDownloadPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockDownloadVidPath());
+                                mediaData.setProxyPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockPreviewProxyVidPathList());
+                                mediaData.setProxyDownloadPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockDownloadProxyVidPathList());
+                            }
+                            case LIVE_TYPE_1, LIVE_TYPE_2 -> {
+                                simpleData.setIdStr(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getIdStr());
+                                simpleData.setSecUserId(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getSecUid());
+                                simpleData.setNickname(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getNickname());
+                                simpleData.setRoomId(productData.getRoomItemInfoData().getData().getEnterRoomId());
+                                simpleData.setTitle(productData.getRoomItemInfoData().getData().getData().get(0).getTitle());
+                                rankData.setRankListUrl(productData.getRoomItemInfoData().getData().getData().get(0).getRankListData());
+                                rankData.setRankListUrlBackup(productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataBackup());
+                                rankData.setRankListSpecial(productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataSpecialLiat());
+                                mediaData.setPreviewPathHLS(productData.getRoomItemInfoData().getData().getData().get(0).getStreamUrl().getMockPreviewLivePath());
+                                mediaData.setPreviewPathFLV(productData.getRoomItemInfoData().getData().getData().get(0).getStreamUrl().getMockPreviewLivePathBackup());
+                            }
+                            case NOTE_TYPE -> {
+                                simpleData.setUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthorUserId().toString());
+                                simpleData.setSecUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSecUid());
+                                simpleData.setNickname(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getNickname());
+                                simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
+                                simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
+                                simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getMockPreviewPicturePath());
+                            }
+                            default -> {
+                            }
+                        }
+                        simpleData.setRankData(rankData);
+                        simpleData.setMediaData(mediaData);
+                        return formatRespData(GET_DATA_SUCCESS, simpleData);
                 }
                 return formatRespData(GET_DATA_SUCCESS, productData);
             } catch (Exception e) {

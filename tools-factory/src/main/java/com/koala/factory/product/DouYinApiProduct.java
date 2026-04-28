@@ -66,6 +66,7 @@ public class DouYinApiProduct {
     private RoomInfoDataRespModel roomInfoData = null;
     private RedisService redisService;
     private String cookieData;
+    @Setter
     private String cdnHost;
 
     public void getIdByUrl() {
@@ -327,19 +328,22 @@ public class DouYinApiProduct {
                             }
                             ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList = new ArrayList<>();
                             ArrayList<MultiVideoQualityInfoModel> mockProxyMultiVideoDownloadInfoList = new ArrayList<>();
+                            // 取出三个里最多的那一个
+                            Integer maxIndex = getVidMaxIndex(playAddr, playAddr265, playAddrH264);
                             for (int i = 0; i < DouyinMiddlewareServerEnums.values().length; i++) {
                                 try {
-                                    if (i >= Objects.requireNonNull(playAddr).getUrlList().size() && i >= Objects.requireNonNull(playAddr265).getUrlList().size() && i >= Objects.requireNonNull(playAddrH264).getUrlList().size()) {
+                                    if (i >= maxIndex) {
                                         break;
                                     }
                                     String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
                                     String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
                                     proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
                                     mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(hd.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(sd.getBytes(StandardCharsets.UTF_8)) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
+                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(hd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
+                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(sd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
                                     ));
                                 } catch (Exception e) {
+                                    e.printStackTrace();
                                     break;
                                 }
                             }
@@ -391,6 +395,20 @@ public class DouYinApiProduct {
         publicData = new PublicTiktokDataRespModel(this.itemTypeId, this.itemInfo, this.musicItemInfo, this.roomInfoData);
         logger.info("[DouYinApiProduct]({}, {}) publicData: {}", id, itemId, publicData);
         return publicData;
+    }
+
+    private Integer getVidMaxIndex(PlayAddrInfoModel playAddr, PlayAddrInfoModel playAddr265, PlayAddrInfoModel playAddrH264) {
+        int tmp = 0;
+        if (!ObjectUtils.isEmpty(playAddr) && playAddr.getUrlList().size() > tmp) {
+            tmp = playAddr.getUrlList().size();
+        }
+        if (!ObjectUtils.isEmpty(playAddr265) && playAddr265.getUrlList().size() > tmp) {
+            tmp = playAddr265.getUrlList().size();
+        }
+        if (!ObjectUtils.isEmpty(playAddrH264) && playAddrH264.getUrlList().size() > tmp) {
+            tmp = playAddrH264.getUrlList().size();
+        }
+        return tmp;
     }
 
     private String reformatPath(String path) {
@@ -481,6 +499,13 @@ public class DouYinApiProduct {
         return null;
     }
 
+    private String getBase64(String input) {
+        if (ObjectUtils.isEmpty(input)) {
+            return null;
+        }
+        return Base64Utils.encodeToUrlSafeString(input.getBytes(StandardCharsets.UTF_8));
+    }
+
     public void isMobile(Boolean isMobile) {
         this.isMobile = isMobile;
     }
@@ -489,7 +514,4 @@ public class DouYinApiProduct {
         this.cookieData = cookie;
     }
 
-    public void setCdnHost(String cdnHost) {
-        this.cdnHost = cdnHost;
-    }
 }
