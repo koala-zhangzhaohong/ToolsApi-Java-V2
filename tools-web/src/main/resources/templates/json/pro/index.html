@@ -98,12 +98,30 @@
         .hidden {
             display: none;
         }
+
+        .json-link {
+            text-decoration: none !important;
+            color: hsl(114, 100%, 35%) !important;
+        }
     </style>
 </head>
 <body>
 <pre id="json-renderer"></pre>
 </body>
 <script>
+    function checkIsJson(path) {
+        const host = "[[${host}]]";
+        const white_list = JSON.parse(Util.htmlspecialchars_decode("[[${whiteList}]]"));
+        let state = false;
+        for (let index = 0; index < white_list.length; index++) {
+            if (path.startsWith(host + white_list[index])) {
+                state = true;
+                break;
+            }
+        }
+        return state;
+    }
+
     class JSONViewer {
         constructor(options = {}) {
             this.options = Object.assign({rootCollapsable: true, clickableUrls: true, bigNumbers: false}, options);
@@ -134,7 +152,15 @@
                     html += `<a href="${json}" class="json-value" target="_blank">${json}</a>`;
                 } else {
                     json = json.replace(/&quot;/g, '\\&quot;');
-                    html += `<span class="json-value">"${json}"</span>`;
+                    if (json.startsWith("http://") || json.startsWith("https://")) {
+                        if (checkIsJson(Util.htmlspecialchars_decode(json))) {
+                            html += `<span class="json-value"><a href="[[${host}]]tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json))}" class="json-link">"${json}"</a></span>`;
+                        } else {
+                            html += `<span class="json-value"><a href="${Util.htmlspecialchars_decode(json)}" class="json-link">"${json}"</a></span>`;
+                        }
+                    } else {
+                        html += `<span class="json-value">"${json}"</span>`;
+                    }
                 }
             } else if (typeof json === 'number' || typeof json === 'bigint') {
                 html += `<span class="json-literal">${json}</span>`;
