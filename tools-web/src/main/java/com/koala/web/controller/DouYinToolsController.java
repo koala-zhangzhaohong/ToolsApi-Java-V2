@@ -4,6 +4,9 @@ import cn.hutool.core.bean.BeanUtil;
 import com.koala.base.enums.DouYinRequestTypeEnums;
 import com.koala.base.enums.DouYinTypeEnums;
 import com.koala.data.models.abogus.AbogusDataModel;
+import com.koala.data.models.douyin.live.TiktokLiveRankData;
+import com.koala.data.models.douyin.live.TiktokMediaData;
+import com.koala.data.models.douyin.live.TiktokSimpleData;
 import com.koala.data.models.douyin.profile.TiktokUserProfileDataModel;
 import com.koala.data.models.douyin.rank.*;
 import com.koala.data.models.douyin.v1.PublicTiktokDataRespModel;
@@ -62,6 +65,8 @@ public class DouYinToolsController {
     private static final Logger logger = LoggerFactory.getLogger(DouYinToolsController.class);
 
     private static final Integer MAX_RETRY_TIMES = 10;
+
+    private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -123,7 +128,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, HttpServletRequest request, HttpServletResponse response) {
+    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, @RequestParam(value = "directJsonViewer", required = false, defaultValue = "false") Boolean directJsonViewer, HttpServletRequest request, HttpServletResponse response) {
         if (ObjectUtils.isEmpty(link)) {
             return formatRespData(INVALID_LINK, null);
         }
@@ -184,17 +189,83 @@ public class DouYinToolsController {
                                         redirectStrategy.sendRedirect(request, response, tmp.getData().getData().get(0).getStreamUrl().getMockPreviewLivePath());
                                     }
                                 }
+                                case NOTE_TYPE -> {
+                                    ItemInfoRespModel tmp = productData.getItemInfoData();
+                                    if (!Objects.isNull(tmp) && !Objects.isNull(tmp.getAwemeDetailModel()) && !ObjectUtils.isEmpty(tmp.getAwemeDetailModel().getMockPreviewPicturePath())) {
+                                        redirectStrategy.sendRedirect(request, response, tmp.getAwemeDetailModel().getMockPreviewPicturePath());
+                                    }
+                                }
                                 default -> {
                                     return formatRespData(UNSUPPORTED_OPERATION, null);
                                 }
                             }
-
                         } else {
                             return formatRespData(UNSUPPORTED_OPERATION, null);
                         }
                         break;
                     case INFO, INVALID_TYPE:
                         break;
+                    case SIMPLE:
+                        DouYinTypeEnums douYinTypeEnum = DouYinTypeEnums.getEnumsByCode(productData.getItemTypeId());
+                        TiktokSimpleData simpleData = new TiktokSimpleData();
+                        TiktokLiveRankData rankData = new TiktokLiveRankData();
+                        TiktokMediaData mediaData = new TiktokMediaData();
+                        switch (Objects.requireNonNull(douYinTypeEnum)) {
+                            case MUSIC_TYPE -> {
+                                simpleData.setUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthorUserId().toString());
+                                simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
+                                simpleData.setNickname(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getNickname());
+                                simpleData.setUid(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getUid());
+                                mediaData.setPreviewPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockPreviewMusicPath());
+                                mediaData.setDownloadPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockDownloadMusicPath());
+                            }
+                            case VIDEO_TYPE -> {
+                                simpleData.setUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthorUserId().toString());
+                                simpleData.setSecUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSecUid());
+                                simpleData.setNickname(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getNickname());
+                                simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
+                                simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
+                                simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                simpleData.setDesc(productData.getItemInfoData().getAwemeDetailModel().getDesc());
+                                mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockPreviewVidPath());
+                                mediaData.setDownloadPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockDownloadVidPath());
+                                mediaData.setProxyPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockPreviewProxyVidPathList());
+                                mediaData.setProxyDownloadPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockDownloadProxyVidPathList());
+                            }
+                            case LIVE_TYPE_1, LIVE_TYPE_2 -> {
+                                simpleData.setIdStr(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getIdStr());
+                                simpleData.setSecUserId(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getSecUid());
+                                simpleData.setNickname(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getNickname());
+                                simpleData.setRoomId(productData.getRoomItemInfoData().getData().getEnterRoomId());
+                                simpleData.setTitle(productData.getRoomItemInfoData().getData().getData().get(0).getTitle());
+                                rankData.setRankListUrl(productData.getRoomItemInfoData().getData().getData().get(0).getRankListData());
+                                rankData.setRankListUrlBackup(productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataBackup());
+                                rankData.setRankListSpecial(productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataSpecialLiat());
+                                mediaData.setPreviewPathHLS(productData.getRoomItemInfoData().getData().getData().get(0).getStreamUrl().getMockPreviewLivePath());
+                                mediaData.setPreviewPathFLV(productData.getRoomItemInfoData().getData().getData().get(0).getStreamUrl().getMockPreviewLivePathBackup());
+                            }
+                            case NOTE_TYPE -> {
+                                simpleData.setUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthorUserId().toString());
+                                simpleData.setSecUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSecUid());
+                                simpleData.setNickname(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getNickname());
+                                simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
+                                simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
+                                simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getMockPreviewPicturePath());
+                            }
+                            default -> {
+                            }
+                        }
+                        simpleData.setRankData(rankData);
+                        simpleData.setMediaData(mediaData);
+                        String key = ShortKeyGenerator.getKey(url);
+                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key;
+                        simpleData.setPro(printerUrl);
+                        redisService.set(JSON_KEY_PREFIX + key, GsonUtil.toString(simpleData), EXPIRE_TIME);
+                        if (directJsonViewer) {
+                            redirectStrategy.sendRedirect(request, response, printerUrl);
+                        }
+                        return formatRespData(GET_DATA_SUCCESS, simpleData);
                 }
                 return formatRespData(GET_DATA_SUCCESS, productData);
             } catch (Exception e) {
@@ -303,7 +374,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "0") String config) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -326,7 +397,7 @@ public class DouYinToolsController {
                     originResponseData.getData().getRanks().forEach(item -> {
                         TiktokLiveRankUserInfoModel userInfoModel = new TiktokLiveRankUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
-                        userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid());
+                        userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
                             if (nickname != null && !nickname.isEmpty()) {
                                 if (userInfoModel.getNickname().contains(nickname)) {
@@ -346,12 +417,16 @@ public class DouYinToolsController {
                         }
                         userInfoList.add(userInfoModel);
                     });
-                    if (config.equals("0")) {
-                        responseData.setUserList(userInfoList);
-                    } else if (config.equals("1")) {
-                        responseData.setUserList(getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
-                    } else {
-                        responseData.setUserList(userInfoList);
+                    switch (config) {
+                        case "1" -> {
+                            responseData.setUserList(userInfoList);
+                        }
+                        case "2" -> {
+                            responseData.setUserList(getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                        }
+                        default -> {
+                            return formatRespData(INVALID_CONFIG, null);
+                        }
                     }
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
@@ -363,7 +438,7 @@ public class DouYinToolsController {
                     originResponseData.getData().getRanks().forEach(item -> {
                         TiktokLiveRankSimpleUserInfoModel simpleUserInfoModel = new TiktokLiveRankSimpleUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
-                        simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid());
+                        simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
                             if (nickname != null && !nickname.isEmpty()) {
                                 if (simpleUserInfoModel.getNickname().contains(nickname)) {
@@ -383,12 +458,16 @@ public class DouYinToolsController {
                         }
                         userInfoList.add(simpleUserInfoModel);
                     });
-                    if (config.equals("0")) {
-                        responseData.setUserList(userInfoList);
-                    } else if (config.equals("1")) {
-                        responseData.setUserList(getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
-                    } else {
-                        responseData.setUserList(userInfoList);
+                    switch (config) {
+                        case "1" -> {
+                            responseData.setUserList(userInfoList);
+                        }
+                        case "2" -> {
+                            responseData.setUserList(getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                        }
+                        default -> {
+                            return formatRespData(INVALID_CONFIG, null);
+                        }
                     }
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
@@ -399,7 +478,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/user/profile/other", produces = {"application/json;charset=utf-8"})
-    public String getUserProfileOther(@RequestParam String secUserId) throws IOException, URISyntaxException {
+    public String getUserProfileOther(@RequestParam String secUserId, @RequestParam(defaultValue = "2", required = false) String config) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(secUserId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -410,7 +489,17 @@ public class DouYinToolsController {
         }
         String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
         if (StringUtils.hasLength(response)) {
-            return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
+            switch (config) {
+                case "1" -> {
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
+                }
+                case "2" -> {
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, TiktokUserProfileDataModel.class));
+                }
+                default -> {
+                    return formatRespData(INVALID_CONFIG, null);
+                }
+            }
         }
         return formatRespData(GET_INFO_ERROR, null);
     }
