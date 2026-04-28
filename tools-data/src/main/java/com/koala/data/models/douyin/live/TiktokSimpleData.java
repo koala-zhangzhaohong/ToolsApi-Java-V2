@@ -7,6 +7,7 @@ import java.io.Serializable;
 
 @Data
 public class TiktokSimpleData implements Serializable {
+    private String nickname;
     @SerializedName("id_str")
     private String idStr;
     @SerializedName("user_id")
@@ -18,7 +19,6 @@ public class TiktokSimpleData implements Serializable {
     private String title;
     private String desc;
     private Object cover;
-    private String nickname;
     private String signature;
     @SerializedName("short_id")
     private String shortId;
@@ -29,4 +29,5 @@ public class TiktokSimpleData implements Serializable {
     private TiktokLiveRankData rankData;
     @SerializedName("media_data")
     private TiktokMediaData mediaData;
+    private String pro;
 }

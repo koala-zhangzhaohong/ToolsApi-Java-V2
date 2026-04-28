@@ -10,6 +10,7 @@ public class RedisKeyPrefix {
     public static final String NETEASE_PUBLIC_COOKIE = "NETEASE:PUBLIC:COOKIE:";
     public static final String NETEASE_CSRF_COOKIE = "NETEASE:CSRF:COOKIE:";
     public static final String SHORT_KEY_PREFIX = "SHORT:";
+    public static final String JSON_KEY_PREFIX = "JSON:";
     public static final String TIKTOK_DIRECT_KEY_PREFIX = "TIKTOK:DIRECT:";
     public static final String TIKTOK_DATA_KEY_PREFIX = "TIKTOK:DATA:";
     public static final String NETEASE_DATA_KEY_PREFIX = "NETEASE:DATA:";

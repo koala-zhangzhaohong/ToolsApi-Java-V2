@@ -66,6 +66,8 @@ public class DouYinToolsController {
 
     private static final Integer MAX_RETRY_TIMES = 10;
 
+    private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
+
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     @Resource
@@ -126,7 +128,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, HttpServletRequest request, HttpServletResponse response) {
+    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, @RequestParam(value = "directJsonViewer", required = false, defaultValue = "false") Boolean directJsonViewer, HttpServletRequest request, HttpServletResponse response) {
         if (ObjectUtils.isEmpty(link)) {
             return formatRespData(INVALID_LINK, null);
         }
@@ -256,6 +258,13 @@ public class DouYinToolsController {
                         }
                         simpleData.setRankData(rankData);
                         simpleData.setMediaData(mediaData);
+                        String key = ShortKeyGenerator.getKey(url);
+                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key;
+                        simpleData.setPro(printerUrl);
+                        redisService.set(JSON_KEY_PREFIX + key, GsonUtil.toString(simpleData), EXPIRE_TIME);
+                        if (directJsonViewer) {
+                            redirectStrategy.sendRedirect(request, response, printerUrl);
+                        }
                         return formatRespData(GET_DATA_SUCCESS, simpleData);
                 }
                 return formatRespData(GET_DATA_SUCCESS, productData);
