@@ -251,6 +251,10 @@ public class DouYinApiProduct {
                         String roomId = this.roomInfoData.getData().getEnterRoomId();
                         this.roomInfoData.getData().getData().get(0).setRankListData(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=0");
                         this.roomInfoData.getData().getData().get(0).setRankListDataBackup(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1");
+                        ArrayList<String> rankListDataSpecialLiat = new ArrayList<>();
+                        rankListDataSpecialLiat.add(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1&nickname=神秘人&config=2");
+                        rankListDataSpecialLiat.add(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1&nickname=dou&config=2");
+                        this.roomInfoData.getData().getData().get(0).setRankListDataSpecialLiat(rankListDataSpecialLiat);
                     }
                     if (!Objects.isNull(this.roomInfoData.getData().getData().get(0).getStreamUrl())) {
                         if (this.version.equals(4)) {

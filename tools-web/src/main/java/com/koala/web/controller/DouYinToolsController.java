@@ -303,7 +303,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "0") String config) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -326,7 +326,7 @@ public class DouYinToolsController {
                     originResponseData.getData().getRanks().forEach(item -> {
                         TiktokLiveRankUserInfoModel userInfoModel = new TiktokLiveRankUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
-                        userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid());
+                        userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
                             if (nickname != null && !nickname.isEmpty()) {
                                 if (userInfoModel.getNickname().contains(nickname)) {
@@ -346,12 +346,16 @@ public class DouYinToolsController {
                         }
                         userInfoList.add(userInfoModel);
                     });
-                    if (config.equals("0")) {
-                        responseData.setUserList(userInfoList);
-                    } else if (config.equals("1")) {
-                        responseData.setUserList(getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
-                    } else {
-                        responseData.setUserList(userInfoList);
+                    switch (config) {
+                        case "1" -> {
+                            responseData.setUserList(userInfoList);
+                        }
+                        case "2" -> {
+                            responseData.setUserList(getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                        }
+                        default -> {
+                            return formatRespData(INVALID_CONFIG, null);
+                        }
                     }
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
@@ -363,7 +367,7 @@ public class DouYinToolsController {
                     originResponseData.getData().getRanks().forEach(item -> {
                         TiktokLiveRankSimpleUserInfoModel simpleUserInfoModel = new TiktokLiveRankSimpleUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
-                        simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid());
+                        simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
                             if (nickname != null && !nickname.isEmpty()) {
                                 if (simpleUserInfoModel.getNickname().contains(nickname)) {
@@ -383,12 +387,16 @@ public class DouYinToolsController {
                         }
                         userInfoList.add(simpleUserInfoModel);
                     });
-                    if (config.equals("0")) {
-                        responseData.setUserList(userInfoList);
-                    } else if (config.equals("1")) {
-                        responseData.setUserList(getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
-                    } else {
-                        responseData.setUserList(userInfoList);
+                    switch (config) {
+                        case "1" -> {
+                            responseData.setUserList(userInfoList);
+                        }
+                        case "2" -> {
+                            responseData.setUserList(getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                        }
+                        default -> {
+                            return formatRespData(INVALID_CONFIG, null);
+                        }
                     }
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
@@ -399,7 +407,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/user/profile/other", produces = {"application/json;charset=utf-8"})
-    public String getUserProfileOther(@RequestParam String secUserId) throws IOException, URISyntaxException {
+    public String getUserProfileOther(@RequestParam String secUserId, @RequestParam(defaultValue = "2", required = false) String config) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(secUserId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -410,7 +418,17 @@ public class DouYinToolsController {
         }
         String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
         if (StringUtils.hasLength(response)) {
-            return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
+            switch (config) {
+                case "1" -> {
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, Object.class));
+                }
+                case "2" -> {
+                    return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(response, TiktokUserProfileDataModel.class));
+                }
+                default -> {
+                    return formatRespData(INVALID_CONFIG, null);
+                }
+            }
         }
         return formatRespData(GET_INFO_ERROR, null);
     }

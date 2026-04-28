@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -62,4 +63,6 @@ public class RoomItemInfoDataModel implements Serializable {
     private String rankListData = null;
     @SerializedName("rank_list_data_extra_1")
     private String rankListDataBackup = null;
+    @SerializedName("rank_list_data_special_list")
+    private ArrayList<String> rankListDataSpecialLiat;
 }
