@@ -15,7 +15,7 @@
     <name>tools</name>
     <description>tools</description>
     <properties>
-        <revision>2.0.4.0</revision>
+        <revision>2.0.4.1</revision>
         <java.version>17</java.version>
     </properties>
 
