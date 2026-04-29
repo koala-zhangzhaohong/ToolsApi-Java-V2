@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}"></title>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script type="text/javascript" src="../assets/js/Util.js"
+            th:src="@{/assets/js/Util.js}"></script>    <title>Search Box 01</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #ecf0f1;
+        }
+
+        .container {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .search-box {
+            position: relative;
+            background: #2c3e50;
+            height: 40px;
+            border-radius: 40px;
+            padding: 10px;
+        }
+
+        .search-input {
+            position: relative;
+            border: none;
+            background: none;
+            outline: none;
+            color: white;
+            font-size: 22px;
+            line-height: 40px;
+            height: 40px;
+            width: 0px;
+            transition: .5s;
+            padding: 0px 40px 0 0;
+        }
+
+        .search-box:hover .search-input {
+            width: 240px;
+        }
+
+        .search-box:hover .search-btn {
+            background: white;
+        }
+
+        .search-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            text-decoration: none;
+            color: #e74c3c;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2c3e50;
+            transition: .5s;
+        }
+
+        .search-ico {
+            margin: 12px;
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="search-box">
+        <input type="text" class="search-input" id="search-input">
+        <div class="search-btn" id="search-btn">
+            <div class="search-ico">
+                <img id="search" src="../assets/svg/search.svg" th:src="@{/assets/svg/search.svg}" alt=""/>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+<script>
+    let state = false;
+    let input = "";
+    document.getElementById('search-input').addEventListener('input', (event) => {
+        state = true;
+        input = event.target.value;
+    });
+    document.getElementById('search-btn').onclick = function () {
+        if (state && input !== "") {
+            window.location.href = "[[${host}]]tools/DouYin/api?version=4&type=simple&directJsonViewer=true&link=" + encodeURIComponent(input)
+            return;
+        }
+        if (state && input === "") {
+            alert("链接不可为空， 请重新输入")
+        }
+    };
+</script>
+</html>
