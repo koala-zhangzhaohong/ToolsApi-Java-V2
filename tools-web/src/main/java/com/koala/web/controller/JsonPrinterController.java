@@ -6,7 +6,6 @@ import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.RestTemplateUtils;
 import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.hc.core5.http.HttpStatus;
 import org.slf4j.Logger;
@@ -17,7 +16,6 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.client.RestTemplate;
 
 import static com.koala.service.data.redis.RedisKeyPrefix.JSON_KEY_PREFIX;
 
@@ -46,7 +44,7 @@ public class JsonPrinterController {
 
     @HttpRequestRecorder
     @GetMapping("/printer/pro")
-    public String printerPro(@RequestParam(required = false) String key, @RequestParam(required = false) String path, HttpServletRequest request, Model model, HttpServletResponse response) {
+    public String printerPro(@RequestParam(required = false) String key, @RequestParam(required = false) String path, Model model, HttpServletResponse response) {
         model.addAttribute("title", "JsonPrinterPro");
         model.addAttribute("host", hostManager.getHost());
         model.addAttribute("whiteList", GsonUtil.toString(jsonWhiteList));

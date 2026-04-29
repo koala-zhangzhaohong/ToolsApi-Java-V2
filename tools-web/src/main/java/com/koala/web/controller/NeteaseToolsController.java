@@ -385,8 +385,17 @@ public class NeteaseToolsController {
 
     @HttpRequestRecorder
     @GetMapping("reset/cookie")
-    public void resetCookie(@RequestParam(required = false) String lock) {
+    public String resetCookie(@RequestParam(required = false) String lock) {
         redisService.set(NETEASE_COOKIE_LOCK, lock, 14 * 24 * 60 * 60L);
+        neteaseCookieUtil.doRefreshNeteaseCookieTask();
+        return redisService.get(NETEASE_COOKIE_DATA);
+    }
+
+    @HttpRequestRecorder
+    @GetMapping("refresh/cookie")
+    public String refreshCookie() {
+        neteaseCookieUtil.doRefreshNeteaseCookieTask();
+        return redisService.get(NETEASE_COOKIE_DATA);
     }
 
     @HttpRequestRecorder

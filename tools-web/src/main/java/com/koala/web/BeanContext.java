@@ -1,5 +1,7 @@
 package com.koala.web;
 
+import lombok.Getter;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -18,15 +20,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class BeanContext implements ApplicationContextAware {
 
+    @Getter
     private static ApplicationContext context;
 
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         BeanContext.context = applicationContext;
-    }
-
-    public static ApplicationContext getContext() {
-        return context;
     }
 
     public static void setContext(ApplicationContext context) {
