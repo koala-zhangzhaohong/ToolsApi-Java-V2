@@ -117,7 +117,9 @@ public class NeteaseCookieUtil {
                     }
                     Optional<Cookie> baseCookie = baseCookies.stream().filter(item -> item.getName().equals("__csrf")).findFirst();
                     baseCookie.ifPresent(value -> csrf.set(value.getValue()));
-                    cookieString.append(" __csrf=").append(csrf.get()).append(";");
+                    if (StringUtils.hasLength(csrf.get())) {
+                        cookieString.append(" __csrf=").append(csrf.get()).append(";");
+                    }
                 }
                 cookieString.append(" MUSIC_U=").append(PatternUtil.matchData("MUSIC_U=(.*?);", getLocalNeteaseCookie())).append(";");
                 for (String item : Objects.requireNonNull(cookieData)) {
