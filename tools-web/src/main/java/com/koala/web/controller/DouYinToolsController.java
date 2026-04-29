@@ -1,6 +1,5 @@
 package com.koala.web.controller;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.koala.base.enums.DouYinRequestTypeEnums;
 import com.koala.base.enums.DouYinTypeEnums;
 import com.koala.data.models.abogus.AbogusDataModel;
@@ -13,7 +12,6 @@ import com.koala.data.models.douyin.v1.PublicTiktokDataRespModel;
 import com.koala.data.models.douyin.v1.itemInfo.ItemInfoRespModel;
 import com.koala.data.models.douyin.v1.musicInfo.MusicInfoRespModel;
 import com.koala.data.models.douyin.v1.roomInfoData.RoomInfoDataRespModel;
-import com.koala.data.models.xbogus.XbogusDataModel;
 import com.koala.factory.builder.ConcreteDouYinApiBuilder;
 import com.koala.factory.builder.DouYinApiBuilder;
 import com.koala.factory.director.DouYinApiManager;
@@ -45,6 +43,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.koala.base.enums.DouYinResponseEnums.*;
 import static com.koala.base.enums.DouYinTypeEnums.*;
@@ -374,7 +373,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "10") Integer count) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -384,6 +383,7 @@ public class DouYinToolsController {
             return formatRespData(ENCRYPT_URL_ERROR, null);
         }
         String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        AtomicInteger index = new AtomicInteger();
         if (StringUtils.hasLength(response)) {
             switch (version) {
                 case "1" -> {
@@ -399,21 +399,24 @@ public class DouYinToolsController {
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
-                            if (nickname != null && !nickname.isEmpty()) {
-                                if (userInfoModel.getNickname().contains(nickname)) {
+                            if (index.get() < count) {
+                                if (nickname != null && !nickname.isEmpty()) {
+                                    if (userInfoModel.getNickname().contains(nickname)) {
+                                        try {
+                                            userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                } else {
                                     try {
                                         userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     }
                                 }
-                            } else {
-                                try {
-                                    userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
                             }
+                            index.addAndGet(1);
                         }
                         userInfoList.add(userInfoModel);
                     });
@@ -440,21 +443,24 @@ public class DouYinToolsController {
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
-                            if (nickname != null && !nickname.isEmpty()) {
-                                if (simpleUserInfoModel.getNickname().contains(nickname)) {
+                            if (index.get() < count) {
+                                if (nickname != null && !nickname.isEmpty()) {
+                                    if (simpleUserInfoModel.getNickname().contains(nickname)) {
+                                        try {
+                                            simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                } else {
                                     try {
                                         simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     }
                                 }
-                            } else {
-                                try {
-                                    simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
                             }
+                            index.addAndGet(1);
                         }
                         userInfoList.add(simpleUserInfoModel);
                     });
