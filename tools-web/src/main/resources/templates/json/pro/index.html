@@ -229,7 +229,7 @@
         }
     }
 
-    const inputJson = Util.htmlspecialchars_decode("[[${jsonData}]]");
+    const inputJson = Util.htmlspecialchars_decode("[[${jsonData}]]").replaceAll("\n", "\\n");
     if (!inputJson) {
         document.write('Empty json data.');
     } else {
