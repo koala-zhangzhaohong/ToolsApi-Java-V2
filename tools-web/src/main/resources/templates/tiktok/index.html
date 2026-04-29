@@ -6,8 +6,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <script type="text/javascript" src="../assets/js/Util.js"
-            th:src="@{/assets/js/Util.js}"></script>    <title>Search Box 01</title>
+    <title>Tiktok Searcher</title>
     <style>
         body {
             margin: 0;
@@ -39,17 +38,9 @@
             font-size: 22px;
             line-height: 40px;
             height: 40px;
-            width: 0px;
             transition: .5s;
             padding: 0px 40px 0 0;
-        }
-
-        .search-box:hover .search-input {
-            width: 240px;
-        }
-
-        .search-box:hover .search-btn {
-            background: white;
+            width: 60vw;
         }
 
         .search-btn {
@@ -61,7 +52,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: #2c3e50;
+            background: white;
             transition: .5s;
         }
 
@@ -69,6 +60,10 @@
             margin: 12px;
             width: 16px;
             height: 16px;
+        }
+
+        input:-internal-autofill-previewed {
+            background-color: unset !important;
         }
     </style>
 </head>
@@ -85,19 +80,17 @@
 </div>
 </body>
 <script>
-    let state = false;
     let input = "";
     document.getElementById('search-input').addEventListener('input', (event) => {
-        state = true;
         input = event.target.value;
     });
     document.getElementById('search-btn').onclick = function () {
-        if (state && input !== "") {
+        if (input !== "") {
             window.location.href = "[[${host}]]tools/DouYin/api?version=4&type=simple&directJsonViewer=true&link=" + encodeURIComponent(input)
             return;
         }
-        if (state && input === "") {
-            alert("链接不可为空， 请重新输入")
+        if (input === "") {
+            alert("分享链接不可为空， 请重新输入")
         }
     };
 </script>
