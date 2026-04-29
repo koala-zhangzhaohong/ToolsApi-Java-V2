@@ -19,7 +19,7 @@ public class Video<Object extends Serializable> implements Serializable {
     @SerializedName("bit_rate")
     private List<BitRateInfoModel> bitRateInfoModelList;
     @SerializedName("bit_rate_audio")
-    private String bitRateAudio;
+    private Object bitRateAudio;
     @SerializedName("cover")
     private CoverInfoModel coverInfoModel;
     private Integer duration;
