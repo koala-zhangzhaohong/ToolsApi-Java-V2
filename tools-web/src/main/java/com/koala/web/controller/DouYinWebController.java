@@ -34,8 +34,8 @@ public class DouYinWebController {
     private final RestTemplateUtils restTemplateUtils = new RestTemplateUtils();
 
     @HttpRequestRecorder
-    @GetMapping("/search")
-    public String search(Model model) {
+    @GetMapping("/searcher")
+    public String searcher(Model model) {
         model.addAttribute("title", "Tiktok Searcher");
         model.addAttribute("host", hostManager.getHost());
         return "tiktok/index";
