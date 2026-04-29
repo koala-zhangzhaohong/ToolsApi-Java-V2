@@ -390,6 +390,13 @@ public class NeteaseToolsController {
     }
 
     @HttpRequestRecorder
+    @GetMapping("refresh/cookie")
+    public String refreshCookie() {
+        neteaseCookieUtil.doRefreshNeteaseCookieTask();
+        return redisService.get(NETEASE_COOKIE_DATA);
+    }
+
+    @HttpRequestRecorder
     @GetMapping("current/cookie")
     public String getCookie() {
         return redisService.get(NETEASE_COOKIE_DATA);
