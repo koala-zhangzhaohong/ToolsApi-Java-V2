@@ -79,22 +79,27 @@
      .search-button:hover {
          background: #5a7dfa;
      }
+
+     .tips-container {
+         margin-top: 24px;
+         margin-bottom: 24px;
+     }
      
-     .history-container {
+     .history-container, .tips-container {
          background: #f8faff;
          border-radius: 12px;
          padding: 20px;
          box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
      }
      
-     .history-header {
+     .history-header, .tips-header {
          display: flex;
          justify-content: space-between;
          align-items: center;
          margin-bottom: 20px;
      }
      
-     .history-title {
+     .history-title, .tips-title {
          font-size: 1.3rem;
          color: #5a7dfa;
          font-weight: 600;
@@ -115,7 +120,7 @@
          color: #ff4c4c;
      }
      
-     .history-list {
+     .history-list, .tips-list {
          list-style: none;
      }
      
@@ -164,7 +169,7 @@
          color: #5a7dfa;
      }
      
-     .empty-history {
+     .empty-history, .empty-tips {
          text-align: center;
          color: #888;
          padding: 20px;
