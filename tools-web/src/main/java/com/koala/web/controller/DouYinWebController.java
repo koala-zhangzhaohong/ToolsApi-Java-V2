@@ -35,9 +35,16 @@ public class DouYinWebController {
 
     @HttpRequestRecorder
     @GetMapping("/searcher")
-    public String searcher(Model model) {
+    public String searcher(@RequestParam(required = false, defaultValue = "2") Integer version, Model model, HttpServletResponse response) {
         model.addAttribute("title", "Tiktok Searcher");
         model.addAttribute("host", hostManager.getHost());
-        return "tiktok/index";
+        switch (version) {
+            case 1:
+                return "tiktok/v1/index";
+            case 2:
+                return "tiktok/v2/index";
+        }
+        response.setStatus(HttpStatus.SC_NOT_FOUND);
+        return "404/index";
     }
 }
