@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}"></title>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <link href="../assets/css/tiktok-searcher.css" th:href="@{/assets/css/tiktok-searcher.css}" rel="stylesheet">
+    <link href="../assets/css/font-awesome.all.min.css" th:href="@{/assets/css/font-awesome.all.min.css}" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-search"></i> 智能解析</h1>
+        <p>快速解析您需要的内容</p>
+    </div>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="输入分享链接...">
+            <button class="search-button">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+
+        <div class="search-suggestions">
+            <div class="suggestion-chip" data-input="6.94 复制打开抖音，看看【爆哥暴脾气的作品】门口出现了一个奇怪的雪人，竟然救了爆哥一命 # 重... https://v.douyin.com/U3VouoVhTdE/ 01/20 icN:/ C@U.LJ">视频分享</div>
+            <div class="suggestion-chip" data-input="8- #在抖音，记录美好生活#【雨辰魔王（07天花板诸葛）】正在直播，来和我一起支持Ta吧。复制下方链接，打开【抖音】，直接观看直播！ https://v.douyin.com/vTxaiNgMsu0/ 1@4.com :4pm">直播分享</div>
+            <div class="suggestion-chip" data-input="7.92 复制打开抖音，看看【念棠📷的图文作品】你我的缘，仓促得像一场骤雨。# infp # in... https://v.douyin.com/4JFd0fBHz64/ MJV:/ L@w.FU 05/26 ">图文分享</div>
+            <div class="suggestion-chip" data-input="2- @唐三创作的原声 >> https://v.douyin.com/1jBWFffXicQ/ 2@9.com :8pm">音乐分享</div>
+        </div>
+
+        <div class="history-container">
+            <div class="history-header">
+                <div class="history-title">搜索历史</div>
+                <button class="clear-history">
+                    <i class="fas fa-trash"></i> 清空记录
+                </button>
+            </div>
+
+            <ul class="history-list">
+                <li class="empty-history">暂无搜索记录</li>
+                <!-- 历史记录将通过JavaScript动态添加 -->
+            </ul>
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="../assets/js/tiktok-searcher.js"
+        th:src="@{/assets/js/tiktok-searcher.js}"></script>
+<script>
+    setCurrentHost("[[${host}]]");
+</script>
+</body>
+</html>
