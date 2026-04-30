@@ -192,7 +192,16 @@
          background: #5a7dfa;
          color: white;
      }
-     
+
+     .explain-container {
+         width: 100%;
+         text-align: center;
+         margin-top: 40px;
+         margin-bottom: 10px;
+         color: gray;
+         font-size: 12px;
+     }
+
      @keyframes fadeIn {
          from {
              opacity: 0;
