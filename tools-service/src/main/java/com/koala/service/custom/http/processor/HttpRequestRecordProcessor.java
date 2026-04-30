@@ -38,10 +38,10 @@ public class HttpRequestRecordProcessor {
     @Resource(name = "ApiAnalyticsKafkaService")
     private KafkaService kafkaService;
 
-    @Value("spring.profiles.active")
+    @Value("${spring.profiles.active}")
     private String active;
 
-    @Value("spring.application.version")
+    @Value("${spring.application.version}")
     private String version;
 
     /**
