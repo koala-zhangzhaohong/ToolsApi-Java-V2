@@ -399,7 +399,7 @@ public class DouYinToolsController {
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
-                            if (index.get() < count) {
+                            if (count == -1 || index.get() < count) {
                                 if (nickname != null && !nickname.isEmpty()) {
                                     if (userInfoModel.getNickname().contains(nickname)) {
                                         try {
@@ -443,7 +443,7 @@ public class DouYinToolsController {
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
                         if (extra.equals("1")) {
-                            if (index.get() < count) {
+                            if (count == -1 || index.get() < count) {
                                 if (nickname != null && !nickname.isEmpty()) {
                                     if (simpleUserInfoModel.getNickname().contains(nickname)) {
                                         try {
