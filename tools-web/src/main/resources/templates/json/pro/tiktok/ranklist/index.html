@@ -8,7 +8,40 @@
     <link href="../assets/css/tiktok-searcher.css" th:href="@{/assets/css/tiktok-searcher.css}" rel="stylesheet">
     <link href="../assets/css/font-awesome.all.min.css" th:href="@{/assets/css/font-awesome.all.min.css}"
           rel="stylesheet">
+    <script type="text/javascript" src="../assets/js/Util.js"
+            th:src="@{/assets/js/Util.js}"></script>
 </head>
+<style type="text/css">
+    table {
+        border-collapse: collapse;
+        margin: 0 auto;
+        text-align: center;
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    table td, table th {
+        border: 1px solid #cad9ea;
+        color: #666;
+        height: 30px;
+        text-align: center;
+        word-wrap: break-word;
+        padding: 8px;
+    }
+
+    table thead th {
+        background-color: #CCE8EB;
+        width: 100px;
+    }
+
+    table tr:nth-child(odd) {
+        background: #fff;
+    }
+
+    table tr:nth-child(even) {
+        background: #F5FAFA;
+    }
+</style>
 <body>
 <div class="container">
     <div class="header">
@@ -24,7 +57,18 @@
                     <i class="fas fa-trash"></i> 刷新数据
                 </button>
             </div>
-            <div style="height: 60px"></div>
+            <div>
+                <table width="90%" class="table">
+                    <thead id="ranklist-table">
+                    <tr>
+                        <th>昵称</th>
+                        <th>账号</th>
+                        <th>原始昵称</th>
+                    </tr>
+                    </thead>
+                </table>
+                <div id="ranklist-empty-data" class="empty-data">暂无数据</div>
+            </div>
         </div>
         <div class="explain-container">* 仅供学习使用，禁止用于商业用途</div>
     </div>
@@ -33,6 +77,7 @@
         th:src="@{/assets/js/tiktok-searcher.js}"></script>
 <script>
     setCurrentHost("[[${host}]]");
+    setData(Util.htmlspecialchars_decode("[[${jsonData}]]"));
 </script>
 </body>
 </html>

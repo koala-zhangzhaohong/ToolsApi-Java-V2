@@ -20,7 +20,7 @@ public enum TemplateEnum {
     TEMPLATE_500_WEB(3, "TEMPLATE_500", "500/index", null),
     TEMPLATE_JSON_WEB(4, "TEMPLATE_JSON", "json/index", null),
     TEMPLATE_JSON_PRO_WEB(5, "TEMPLATE_JSON_PRO", "json/pro/index", null),
-    TEMPLATE_TIKTOK_API(6, "TEMPLATE_TIKTOK_API", "json/pro/tiktok/api/index", "tools/DouYin/api"),
+    TEMPLATE_TIKTOK_API(6, "TEMPLATE_TIKTOK_API", "json/pro/tiktok/api/index", null),
     TEMPLATE_TIKTOK_RANKLIST(7, "TEMPLATE_TIKTOK_RANKLIST", "json/pro/tiktok/ranklist/index", "tools/DouYin/api/ranklist/audience");
 
     private final Integer id;

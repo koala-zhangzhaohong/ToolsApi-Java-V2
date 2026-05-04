@@ -169,7 +169,7 @@ body {
     color: #5a7dfa;
 }
 
-.empty-history, .empty-tips {
+.empty-history, .empty-tips, .empty-data {
     text-align: center;
     color: #888;
     padding: 20px;

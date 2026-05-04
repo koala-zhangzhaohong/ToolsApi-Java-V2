@@ -12,6 +12,7 @@ import com.koala.web.template.index.errorTemplate.SystemErrorTemplateWeb;
 import com.koala.web.template.index.jsonTemplate.JsonTemplateProWeb;
 import com.koala.web.template.index.jsonTemplate.JsonTemplateWeb;
 import com.koala.web.template.index.tiktokSearcherTemplate.TiktokApiTemplateWeb;
+import com.koala.web.template.index.tiktokSearcherTemplate.TiktokRanklistTemplateWeb;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ public class JsonPrinterController {
                 case TEMPLATE_JSON_WEB -> new JsonTemplateWeb().getTemplate(getData(path, key), model, response);
                 case TEMPLATE_JSON_PRO_WEB -> new JsonTemplateProWeb().getTemplate(getData(path, key), model, response);
                 case TEMPLATE_TIKTOK_API -> new TiktokApiTemplateWeb().getTemplate(getData(path, key), model, response);
+                case TEMPLATE_TIKTOK_RANKLIST -> new TiktokRanklistTemplateWeb().getTemplate(getData(path, key), model, response);
                 default -> new NotFoundTemplateWeb().getTemplate(null, null, response);
             };
         } catch (Exception e) {
