@@ -4,7 +4,7 @@
          box-sizing: border-box;
          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
      }
-     
+
      body {
          background: linear-gradient(135deg, #6e8efb, #a777e3);
          min-height: 100vh;
@@ -13,7 +13,7 @@
          align-items: center;
          padding: 20px;
      }
-     
+
      .container {
          width: 100%;
          max-width: 800px;
@@ -22,33 +22,33 @@
          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
          overflow: hidden;
      }
-     
+
      .header {
          background: linear-gradient(to right, #6e8efb, #a777e3);
          color: white;
          padding: 30px;
          text-align: center;
      }
-     
+
      .header h1 {
          font-weight: 600;
          font-size: 2.5rem;
          margin-bottom: 10px;
      }
-     
+
      .header p {
          opacity: 0.9;
      }
-     
-     .search-container {
+
+     .search-container, .data-container {
          padding: 30px;
      }
-     
+
      .search-box {
          display: flex;
          margin-bottom: 25px;
      }
-     
+
      .search-input {
          flex: 1;
          padding: 18px 25px;
@@ -59,12 +59,12 @@
          outline: none;
          transition: all 0.3s ease;
      }
-     
+
      .search-input:focus {
          background: #e0e8ff;
          box-shadow: inset 0 0 0 2px #a777e3;
      }
-     
+
      .search-button {
          padding: 0 30px;
          background: #6e8efb;
@@ -75,7 +75,7 @@
          font-size: 1.2rem;
          transition: all 0.3s ease;
      }
-     
+
      .search-button:hover {
          background: #5a7dfa;
      }
@@ -84,28 +84,28 @@
          margin-top: 24px;
          margin-bottom: 24px;
      }
-     
-     .history-container, .tips-container {
+
+     .history-container, .tips-container, .api-data-container {
          background: #f8faff;
          border-radius: 12px;
          padding: 20px;
          box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
      }
-     
-     .history-header, .tips-header {
+
+     .history-header, .tips-header, .api-data-header {
          display: flex;
          justify-content: space-between;
          align-items: center;
          margin-bottom: 20px;
      }
-     
-     .history-title, .tips-title {
+
+     .history-title, .tips-title, .api-data-title {
          font-size: 1.3rem;
          color: #5a7dfa;
          font-weight: 600;
      }
-     
-     .clear-history {
+
+     .clear-history, .refresh-api-data {
          background: none;
          border: none;
          color: #ff6b6b;
@@ -115,15 +115,15 @@
          align-items: center;
          gap: 5px;
      }
-     
-     .clear-history:hover {
+
+     .clear-history:hover, .refresh-api-data:hover {
          color: #ff4c4c;
      }
-     
+
      .history-list, .tips-list {
          list-style: none;
      }
-     
+
      .history-item {
          display: flex;
          justify-content: space-between;
@@ -136,12 +136,12 @@
          animation: fadeIn 0.5s ease;
          transition: transform 0.3s ease;
      }
-     
+
      .history-item:hover {
          transform: translateY(-2px);
          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
      }
-     
+
      .history-text {
          font-size: 1.1rem;
          color: #444;
@@ -150,12 +150,12 @@
          overflow: hidden;
          width: 100%;
      }
-     
+
      .history-actions {
          display: flex;
          gap: 10px;
      }
-     
+
      .history-actions button {
          background: none;
          border: none;
@@ -164,18 +164,18 @@
          color: #888;
          transition: color 0.3s ease;
      }
-     
+
      .history-actions button:hover {
          color: #5a7dfa;
      }
-     
+
      .empty-history, .empty-tips {
          text-align: center;
          color: #888;
          padding: 20px;
          font-style: italic;
      }
-     
+
      .search-suggestions {
          display: flex;
          flex-wrap: wrap;
@@ -183,7 +183,7 @@
          margin-top: 20px;
          margin-bottom: 20px;
      }
-     
+
      .suggestion-chip {
          background: #e0e8ff;
          padding: 8px 18px;
@@ -192,7 +192,7 @@
          cursor: pointer;
          transition: all 0.3s ease;
      }
-     
+
      .suggestion-chip:hover {
          background: #5a7dfa;
          color: white;
@@ -217,16 +217,16 @@
              transform: translateY(0);
          }
      }
-     
+
      @media (max-width: 600px) {
          .header h1 {
              font-size: 2rem;
          }
-         
+
          .search-input {
              padding: 15px;
          }
-         
+
          .search-button {
              padding: 0 20px;
          }

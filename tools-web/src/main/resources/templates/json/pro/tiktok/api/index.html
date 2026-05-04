@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}"></title>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <link href="../assets/css/tiktok-searcher.css" th:href="@{/assets/css/tiktok-searcher.css}" rel="stylesheet">
+    <link href="../assets/css/font-awesome.all.min.css" th:href="@{/assets/css/font-awesome.all.min.css}" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-search"></i> 智能解析</h1>
+        <p>快速解析您需要的内容</p>
+    </div>
+
+    <div class="data-container">
+        <div class="api-data-container">
+            <div class="api-data-header">
+                <div class="api-data-title">搜索历史</div>
+                <button class="refresh-api-data">
+                    <i class="fas fa-trash"></i> 清空记录
+                </button>
+            </div>
+            <div style="height: 60px"></div>
+        </div>
+        <div class="explain-container">* 仅供学习使用，禁止用于商业用途</div>
+    </div>
+</div>
+<script type="text/javascript" src="../assets/js/tiktok-searcher.js"
+        th:src="@{/assets/js/tiktok-searcher.js}"></script>
+<script>
+    setCurrentHost("[[${host}]]");
+</script>
+</body>
+</html>
