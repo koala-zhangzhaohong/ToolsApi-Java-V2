@@ -215,6 +215,10 @@ public class DouYinToolsController {
                                 simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
                                 simpleData.setNickname(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getNickname());
                                 simpleData.setUid(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getUid());
+                                simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
+                                simpleData.setIdStr(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getIdStr());
+                                simpleData.setSongId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getSong().getIdStr());
+                                simpleData.setDesc(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getDesc());
                                 mediaData.setPreviewPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockPreviewMusicPath());
                                 mediaData.setDownloadPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockDownloadMusicPath());
                             }
@@ -261,7 +265,7 @@ public class DouYinToolsController {
                         simpleData.setRankData(rankData);
                         simpleData.setMediaData(mediaData);
                         String key = ShortKeyGenerator.getKey(url);
-                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key;
+                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key + "&id=6";
                         simpleData.setPro(printerUrl);
                         redisService.set(JSON_KEY_PREFIX + key, GsonUtil.toString(simpleData), EXPIRE_TIME);
                         if (directJsonViewer) {

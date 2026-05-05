@@ -16,6 +16,8 @@ public class TiktokSimpleData implements Serializable {
     private String secUserId;
     @SerializedName("room_id")
     private String roomId;
+    @SerializedName("song_id")
+    private String songId;
     private String title;
     private String desc;
     private Object cover;

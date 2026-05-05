@@ -67,6 +67,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 div.innerHTML = `<iframe src="${json.media_data.preview_path}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
                 apiData.appendChild(div);
             }
+            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/music/short")) {
+                const div = document.createElement('div');
+                div.innerHTML = `<iframe src="${json.media_data.preview_path}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 4vh"></iframe>`;
+                apiData.appendChild(div);
+            }
         }
 
         const infoWrapper = apiInfoData.querySelector('.info-wrapper');
@@ -81,6 +86,8 @@ document.addEventListener('DOMContentLoaded', function () {
             id = json.unique_id;
         } else if (checkIsNotEmptyContent(json.room_id)) {
             id = json.room_id;
+        } else if (checkIsNotEmptyContent(json.song_id)) {
+            id = json.song_id;
         }
         let uid = undefined;
         if (checkIsNotEmptyContent(json.user_id)) {
@@ -169,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (checkIsNotEmptyContent(json.media_data.preview_path)) {
-            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short")) {
+            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short") || json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/music/short")) {
                 const a = document.createElement('a');
                 a.className = 'info-button';
                 a.href = json.media_data.preview_path;
