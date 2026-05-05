@@ -33,8 +33,13 @@
         color: gray;
         padding-top: 2px;
         padding-bottom: 2px;
-        text-align: center;
         margin-left: auto;
+        display: -webkit-box;
+        -webkit-line-clamp: 1; /* 限制显示的行数为3 */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis; /* 显示省略号 */
+        text-align: center;
     }
 
     .info-wrapper {
@@ -150,7 +155,7 @@
         th:src="@{/assets/js/tiktok-searcher.js}"></script>
 <script>
     setCurrentHost("[[${host}]]");
-    setData(Util.htmlspecialchars_decode("[[${jsonData}]]"));
+    setData(Util.htmlspecialchars_decode("[[${jsonData}]]").replaceAll("\n", "\\n"));
 </script>
 </body>
 </html>

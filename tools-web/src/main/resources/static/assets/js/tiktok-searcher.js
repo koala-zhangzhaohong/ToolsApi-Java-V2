@@ -42,18 +42,56 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         console.log(json);
 
-        if (json.media_data.proxy_preview_path !== null && json.media_data.proxy_preview_path.length > 0) {
+        if (checkIsNotEmptyArr(json.media_data.proxy_preview_path !== null)) {
             const div = document.createElement('div');
             div.innerHTML = `<iframe src="${json.media_data.proxy_preview_path[0]}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
             apiData.appendChild(div);
         }
 
+        if (checkIsNotEmptyContent(json.media_data.preview_path_hls) || checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
+            let url = '';
+            if (checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
+                url = json.media_data.preview_path_flv;
+            } else {
+                url = json.media_data.preview_path_hls;
+            }
+            const div = document.createElement('div');
+            div.innerHTML = `<iframe src="${url}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
+            apiData.appendChild(div);
+        }
+
+        if (checkIsNotEmptyContent(json.media_data.preview_path)) {
+            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short")) {
+                const div = document.createElement('div');
+                div.innerHTML = `<iframe src="${json.media_data.preview_path}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
+                apiData.appendChild(div);
+            }
+        }
+
         const infoWrapper = apiInfoData.querySelector('.info-wrapper');
-        infoWrapper.innerHTML = `<div class="info-desc">${getTextContent(json.desc)}</div><div class="info-nickname">${getTextContent(json.nickname)}</div><div class="info-unique-id">${getTextContent(json.unique_id)}</div><div class="info-user-id">${getTextContent(json.user_id)}</div>`;
+        let desc = undefined;
+        if (checkIsNotEmptyContent(json.desc)) {
+            desc = json.desc;
+        } else if (checkIsNotEmptyContent(json.title)) {
+            desc = json.title;
+        }
+        let id = undefined;
+        if (checkIsNotEmptyContent(json.unique_id)) {
+            id = json.unique_id;
+        } else if (checkIsNotEmptyContent(json.room_id)) {
+            id = json.room_id;
+        }
+        let uid = undefined;
+        if (checkIsNotEmptyContent(json.user_id)) {
+            uid = json.user_id;
+        } else if (checkIsNotEmptyContent(json.sec_uid)) {
+            uid = json.sec_uid;
+        }
+        infoWrapper.innerHTML = `<div class="info-desc">${getTextContent(desc)}</div><div class="info-nickname">${getTextContent(json.nickname)}</div><div class="info-unique-id">${getTextContent(id)}</div><div class="info-user-id">${getTextContent(uid)}</div>`;
         apiInfoData.style.display = 'block';
 
         const infoPreviewWrapper = apiPreviewInfoData.querySelector('.info-wrapper');
-        if (json.media_data.proxy_preview_path !== null && json.media_data.proxy_preview_path.length > 0) {
+        if (checkIsNotEmptyArr(json.media_data.proxy_preview_path)) {
             json.media_data.proxy_preview_path.forEach((item, index) => {
                 const a = document.createElement('a');
                 a.className = 'info-button';
@@ -66,8 +104,43 @@ document.addEventListener('DOMContentLoaded', function () {
             apiPreviewInfoData.style.display = 'none';
         }
 
+        if (checkIsNotEmptyContent(json.media_data.preview_path_hls) || checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
+            let state = false;
+            if (checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
+                state = true;
+                const flv = document.createElement('a');
+                flv.className = 'info-button';
+                flv.href = json.media_data.preview_path_flv;
+                flv.textContent = '预览线路 - flv';
+                infoPreviewWrapper.appendChild(flv);
+            }
+            if (checkIsNotEmptyContent(json.media_data.preview_path_hls)) {
+                state = true;
+                const hls = document.createElement('a');
+                hls.className = 'info-button';
+                hls.href = json.media_data.preview_path_hls;
+                hls.textContent = '预览线路 - hls';
+                infoPreviewWrapper.appendChild(hls);
+            }
+            if (state) {
+                apiPreviewInfoData.style.display = 'block';
+            } else {
+                apiPreviewInfoData.style.display = 'none';
+            }
+        }
+
+        if (checkIsNotEmptyContent(json.media_data.preview_path)) {
+            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short")) {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = json.media_data.preview_path;
+                a.textContent = '预览线路 - 1';
+                infoPreviewWrapper.appendChild(a);
+            }
+        }
+
         const infoDownloadWrapper = apiDownloadInfoData.querySelector('.info-wrapper');
-        if (json.media_data.proxy_download_path !== null && json.media_data.proxy_download_path.length > 0) {
+        if (checkIsNotEmptyArr(json.media_data.proxy_download_path)) {
             json.media_data.proxy_download_path.forEach((item, index) => {
                 const a = document.createElement('a');
                 a.className = 'info-button';
@@ -86,6 +159,20 @@ document.addEventListener('DOMContentLoaded', function () {
             return 'undefined';
         }
         return text
+    }
+
+    function checkIsNotEmptyArr(arr) {
+        if (arr === null || arr === undefined) {
+            return false;
+        }
+        return arr.length > 0;
+    }
+
+    function checkIsNotEmptyContent(text) {
+        if (text === null || text === undefined) {
+            return false;
+        }
+        return text.length > 0;
     }
 
     function updateRankListData() {

@@ -251,6 +251,8 @@ public class DouYinToolsController {
                                 simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
                                 simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
                                 simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                simpleData.setUniqueId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUniqueId());
+                                simpleData.setDesc(productData.getItemInfoData().getAwemeDetailModel().getDesc());
                                 mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getMockPreviewPicturePath());
                             }
                             default -> {
