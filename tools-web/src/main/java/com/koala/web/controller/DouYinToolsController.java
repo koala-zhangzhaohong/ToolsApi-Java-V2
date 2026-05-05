@@ -127,7 +127,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, @RequestParam(value = "directJsonViewer", required = false, defaultValue = "false") Boolean directJsonViewer, HttpServletRequest request, HttpServletResponse response) {
+    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, @RequestParam(value = "directJsonViewer", required = false, defaultValue = "false") Boolean directJsonViewer, HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (ObjectUtils.isEmpty(link)) {
             return formatRespData(INVALID_LINK, null);
         }
@@ -277,6 +277,10 @@ public class DouYinToolsController {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+        if (directJsonViewer) {
+            // 防止直接展示异常信息 转而展示500
+            redirectStrategy.sendRedirect(request, response, hostManager.getHost() + "tools/json/printer/pro?id=3");
         }
         return formatRespData(GET_INFO_ERROR, null);
     }
