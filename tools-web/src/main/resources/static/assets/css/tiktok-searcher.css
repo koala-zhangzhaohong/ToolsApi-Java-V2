@@ -80,26 +80,26 @@ body {
     background: #5a7dfa;
 }
 
-.tips-container {
+.tips-container, .info-container, .info-preview-container, .info-download-container {
     margin-top: 24px;
     margin-bottom: 24px;
 }
 
-.history-container, .tips-container, .api-data-container {
+.history-container, .tips-container, .api-data-container, .info-container, .info-preview-container, .info-download-container {
     background: #f8faff;
     border-radius: 12px;
     padding: 20px;
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
 }
 
-.history-header, .tips-header, .api-data-header {
+.history-header, .tips-header, .api-data-header, .info-header, .info-preview-header, .info-download-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
 }
 
-.history-title, .tips-title, .api-data-title {
+.history-title, .tips-title, .api-data-title, .info-title, .info-preview-title, .info-download-title {
     font-size: 1.3rem;
     color: #5a7dfa;
     font-weight: 600;
@@ -120,7 +120,7 @@ body {
     color: #ff4c4c;
 }
 
-.history-list, .tips-list {
+.history-list, .tips-list, .info-list, .info-preview-list, .info-download-list {
     list-style: none;
 }
 

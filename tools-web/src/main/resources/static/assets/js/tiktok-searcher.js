@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const rankListEmptyData = document.getElementById('ranklist-empty-data');
     const apiEmptyData = document.getElementById('api-empty-data');
     const apiData = document.getElementById('api-data');
+    const apiInfoData = document.getElementById('info-container');
+    const apiPreviewInfoData = document.getElementById('info-preview-container');
+    const apiDownloadInfoData = document.getElementById('info-download-container');
 
     // 从localStorage加载搜索历史
     let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
@@ -30,14 +33,59 @@ document.addEventListener('DOMContentLoaded', function () {
         apiData.innerHTML = '';
         if (json === null || jsonData === null || json === undefined) {
             apiEmptyData.style.display = 'block';
+            apiInfoData.style.display = 'none';
+            apiPreviewInfoData.style.display = 'none';
+            apiDownloadInfoData.style.display = 'none';
         } else {
             apiEmptyData.style.display = 'none';
+            apiDownloadInfoData.style.display = 'block';
         }
+        console.log(json);
+
         if (json.media_data.proxy_preview_path !== null && json.media_data.proxy_preview_path.length > 0) {
             const div = document.createElement('div');
             div.innerHTML = `<iframe src="${json.media_data.proxy_preview_path[0]}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
             apiData.appendChild(div);
         }
+
+        const infoWrapper = apiInfoData.querySelector('.info-wrapper');
+        infoWrapper.innerHTML = `<div class="info-desc">${getTextContent(json.desc)}</div><div class="info-nickname">${getTextContent(json.nickname)}</div><div class="info-unique-id">${getTextContent(json.unique_id)}</div><div class="info-user-id">${getTextContent(json.user_id)}</div>`;
+        apiInfoData.style.display = 'block';
+
+        const infoPreviewWrapper = apiPreviewInfoData.querySelector('.info-wrapper');
+        if (json.media_data.proxy_preview_path !== null && json.media_data.proxy_preview_path.length > 0) {
+            json.media_data.proxy_preview_path.forEach((item, index) => {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = item;
+                a.textContent = '预览线路 - ' + (index + 1);
+                infoPreviewWrapper.appendChild(a);
+            });
+            apiPreviewInfoData.style.display = 'block';
+        } else {
+            apiPreviewInfoData.style.display = 'none';
+        }
+
+        const infoDownloadWrapper = apiDownloadInfoData.querySelector('.info-wrapper');
+        if (json.media_data.proxy_download_path !== null && json.media_data.proxy_download_path.length > 0) {
+            json.media_data.proxy_download_path.forEach((item, index) => {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = item;
+                a.textContent = '下载线路 - ' + (index + 1);
+                infoDownloadWrapper.appendChild(a);
+            });
+            apiDownloadInfoData.style.display = 'block';
+        } else {
+            apiDownloadInfoData.style.display = 'none';
+        }
+    }
+
+    function getTextContent(text) {
+        if (text === null || text === undefined) {
+            return 'undefined';
+        }
+        return text
     }
 
     function updateRankListData() {
@@ -174,5 +222,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (apiData !== undefined && apiData !== null && apiEmptyData !== undefined && apiEmptyData !== null) {
         updateApiData();
-    };
+    }
 });

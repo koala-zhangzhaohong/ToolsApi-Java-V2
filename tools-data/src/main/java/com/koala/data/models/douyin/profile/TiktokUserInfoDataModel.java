@@ -11,4 +11,6 @@ public class TiktokUserInfoDataModel implements Serializable {
     @SerializedName("short_id")
     private String shortId;
     private String uid;
+    @SerializedName("unique_id")
+    private String uniqueId;
 }
