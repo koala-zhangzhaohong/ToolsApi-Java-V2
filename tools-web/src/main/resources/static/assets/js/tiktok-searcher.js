@@ -141,6 +141,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 a.textContent = '线路 - ' + (index + 1);
                 infoPreviewWrapper.appendChild(a);
             });
+            if (checkIsNotEmptyContent(json.media_data.preview_path)) {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = json.media_data.preview_path;
+                a.textContent = '回源 [无代理]';
+                infoPreviewWrapper.appendChild(a);
+            }
             apiPreviewInfoData.style.display = 'block';
         } else {
             apiPreviewInfoData.style.display = 'none';
