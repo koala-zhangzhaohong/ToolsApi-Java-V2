@@ -8,6 +8,8 @@
     <link href="../assets/css/tiktok-searcher.css" th:href="@{/assets/css/tiktok-searcher.css}" rel="stylesheet">
     <link href="../assets/css/font-awesome.all.min.css" th:href="@{/assets/css/font-awesome.all.min.css}"
           rel="stylesheet">
+    <script type="text/javascript" src="../assets/js/Util.js"
+            th:src="@{/assets/js/Util.js}"></script>
 </head>
 <body>
 <div class="container">
@@ -20,11 +22,12 @@
         <div class="api-data-container">
             <div class="api-data-header">
                 <div class="api-data-title">查询结果</div>
-                <button class="refresh-btn">
+                <button class="refresh-btn" style="display: none">
                     <i class="fas fa-trash"></i> 刷新数据
                 </button>
             </div>
-            <div style="height: 60px"></div>
+            <div id="api-empty-data" class="empty-data">暂无数据</div>
+            <div id="api-data"></div>
         </div>
         <div class="explain-container">* 仅供学习使用，禁止用于商业用途</div>
     </div>
@@ -33,6 +36,7 @@
         th:src="@{/assets/js/tiktok-searcher.js}"></script>
 <script>
     setCurrentHost("[[${host}]]");
+    setData(Util.htmlspecialchars_decode("[[${jsonData}]]"));
 </script>
 </body>
 </html>

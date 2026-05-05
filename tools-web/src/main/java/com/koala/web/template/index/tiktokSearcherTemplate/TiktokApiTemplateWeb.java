@@ -18,6 +18,7 @@ public class TiktokApiTemplateWeb implements BaseTemplate {
 
     @Override
     public String getTemplate(String data, Model model, HttpServletResponse response) {
+        model.addAttribute("jsonData", data);
         return TEMPLATE_TIKTOK_API.getPath();
     }
 }

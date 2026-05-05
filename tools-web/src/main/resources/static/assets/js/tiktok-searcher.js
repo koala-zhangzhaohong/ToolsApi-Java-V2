@@ -19,9 +19,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const suggestionChips = document.querySelectorAll('.suggestion-chip');
     const rankList = document.getElementById('ranklist-table');
     const rankListEmptyData = document.getElementById('ranklist-empty-data');
+    const apiEmptyData = document.getElementById('api-empty-data');
+    const apiData = document.getElementById('api-data');
 
     // 从localStorage加载搜索历史
     let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+
+    function updateApiData() {
+        const json = JSON.parse(jsonData);
+        apiData.innerHTML = '';
+        if (json === null || jsonData === null || json === undefined) {
+            apiEmptyData.style.display = 'block';
+        } else {
+            apiEmptyData.style.display = 'none';
+        }
+        if (json.media_data.proxy_preview_path !== null && json.media_data.proxy_preview_path.length > 0) {
+            const div = document.createElement('div');
+            div.innerHTML = `<iframe src="${json.media_data.proxy_preview_path[0]}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
+            apiData.appendChild(div);
+        }
+    }
 
     function updateRankListData() {
         const json = JSON.parse(jsonData);
@@ -154,4 +171,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (rankList !== undefined && rankList !== null && rankListEmptyData !== undefined && rankListEmptyData !== null) {
         updateRankListData();
     }
+
+    if (apiData !== undefined && apiData !== null && apiEmptyData !== undefined && apiEmptyData !== null) {
+        updateApiData();
+    };
 });
