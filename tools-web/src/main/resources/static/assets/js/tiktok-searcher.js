@@ -135,8 +135,10 @@ document.addEventListener('DOMContentLoaded', function () {
             apiRanklistInfoData.style.display = 'none';
         }
 
+        let apiPreviewStateLock = false;
         const infoPreviewWrapper = apiPreviewInfoData.querySelector('.info-wrapper');
-        if (checkIsNotEmptyArr(json.media_data.proxy_preview_path)) {
+        if (checkIsNotEmptyArr(json.media_data.proxy_preview_path) && !apiPreviewStateLock) {
+            apiPreviewStateLock = true;
             json.media_data.proxy_preview_path.forEach((item, index) => {
                 const a = document.createElement('a');
                 a.className = 'info-button';
@@ -149,7 +151,8 @@ document.addEventListener('DOMContentLoaded', function () {
             apiPreviewInfoData.style.display = 'none';
         }
 
-        if (checkIsNotEmptyContent(json.media_data.preview_path_hls) || checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
+        if ((checkIsNotEmptyContent(json.media_data.preview_path_hls) || checkIsNotEmptyContent(json.media_data.preview_path_flv)) && !apiPreviewStateLock) {
+            apiPreviewStateLock = true;
             let state = false;
             if (checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
                 state = true;
@@ -174,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        if (checkIsNotEmptyContent(json.media_data.preview_path)) {
+        if (checkIsNotEmptyContent(json.media_data.preview_path) && !apiPreviewStateLock) {
             if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short") || json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/music/short")) {
                 const a = document.createElement('a');
                 a.className = 'info-button';
