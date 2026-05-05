@@ -127,7 +127,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, @RequestParam(value = "directJsonViewer", required = false, defaultValue = "false") Boolean directJsonViewer, HttpServletRequest request, HttpServletResponse response) {
+    public Object getDouYinInfos(@MixedHttpRequest(required = false) String link, @RequestParam(value = "type", required = false, defaultValue = "info") String type, @RequestParam(value = "version", required = false, defaultValue = "4") Integer version, @RequestParam(value = "isMobile", required = false, defaultValue = "false") String isMobile, @RequestParam(value = "directJsonViewer", required = false, defaultValue = "false") Boolean directJsonViewer, HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (ObjectUtils.isEmpty(link)) {
             return formatRespData(INVALID_LINK, null);
         }
@@ -215,6 +215,10 @@ public class DouYinToolsController {
                                 simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
                                 simpleData.setNickname(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getNickname());
                                 simpleData.setUid(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getUid());
+                                simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
+                                simpleData.setIdStr(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getIdStr());
+                                simpleData.setSongId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getSong().getIdStr());
+                                simpleData.setDesc(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getDesc());
                                 mediaData.setPreviewPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockPreviewMusicPath());
                                 mediaData.setDownloadPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockDownloadMusicPath());
                             }
@@ -225,6 +229,7 @@ public class DouYinToolsController {
                                 simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
                                 simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
                                 simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                simpleData.setUniqueId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUniqueId());
                                 simpleData.setDesc(productData.getItemInfoData().getAwemeDetailModel().getDesc());
                                 mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockPreviewVidPath());
                                 mediaData.setDownloadPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockDownloadVidPath());
@@ -250,6 +255,8 @@ public class DouYinToolsController {
                                 simpleData.setSignature(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getSignature());
                                 simpleData.setShortId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getShortId());
                                 simpleData.setUid(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUid());
+                                simpleData.setUniqueId(productData.getItemInfoData().getAwemeDetailModel().getAuthor().getUniqueId());
+                                simpleData.setDesc(productData.getItemInfoData().getAwemeDetailModel().getDesc());
                                 mediaData.setPreviewPath(productData.getItemInfoData().getAwemeDetailModel().getMockPreviewPicturePath());
                             }
                             default -> {
@@ -258,7 +265,7 @@ public class DouYinToolsController {
                         simpleData.setRankData(rankData);
                         simpleData.setMediaData(mediaData);
                         String key = ShortKeyGenerator.getKey(url);
-                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key;
+                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key + "&id=6";
                         simpleData.setPro(printerUrl);
                         redisService.set(JSON_KEY_PREFIX + key, GsonUtil.toString(simpleData), EXPIRE_TIME);
                         if (directJsonViewer) {
@@ -270,6 +277,10 @@ public class DouYinToolsController {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+        if (directJsonViewer) {
+            // 防止直接展示异常信息 转而展示500
+            redirectStrategy.sendRedirect(request, response, hostManager.getHost() + "tools/json/printer/pro?id=3");
         }
         return formatRespData(GET_INFO_ERROR, null);
     }
