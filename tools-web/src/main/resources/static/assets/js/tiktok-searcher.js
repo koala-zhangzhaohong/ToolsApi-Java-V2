@@ -210,6 +210,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     infoDownloadWrapper.appendChild(a);
                 }
             });
+            if (checkIsNotEmptyContent(json.media_data.download_path)) {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = json.media_data.download_path;
+                a.textContent = '回源 [无代理]';
+                infoDownloadWrapper.appendChild(a);
+            }
             apiDownloadInfoData.style.display = 'block';
         } else {
             apiDownloadInfoData.style.display = 'none';
