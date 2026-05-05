@@ -50,10 +50,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (checkIsNotEmptyContent(json.media_data.preview_path_hls) || checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
             let url = '';
-            if (checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
-                url = json.media_data.preview_path_flv;
-            } else {
+            if (checkIsNotEmptyContent(json.media_data.preview_path_hls)) {
                 url = json.media_data.preview_path_hls;
+            } else {
+                url = json.media_data.preview_path_flv;
             }
             const div = document.createElement('div');
             div.innerHTML = `<iframe src="${url}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
@@ -61,14 +61,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (checkIsNotEmptyContent(json.media_data.preview_path)) {
-            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short")) {
+            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short") || json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/music/short")) {
                 const div = document.createElement('div');
                 div.innerHTML = `<iframe src="${json.media_data.preview_path}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
-                apiData.appendChild(div);
-            }
-            if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/music/short")) {
-                const div = document.createElement('div');
-                div.innerHTML = `<iframe src="${json.media_data.preview_path}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 4vh"></iframe>`;
                 apiData.appendChild(div);
             }
         }
@@ -103,14 +98,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const a = document.createElement('a');
                 a.className = 'info-button';
                 a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url))}`;
-                a.textContent = '用户查询线路[简略]';
+                a.textContent = '用户查询[简略]';
                 infoRanklistWrapper.appendChild(a);
             }
             if (checkIsNotEmptyContent(json.rank_data.rank_list_url_backup)) {
                 const a = document.createElement('a');
                 a.className = 'info-button';
                 a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url_backup))}`;
-                a.textContent = '用户反查线路[Pro]';
+                a.textContent = '用户反查[Pro]';
                 infoRanklistWrapper.appendChild(a);
             }
             if (checkIsNotEmptyArr(json.rank_data.rank_list_special)) {
@@ -126,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const a = document.createElement('a');
                     a.className = 'info-button';
                     a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(item))}`;
-                    a.textContent = '快捷用户反查线路[Pro] - ' + prefix;
+                    a.textContent = prefix + " - 用户反查";
                     infoRanklistWrapper.appendChild(a);
                 });
             }
@@ -143,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const a = document.createElement('a');
                 a.className = 'info-button';
                 a.href = item;
-                a.textContent = '预览线路 - ' + (index + 1);
+                a.textContent = '线路 - ' + (index + 1);
                 infoPreviewWrapper.appendChild(a);
             });
             apiPreviewInfoData.style.display = 'block';
@@ -159,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const flv = document.createElement('a');
                 flv.className = 'info-button';
                 flv.href = json.media_data.preview_path_flv;
-                flv.textContent = '预览线路 - flv';
+                flv.textContent = '线路 - flv';
                 infoPreviewWrapper.appendChild(flv);
             }
             if (checkIsNotEmptyContent(json.media_data.preview_path_hls)) {
@@ -167,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const hls = document.createElement('a');
                 hls.className = 'info-button';
                 hls.href = json.media_data.preview_path_hls;
-                hls.textContent = '预览线路 - hls';
+                hls.textContent = '线路 - hls';
                 infoPreviewWrapper.appendChild(hls);
             }
             if (state) {
@@ -182,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const a = document.createElement('a');
                 a.className = 'info-button';
                 a.href = json.media_data.preview_path;
-                a.textContent = '预览线路 - 1';
+                a.textContent = '线路 - 1';
                 infoPreviewWrapper.appendChild(a);
                 apiPreviewInfoData.style.display = 'block';
             } else {
@@ -197,14 +192,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     const a = document.createElement('a');
                     a.className = 'info-button';
                     a.href = item.hd;
-                    a.textContent = '下载线路 - ' + (index + 1) + ' [高清]';
+                    a.textContent = '线路 - ' + (index + 1) + ' [高清]';
                     infoDownloadWrapper.appendChild(a);
                 }
                 if (checkIsNotEmptyContent(item.sd)) {
                     const a = document.createElement('a');
                     a.className = 'info-button';
                     a.href = item.sd;
-                    a.textContent = '下载线路 - ' + (index + 1) + ' [标清]';
+                    a.textContent = '线路 - ' + (index + 1) + ' [标清]';
                     infoDownloadWrapper.appendChild(a);
                 }
             });
