@@ -307,6 +307,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 searchHistory.shift();
             }
             localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+        } else if (searchHistory[searchHistory.length - 1] !== searchInputValue) {
+            searchHistory.splice(searchHistory.indexOf(searchInputValue), 1);
+            searchHistory.push(searchInputValue);
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
         }
 
         updateHistoryDisplay();
