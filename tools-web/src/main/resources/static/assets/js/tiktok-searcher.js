@@ -136,6 +136,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 a.href = json.media_data.preview_path;
                 a.textContent = '预览线路 - 1';
                 infoPreviewWrapper.appendChild(a);
+                apiPreviewInfoData.style.display = 'block';
+            } else {
+                apiPreviewInfoData.style.display = 'none';
             }
         }
 

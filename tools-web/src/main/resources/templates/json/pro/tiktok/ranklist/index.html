@@ -77,7 +77,7 @@
         th:src="@{/assets/js/tiktok-searcher.js}"></script>
 <script>
     setCurrentHost("[[${host}]]");
-    setData(Util.htmlspecialchars_decode("[[${jsonData}]]"));
+    setData(Util.htmlspecialchars_decode("[[${jsonData}]]").replaceAll("\n", "\\n"));
 </script>
 </body>
 </html>
