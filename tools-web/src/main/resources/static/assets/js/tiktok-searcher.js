@@ -193,11 +193,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const infoDownloadWrapper = apiDownloadInfoData.querySelector('.info-wrapper');
         if (checkIsNotEmptyArr(json.media_data.proxy_download_path)) {
             json.media_data.proxy_download_path.forEach((item, index) => {
-                const a = document.createElement('a');
-                a.className = 'info-button';
-                a.href = item;
-                a.textContent = '下载线路 - ' + (index + 1);
-                infoDownloadWrapper.appendChild(a);
+                if (checkIsNotEmptyContent(item.hd)) {
+                    const a = document.createElement('a');
+                    a.className = 'info-button';
+                    a.href = item.hd;
+                    a.textContent = '下载线路 - ' + (index + 1) + ' [高清]';
+                    infoDownloadWrapper.appendChild(a);
+                }
+                if (checkIsNotEmptyContent(item.sd)) {
+                    const a = document.createElement('a');
+                    a.className = 'info-button';
+                    a.href = item.sd;
+                    a.textContent = '下载线路 - ' + (index + 1) + ' [标清]';
+                    infoDownloadWrapper.appendChild(a);
+                }
             });
             apiDownloadInfoData.style.display = 'block';
         } else {
