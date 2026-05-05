@@ -41,9 +41,8 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             apiEmptyData.style.display = 'none';
         }
-        console.log(json);
 
-        if (checkIsNotEmptyArr(json.media_data.proxy_preview_path !== null)) {
+        if (checkIsNotEmptyArr(json.media_data.proxy_preview_path)) {
             const div = document.createElement('div');
             div.innerHTML = `<iframe src="${json.media_data.proxy_preview_path[0]}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
             apiData.appendChild(div);
