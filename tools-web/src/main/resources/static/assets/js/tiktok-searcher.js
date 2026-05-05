@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const apiEmptyData = document.getElementById('api-empty-data');
     const apiData = document.getElementById('api-data');
     const apiInfoData = document.getElementById('info-container');
+    const apiRanklistInfoData = document.getElementById('info-ranklist-container');
     const apiPreviewInfoData = document.getElementById('info-preview-container');
     const apiDownloadInfoData = document.getElementById('info-download-container');
 
@@ -34,11 +35,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (json === null || jsonData === null || json === undefined) {
             apiEmptyData.style.display = 'block';
             apiInfoData.style.display = 'none';
+            apiRanklistInfoData.style.display = 'none';
             apiPreviewInfoData.style.display = 'none';
             apiDownloadInfoData.style.display = 'none';
         } else {
             apiEmptyData.style.display = 'none';
-            apiDownloadInfoData.style.display = 'block';
         }
         console.log(json);
 
@@ -89,6 +90,44 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         infoWrapper.innerHTML = `<div class="info-desc">${getTextContent(desc)}</div><div class="info-nickname">${getTextContent(json.nickname)}</div><div class="info-unique-id">${getTextContent(id)}</div><div class="info-user-id">${getTextContent(uid)}</div>`;
         apiInfoData.style.display = 'block';
+
+        const infoRanklistWrapper = apiRanklistInfoData.querySelector('.info-wrapper');
+        if (checkIsNotEmptyContent(json.rank_data.rank_list_url) || checkIsNotEmptyContent(json.rank_data.rank_list_url_backup)) {
+            if (checkIsNotEmptyContent(json.rank_data.rank_list_url)) {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url))}`;
+                a.textContent = '用户查询线路[简略]';
+                infoRanklistWrapper.appendChild(a);
+            }
+            if (checkIsNotEmptyContent(json.rank_data.rank_list_url_backup)) {
+                const a = document.createElement('a');
+                a.className = 'info-button';
+                a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url_backup))}`;
+                a.textContent = '用户反查线路[Pro]';
+                infoRanklistWrapper.appendChild(a);
+            }
+            if (checkIsNotEmptyArr(json.rank_data.rank_list_special)) {
+                json.rank_data.rank_list_special.forEach((item) => {
+                    let prefix = undefined;
+                    for (const param of item.split('&')) {
+                        const [key, value] = param.split('=');
+                        if ("nickname" === key) {
+                            prefix = value;
+                            break;
+                        }
+                    }
+                    const a = document.createElement('a');
+                    a.className = 'info-button';
+                    a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(item))}`;
+                    a.textContent = '快捷用户反查线路[Pro] - ' + prefix;
+                    infoRanklistWrapper.appendChild(a);
+                });
+            }
+            apiRanklistInfoData.style.display = 'block';
+        } else {
+            apiRanklistInfoData.style.display = 'none';
+        }
 
         const infoPreviewWrapper = apiPreviewInfoData.querySelector('.info-wrapper');
         if (checkIsNotEmptyArr(json.media_data.proxy_preview_path)) {
