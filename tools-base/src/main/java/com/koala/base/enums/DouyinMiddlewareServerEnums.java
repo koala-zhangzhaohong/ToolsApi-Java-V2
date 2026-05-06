@@ -13,7 +13,8 @@ import java.util.Optional;
  */
 @Getter
 public enum DouyinMiddlewareServerEnums {
-    PREFIX_1("https://v26-web.douyinvod.com/", 55080),
+    // PREFIX_1采用集群形式
+    PREFIX_1("https://v26-web.douyinvod.com/", 55060),
     PREFIX_2("https://v11-weba.douyinvod.com/", 55081),
     PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", 55082),
     PREFIX_4("https://www.douyin.com/", 55083),
