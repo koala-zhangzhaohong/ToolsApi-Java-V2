@@ -335,8 +335,8 @@ public class DouYinApiProduct {
                                     if (i >= maxIndex) {
                                         break;
                                     }
-                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
-                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
+                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatDownloadPath(playAddr.getUrlList().get(i)) : reformatDownloadPath(playAddrH264.getUrlList().get(i)));
+                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatDownloadPath(playAddr265.getUrlList().get(i)));
                                     proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
                                     mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
                                             ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(hd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
@@ -418,6 +418,25 @@ public class DouYinApiProduct {
             DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
             if (middlewareServerEnum != null) {
                 path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                return path;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    private String reformatDownloadPath(String path) {
+        try {
+            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
+            DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
+            if (middlewareServerEnum != null) {
+                if (ObjectUtils.isEmpty(middlewareServerEnum.getOrigin())) {
+                    path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                } else {
+                    path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + cdnHostPrefix + ":" + middlewareServerEnum.getOrigin() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                }
                 return path;
             }
         } catch (Exception e) {
