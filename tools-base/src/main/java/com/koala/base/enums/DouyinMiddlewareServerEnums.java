@@ -15,9 +15,9 @@ import java.util.Optional;
 public enum DouyinMiddlewareServerEnums {
     // PREFIX_1采用集群形式
     PREFIX_1("https://v26-web.douyinvod.com/", 55060),
-    PREFIX_2("https://v11-weba.douyinvod.com/", 55081),
+    PREFIX_2("https://v11-weba.douyinvod.com/", 55061),
     PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", 55082),
-    PREFIX_4("https://www.douyin.com/", 55083),
+    PREFIX_4("https://www.douyin.com/", 55063),
     PREFIX_5("https://v5-dy-o-abtest.zjcdn.com/", 55084),
     PREFIX_6("https://v3-dy-o.zjcdn.com/", 55085);
 
