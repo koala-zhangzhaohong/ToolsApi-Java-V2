@@ -14,21 +14,23 @@ import java.util.Optional;
 @Getter
 public enum DouyinMiddlewareServerEnums {
     // PREFIX_1采用集群形式
-    PREFIX_1("https://v26-web.douyinvod.com/", 55060, 55080),
-    PREFIX_2("https://v11-weba.douyinvod.com/", 55061, 55081),
-    PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", 55082, null),
-    PREFIX_4("https://www.douyin.com/", 55063, 55083),
-    PREFIX_5("https://v5-dy-o-abtest.zjcdn.com/", 55084, null),
-    PREFIX_6("https://v3-dy-o.zjcdn.com/", 55085, null);
+    PREFIX_1("https://v26-web.douyinvod.com/", 55060, 55080, true),
+    PREFIX_2("https://v11-weba.douyinvod.com/", 55061, 55081, false),
+    PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", 55082, null, false),
+    PREFIX_4("https://www.douyin.com/", 55063, 55083, false),
+    PREFIX_5("https://v5-dy-o-abtest.zjcdn.com/", 55084, null, false),
+    PREFIX_6("https://v3-dy-o.zjcdn.com/", 55085, null, false);
 
     private final String prefix;
     private final Integer port;
     private final Integer origin;
+    private final Boolean needOrigin;
 
-    DouyinMiddlewareServerEnums(String prefix, Integer port, Integer origin) {
+    DouyinMiddlewareServerEnums(String prefix, Integer port, Integer origin, Boolean needOrigin) {
         this.prefix = prefix;
         this.port = port;
         this.origin = origin;
+        this.needOrigin = needOrigin;
     }
 
     public static DouyinMiddlewareServerEnums getDouyinMiddlewareServerEnumsByUrl(String url) {

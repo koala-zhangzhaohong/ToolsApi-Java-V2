@@ -432,7 +432,7 @@ public class DouYinApiProduct {
             cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
             DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
             if (middlewareServerEnum != null) {
-                if (ObjectUtils.isEmpty(middlewareServerEnum.getOrigin())) {
+                if (ObjectUtils.isEmpty(middlewareServerEnum.getOrigin()) || middlewareServerEnum.getNeedOrigin() == false) {
                     path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
                 } else {
                     path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + cdnHostPrefix + ":" + middlewareServerEnum.getOrigin() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
