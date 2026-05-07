@@ -12,6 +12,7 @@ import com.koala.data.models.douyin.v1.PublicTiktokDataRespModel;
 import com.koala.data.models.douyin.v1.itemInfo.ItemInfoRespModel;
 import com.koala.data.models.douyin.v1.musicInfo.MusicInfoRespModel;
 import com.koala.data.models.douyin.v1.roomInfoData.RoomInfoDataRespModel;
+import com.koala.data.models.xbogus.XbogusDataModel;
 import com.koala.factory.builder.ConcreteDouYinApiBuilder;
 import com.koala.factory.builder.DouYinApiBuilder;
 import com.koala.factory.director.DouYinApiManager;
@@ -389,11 +390,11 @@ public class DouYinToolsController {
             return formatRespData(INVALID_PARAM, null);
         }
         String url = TIKTOK_RANKLIST_AUDIENCE + "?aid=6383&app_name=douyin_web&live_id=1&device_platform=web&language=zh-CN&enter_from=web_homepage_follow&cookie_enabled=true&screen_width=2304&screen_height=1296&browser_language=zh-CN&browser_platform=MacIntel&browser_name=Chrome&browser_version=147.0.0.0&os_name=Mac+OS&os_version=10.15.7&webcast_sdk_version=2450&room_id=" + roomId + "&rank_type=30";
-        AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
-        if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
+        XbogusDataModel xbogusDataModel = XbogusUtil.encrypt(url);
+        if (Objects.isNull(xbogusDataModel) || ObjectUtils.isEmpty(xbogusDataModel.getUrl())) {
             return formatRespData(ENCRYPT_URL_ERROR, null);
         }
-        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        String response = HttpClientUtil.doGet(xbogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(xbogusDataModel.getMstoken(), xbogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
         AtomicInteger index = new AtomicInteger();
         if (StringUtils.hasLength(response)) {
             switch (version) {
