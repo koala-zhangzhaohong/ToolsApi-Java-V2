@@ -44,7 +44,7 @@ public class FirewallInterceptor implements HandlerInterceptor {
 
     private static final String IP_WHITE_PREFIX = "ip_white_";
 
-    private static final Integer LIMIT_TIMES = 5;
+    private static final Integer LIMIT_TIMES = 12;
 
     private static final Integer IP_LOCK_TIME = 60 * 60;
 
@@ -63,7 +63,8 @@ public class FirewallInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
         final String ip = RemoteIpUtils.getRemoteIpByServletRequest(request, true);
-        log.info("[FirewallInterceptor] request请求地址uri={},ip={}", request.getRequestURI(), ip);
+        final String ua = request.getHeader("User-Agent").toLowerCase();
+        log.info("[FirewallInterceptor] request请求地址uri={}, ip={}, ua={}", request.getRequestURI(), ip, ua);
         final String requestInfo = request.getHeader("Request-Info");
         if (StringUtils.hasLength(requestInfo)) {
             final String requestKey = request.getHeader("Request-Key");
@@ -114,29 +115,29 @@ public class FirewallInterceptor implements HandlerInterceptor {
             log.info("[FirewallInterceptor] redis连接异常，自动放过={}", ip);
             return true;
         }
-        if (checkIpIsLock(ip, redisLockUtil)) {
-            log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
+        if (checkIpIsLock(ip, ua, redisLockUtil)) {
+            log.info("[FirewallInterceptor] ip访问被禁止={}, ua={}", ip, ua);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
         }
-        if (!addRequestTime(ip, request.getRequestURI(), redisLockUtil)) {
-            log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
+        if (!addRequestTime(ip, request.getRequestURI(), ua, redisLockUtil)) {
+            log.info("[FirewallInterceptor] ip访问被禁止={}, ua={}", ip, ua);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
         }
         return true;
     }
 
-    private boolean checkIpIsLock(String ip, RedisLockUtil redisLockUtil) {
-        return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip);
+    private boolean checkIpIsLock(String ip, String ua, RedisLockUtil redisLockUtil) {
+        return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip + "_" + MD5Utils.md5(ua));
     }
 
-    private boolean addRequestTime(String ip, String uri, RedisLockUtil redisLockUtil) {
-        String key = IP_URL_REQ_TIME + ip + uri;
+    private boolean addRequestTime(String ip, String uri, String ua, RedisLockUtil redisLockUtil) {
+        String key = IP_URL_REQ_TIME + ip + uri + "/" + MD5Utils.md5(ua);
         if (redisLockUtil.hasKey(key)) {
             long time = redisLockUtil.increment(key, 1L);
             if (time > LIMIT_TIMES) {
-                redisLockUtil.getLock(LOCK_IP_URL_KEY + ip, ip, IP_LOCK_TIME);
+                redisLockUtil.getLock(LOCK_IP_URL_KEY + ip + "_" + MD5Utils.md5(ua), ip, IP_LOCK_TIME);
                 return false;
             }
         } else {

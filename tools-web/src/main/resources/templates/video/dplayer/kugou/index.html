@@ -32,7 +32,11 @@
         },
         autoplay: true,
         hotkey: true,
-        airplay: true
+        airplay: true,
+        preload: 'metadata'
+    });
+    dp.on('play', () => {
+        dp.video.preload = 'auto';
     });
 </script>
 </body>
