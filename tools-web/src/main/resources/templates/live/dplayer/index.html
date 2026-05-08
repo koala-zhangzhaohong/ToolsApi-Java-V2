@@ -14,45 +14,38 @@
     <script src="../assets/js/DPlayer.min.js" th:src="@{/assets/js/DPlayer.min.js}"></script>
 </head>
 <body class="custom-container">
-<div id="video-player" class="dk-video-player-custom" th:data-full-hd-1="${multi.getFullHd1()}"
-     th:data-hd-1="${multi.getHd1()}" th:data-sd-1="${multi.getSd1()}" th:data-sd-2="${multi.getSd2()}"
-     th:data-vid-type="${type}">
+<div id="video-player" class="dk-video-player-custom">
     <meta name="referrer" content="never">
 </div>
 <script>
     const videoElement = document.getElementById('video-player');
-    const vidFullHd1Path = videoElement.getAttribute("data-full-hd-1");
-    const vidHd1Path = videoElement.getAttribute("data-hd-1");
-    const vidSd1Path = videoElement.getAttribute("data-sd-1");
-    const vidSd2Path = videoElement.getAttribute("data-sd-2");
-    const vidType = videoElement.getAttribute("data-vid-type");
     const qualityList = [];
-    if (vidHd1Path != null) {
+    if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
         qualityList.push({
             name: '蓝光',
-            url: vidHd1Path,
-            type: vidType,
+            url: "[[${multi.getFullHd1()}]]",
+            type: "[[${type}]]",
         });
     }
-    if (vidFullHd1Path != null) {
+    if (checkContentIsNotEmpty("[[${multi.getHd1()}]]")) {
         qualityList.push({
             name: '超清',
-            url: vidFullHd1Path,
-            type: vidType,
+            url: "[[${multi.getHd1()}]]",
+            type: "[[${type}]]",
         });
     }
-    if (vidSd1Path != null) {
+    if (checkContentIsNotEmpty("[[${multi.getSd1()}]]")) {
         qualityList.push({
             name: '高清',
-            url: vidSd1Path,
-            type: vidType,
+            url: "[[${multi.getSd1()}]]",
+            type: "[[${type}]]",
         });
     }
-    if (vidSd2Path != null) {
+    if (checkContentIsNotEmpty("[[${multi.getSd2()}]]")) {
         qualityList.push({
             name: '标清',
-            url: vidSd2Path,
-            type: vidType,
+            url: "[[${multi.getSd2()}]]",
+            type: "[[${type}]]",
         });
     }
     const dp = new DPlayer({
@@ -60,11 +53,37 @@
         video: {
             quality: qualityList,
             defaultQuality: 0,
+            type: "[[${type}]]"
+        },
+        pluginOptions: {
+            hls: {
+                lowLatencyMode: true, // 降低直播延迟
+                backBufferLength: 90
+            }
         },
         autoplay: true,
         hotkey: true,
         airplay: true,
-        live: true
+        live: true,
+        preload: 'none'
     });
+    // 监听错误并自动恢复
+    dp.on('error', (err) => {
+        if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
+            const hls = dp.plugins.hls;
+            if (hls && hls.error && hls.error.fatal) {
+                hls.startLoad(); // 网络错误重试
+            }
+        }
+    });
+
+    function checkContentIsNotEmpty(input) {
+        if (input && input.length > 0) {
+            if (input !== "null" && input !== "") {
+                return true;
+            }
+        }
+        return false;
+    }
 </script>
 </body>
