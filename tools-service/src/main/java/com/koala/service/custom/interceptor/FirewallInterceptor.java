@@ -119,7 +119,8 @@ public class FirewallInterceptor implements HandlerInterceptor {
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
         }
-        if (!addRequestTime(ip, request.getRequestURI(), redisLockUtil)) {
+        final String ua = request.getHeader("User-Agent").toLowerCase();
+        if (!addRequestTime(ip, request.getRequestURI(), ua, redisLockUtil)) {
             log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
@@ -131,8 +132,8 @@ public class FirewallInterceptor implements HandlerInterceptor {
         return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip);
     }
 
-    private boolean addRequestTime(String ip, String uri, RedisLockUtil redisLockUtil) {
-        String key = IP_URL_REQ_TIME + ip + uri;
+    private boolean addRequestTime(String ip, String uri, String ua, RedisLockUtil redisLockUtil) {
+        String key = IP_URL_REQ_TIME + ip + uri + MD5Utils.md5(ua);
         if (redisLockUtil.hasKey(key)) {
             long time = redisLockUtil.increment(key, 1L);
             if (time > LIMIT_TIMES) {
