@@ -63,7 +63,8 @@ public class FirewallInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
         final String ip = RemoteIpUtils.getRemoteIpByServletRequest(request, true);
-        log.info("[FirewallInterceptor] request请求地址uri={},ip={}", request.getRequestURI(), ip);
+        final String ua = request.getHeader("User-Agent").toLowerCase();
+        log.info("[FirewallInterceptor] request请求地址uri={}, ip={}, ua={}", request.getRequestURI(), ip, ua);
         final String requestInfo = request.getHeader("Request-Info");
         if (StringUtils.hasLength(requestInfo)) {
             final String requestKey = request.getHeader("Request-Key");
@@ -114,7 +115,6 @@ public class FirewallInterceptor implements HandlerInterceptor {
             log.info("[FirewallInterceptor] redis连接异常，自动放过={}", ip);
             return true;
         }
-        final String ua = request.getHeader("User-Agent").toLowerCase();
         if (checkIpIsLock(ip, ua, redisLockUtil)) {
             log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
