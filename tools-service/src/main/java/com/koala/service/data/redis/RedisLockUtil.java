@@ -69,7 +69,7 @@ public class RedisLockUtil {
     }
 
     public boolean hasKey(String lockKey) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(lockKey));
+        return redisTemplate.hasKey(lockKey);
     }
 
     public Object getFromRedis(String key, Object defaultValue) {

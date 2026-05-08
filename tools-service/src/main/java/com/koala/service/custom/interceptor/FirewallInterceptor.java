@@ -114,12 +114,12 @@ public class FirewallInterceptor implements HandlerInterceptor {
             log.info("[FirewallInterceptor] redis连接异常，自动放过={}", ip);
             return true;
         }
-        if (checkIpIsLock(ip, redisLockUtil)) {
+        final String ua = request.getHeader("User-Agent").toLowerCase();
+        if (checkIpIsLock(ip, ua, redisLockUtil)) {
             log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
         }
-        final String ua = request.getHeader("User-Agent").toLowerCase();
         if (!addRequestTime(ip, request.getRequestURI(), ua, redisLockUtil)) {
             log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
@@ -128,8 +128,8 @@ public class FirewallInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    private boolean checkIpIsLock(String ip, RedisLockUtil redisLockUtil) {
-        return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip);
+    private boolean checkIpIsLock(String ip, String ua, RedisLockUtil redisLockUtil) {
+        return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip + "_" + ua);
     }
 
     private boolean addRequestTime(String ip, String uri, String ua, RedisLockUtil redisLockUtil) {
@@ -137,7 +137,7 @@ public class FirewallInterceptor implements HandlerInterceptor {
         if (redisLockUtil.hasKey(key)) {
             long time = redisLockUtil.increment(key, 1L);
             if (time > LIMIT_TIMES) {
-                redisLockUtil.getLock(LOCK_IP_URL_KEY + ip, ip, IP_LOCK_TIME);
+                redisLockUtil.getLock(LOCK_IP_URL_KEY + ip + "_" + ua, ip, IP_LOCK_TIME);
                 return false;
             }
         } else {
