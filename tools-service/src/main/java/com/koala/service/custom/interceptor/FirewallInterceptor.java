@@ -129,15 +129,15 @@ public class FirewallInterceptor implements HandlerInterceptor {
     }
 
     private boolean checkIpIsLock(String ip, String ua, RedisLockUtil redisLockUtil) {
-        return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip + "_" + ua);
+        return redisLockUtil.hasKey(LOCK_IP_URL_KEY + ip + "_" + MD5Utils.md5(ua));
     }
 
     private boolean addRequestTime(String ip, String uri, String ua, RedisLockUtil redisLockUtil) {
-        String key = IP_URL_REQ_TIME + ip + uri + MD5Utils.md5(ua);
+        String key = IP_URL_REQ_TIME + ip + uri + "/" + MD5Utils.md5(ua);
         if (redisLockUtil.hasKey(key)) {
             long time = redisLockUtil.increment(key, 1L);
             if (time > LIMIT_TIMES) {
-                redisLockUtil.getLock(LOCK_IP_URL_KEY + ip + "_" + ua, ip, IP_LOCK_TIME);
+                redisLockUtil.getLock(LOCK_IP_URL_KEY + ip + "_" + MD5Utils.md5(ua), ip, IP_LOCK_TIME);
                 return false;
             }
         } else {
