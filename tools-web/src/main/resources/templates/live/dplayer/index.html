@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title th:text="${title}"></title>
+    <!-- 预加载，为什么预加载，因为m3u8需要命中缓存 -->
+    <link rel="preconnect" href="douyincdn.com">
+    <link rel="preconnect" href="douyinliving.com">
+    <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getFullHd1()}" crossorigin="anonymous">
+    <!-- css js -->
     <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
+    <script src="../assets/js/polyfill.min.js" th:src="@{/assets/js/polyfill.min.js}"></script>
     <th:block th:if="${type == 'hls'}">
         <script src="../assets/js/hls.js" th:src="@{/assets/js/hls.js}"></script>
     </th:block>
@@ -23,29 +29,29 @@
     if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
         qualityList.push({
             name: '蓝光',
-            url: "[[${multi.getFullHd1()}]]",
-            type: "[[${type}]]",
+            url: '[[${multi.getFullHd1()}]]',
+            type: '[[${type}]]',
         });
     }
     if (checkContentIsNotEmpty("[[${multi.getHd1()}]]")) {
         qualityList.push({
             name: '超清',
-            url: "[[${multi.getHd1()}]]",
-            type: "[[${type}]]",
+            url: '[[${multi.getHd1()}]]',
+            type: '[[${type}]]',
         });
     }
     if (checkContentIsNotEmpty("[[${multi.getSd1()}]]")) {
         qualityList.push({
             name: '高清',
-            url: "[[${multi.getSd1()}]]",
-            type: "[[${type}]]",
+            url: '[[${multi.getSd1()}]]',
+            type: '[[${type}]]',
         });
     }
     if (checkContentIsNotEmpty("[[${multi.getSd2()}]]")) {
         qualityList.push({
             name: '标清',
-            url: "[[${multi.getSd2()}]]",
-            type: "[[${type}]]",
+            url: '[[${multi.getSd2()}]]',
+            type: '[[${type}]]',
         });
     }
     const dp = new DPlayer({
@@ -53,14 +59,34 @@
         video: {
             quality: qualityList,
             defaultQuality: 0,
-            type: "[[${type}]]"
+            type: '[[${type}]]'
         },
         pluginOptions: {
             hls: {
                 lowLatencyMode: true, // 降低直播延迟
                 backBufferLength: 90,
                 maxBufferLength: 180,    // 最大缓冲时长（秒）
-                maxBufferSize: 200 * 1024 * 1024  // 最大缓冲大小（字节）
+                maxBufferSize: 200 * 1024 * 1024,  // 最大缓冲大小（字节）
+                liveSyncDurationCount: 3,
+                startLevel: -1,
+                keyLoader: (uri, callback) => {
+                    fetch(uri, {
+                        headers: {
+                            'Referer': 'https://www.douyin.com/'
+                        }
+                    })
+                        .then(response => response.arrayBuffer())
+                        .then(key => callback(null, new Uint8Array(key)))
+                        .catch(error => callback(error));
+                }
+            },
+            flv: {
+                isLive: true,
+                enableWorker: true,
+                enableStashBuffer: false,
+                lazyLoad: true,
+                lazyLoadMaxDuration: 180,
+                cors: true
             }
         },
         autoplay: true,
