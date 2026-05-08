@@ -56,8 +56,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 url = json.media_data.preview_path_flv;
             }
             const div = document.createElement('div');
-            div.innerHTML = `<iframe src="${url}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
+            div.innerHTML = `<iframe src="${url}&lastKey=${localStorage.getItem("last_live_key")}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
             apiData.appendChild(div);
+            localStorage.setItem("last_live_key", getQueryVariable(url, "key"));
         }
 
         if (checkIsNotEmptyContent(json.media_data.preview_path)) {
@@ -242,6 +243,17 @@ document.addEventListener('DOMContentLoaded', function () {
             return false;
         }
         return text.length > 0;
+    }
+
+    function getQueryVariable(url, variable)
+    {
+        const query = url.split("?")[1];
+        const vars = query.split("&");
+        for (let i=0; i<vars.length; i++) {
+            const pair = vars[i].split("=");
+            if(pair[0] === variable){return pair[1];}
+        }
+        return "null";
     }
 
     function updateRankListData() {

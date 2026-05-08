@@ -52,7 +52,7 @@ public class FirewallInterceptor implements HandlerInterceptor {
 
     private static final String[] WHITE_LIST_IP_LIST = new String[]{"127.0.0.1", "0:0:0:0:0:0:0:1"};
 
-    private static final String[] WHITE_LIST_PATH = new String[]{"/assets/", "/actuator", "/favicon.ico", "/error"};
+    private static final String[] WHITE_LIST_PATH = new String[]{"/assets/", "/actuator", "/favicon.ico", "/error", "/short"};
 
     @Resource
     private RedisLockUtil redisLockUtil;

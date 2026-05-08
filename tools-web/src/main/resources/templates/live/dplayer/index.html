@@ -7,7 +7,12 @@
     <!-- 预加载，为什么预加载，因为m3u8需要命中缓存 -->
     <link rel="preconnect" href="douyincdn.com">
     <link rel="preconnect" href="douyinliving.com">
-    <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getFullHd1()}" crossorigin="anonymous">
+    <th:block th:if="${type == 'hls'}">
+        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getFullHd1()}" crossorigin="anonymous">
+        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getHd1()}" crossorigin="anonymous">
+        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getSd1()}" crossorigin="anonymous">
+        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getSd2()}" crossorigin="anonymous">
+    </th:block>
     <!-- css js -->
     <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
     <script src="../assets/js/polyfill.min.js" th:src="@{/assets/js/polyfill.min.js}"></script>
@@ -54,56 +59,6 @@
             type: '[[${type}]]',
         });
     }
-    const dp = new DPlayer({
-        container: videoElement,
-        video: {
-            quality: qualityList,
-            defaultQuality: 0,
-            type: '[[${type}]]'
-        },
-        pluginOptions: {
-            hls: {
-                lowLatencyMode: true, // 降低直播延迟
-                backBufferLength: 90,
-                maxBufferLength: 180,    // 最大缓冲时长（秒）
-                maxBufferSize: 200 * 1024 * 1024,  // 最大缓冲大小（字节）
-                liveSyncDurationCount: 3,
-                startLevel: -1,
-                keyLoader: (uri, callback) => {
-                    fetch(uri, {
-                        headers: {
-                            'Referer': 'https://www.douyin.com/'
-                        }
-                    })
-                        .then(response => response.arrayBuffer())
-                        .then(key => callback(null, new Uint8Array(key)))
-                        .catch(error => callback(error));
-                }
-            },
-            flv: {
-                isLive: true,
-                enableWorker: true,
-                enableStashBuffer: false,
-                lazyLoad: true,
-                lazyLoadMaxDuration: 180,
-                cors: true
-            }
-        },
-        autoplay: true,
-        hotkey: true,
-        airplay: true,
-        live: true,
-        preload: 'none'
-    });
-    // 监听错误并自动恢复
-    dp.on('error', (err) => {
-        if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
-            const hls = dp.plugins.hls;
-            if (hls && hls.error && hls.error.fatal) {
-                hls.startLoad(); // 网络错误重试
-            }
-        }
-    });
 
     function checkContentIsNotEmpty(input) {
         if (input && input.length > 0) {
@@ -113,5 +68,86 @@
         }
         return false;
     }
+
+    function preparePlay(current) {
+        if ('[[${type}]]' === 'hls') {
+            setTimeout(() => {
+                current.video.muted = true;
+                current.play();
+            }, 500); // 延迟500毫秒
+        }
+    }
+
+    function initDp() {
+        const dp = new DPlayer({
+            container: videoElement,
+            video: {
+                quality: qualityList,
+                defaultQuality: 0,
+                type: '[[${type}]]'
+            },
+            pluginOptions: {
+                hls: {
+                    lowLatencyMode: true, // 降低直播延迟
+                    backBufferLength: 90,
+                    maxBufferLength: 180,    // 最大缓冲时长（秒）
+                    maxBufferSize: 200 * 1024 * 1024,  // 最大缓冲大小（字节）
+                    liveSyncDurationCount: 3,
+                    startLevel: -1,
+                    keyLoader: (uri, callback) => {
+                        fetch(uri, {
+                            headers: {
+                                'Referer': 'https://www.douyin.com/'
+                            }
+                        })
+                            .then(response => response.arrayBuffer())
+                            .then(key => callback(null, new Uint8Array(key)))
+                            .catch(error => callback(error));
+                    }
+                },
+                flv: {
+                    isLive: true,
+                    enableWorker: true,
+                    enableStashBuffer: false,
+                    lazyLoad: true,
+                    lazyLoadMaxDuration: 180,
+                    cors: true
+                }
+            },
+            autoplay: true,
+            hotkey: true,
+            airplay: true,
+            live: true,
+            preload: 'none',
+            muted: true
+        });
+        // 监听错误并自动恢复
+        dp.on('error', (err) => {
+            if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
+                const hls = dp.plugins.hls;
+                if (hls && hls.error && hls.error.fatal) {
+                    hls.startLoad(); // 网络错误重试
+                }
+            }
+        });
+        return dp;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const dp = initDp();
+        if (window.self !== window.top) {
+            if ("[[${key}]]" === "[[${lastKey}]]") {
+                console.log("on reload player", "[[${key}]]");
+                videoElement.innerHTML = '';
+                const player = initDp();
+                preparePlay(player);
+            } else {
+                console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
+            }
+        } else {
+            console.log("on load player");
+            preparePlay(dp);
+        }
+    });
 </script>
 </body>

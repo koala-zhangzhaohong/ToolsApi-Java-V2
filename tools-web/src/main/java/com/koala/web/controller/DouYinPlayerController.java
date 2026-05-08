@@ -99,13 +99,15 @@ public class DouYinPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/live/short")
-    public String liveWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "type", required = false, defaultValue = "flv") String type, @RequestParam(value = "version", required = false, defaultValue = "2") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String liveWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "type", required = false, defaultValue = "flv") String type, @RequestParam(value = "version", required = false, defaultValue = "2") String version, @RequestParam(required = false, value = "lastKey", defaultValue = "null") String lastKey, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
-            logger.info("[livePlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
+            logger.info("[livePlayer] itemKey: {}, lastKey: {}, Sec-Fetch-Dest: {}", itemKey, lastKey, request.getHeader("Sec-Fetch-Dest"));
             if (StringUtils.hasLength(itemKey)) {
                 ShortDouYinItemDataModel tmp = GsonUtil.toBean(redisService.get(TIKTOK_DATA_KEY_PREFIX + itemKey), ShortDouYinItemDataModel.class);
                 model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() : "LivePlayer");
+                model.addAttribute("key", key);
+                model.addAttribute("lastKey", lastKey);
                 model.addAttribute("path", tmp.getPath());
                 if ("hls".equals(type)) {
                     model.addAttribute("multi", tmp.getMultiLiveQualityInfo().getHls());
