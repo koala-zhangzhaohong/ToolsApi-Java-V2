@@ -44,7 +44,7 @@ public class FirewallInterceptor implements HandlerInterceptor {
 
     private static final String IP_WHITE_PREFIX = "ip_white_";
 
-    private static final Integer LIMIT_TIMES = 5;
+    private static final Integer LIMIT_TIMES = 12;
 
     private static final Integer IP_LOCK_TIME = 60 * 60;
 
