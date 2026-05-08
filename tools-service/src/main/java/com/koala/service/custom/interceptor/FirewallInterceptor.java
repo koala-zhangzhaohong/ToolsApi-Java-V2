@@ -52,7 +52,7 @@ public class FirewallInterceptor implements HandlerInterceptor {
 
     private static final String[] WHITE_LIST_IP_LIST = new String[]{"127.0.0.1", "0:0:0:0:0:0:0:1"};
 
-    private static final String[] WHITE_LIST_PATH = new String[]{"/assets/", "/actuator", "/favicon.ico", "/error", "/short"};
+    private static final String[] WHITE_LIST_PATH = new String[]{"/assets/", "/actuator", "/favicon.ico", "/error"};
 
     @Resource
     private RedisLockUtil redisLockUtil;
@@ -116,12 +116,12 @@ public class FirewallInterceptor implements HandlerInterceptor {
             return true;
         }
         if (checkIpIsLock(ip, ua, redisLockUtil)) {
-            log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
+            log.info("[FirewallInterceptor] ip访问被禁止={}, ua={}", ip, ua);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
         }
         if (!addRequestTime(ip, request.getRequestURI(), ua, redisLockUtil)) {
-            log.info("[FirewallInterceptor] ip访问被禁止={}", ip);
+            log.info("[FirewallInterceptor] ip访问被禁止={}, ua={}", ip, ua);
             returnErrorPage(response, HttpStatus.FORBIDDEN.value(), formatRespDataWithCustomMsg(403, "非法访问，请1小时后重试", null), "非法访问，请1小时后重试");
             return false;
         }
