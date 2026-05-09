@@ -7,12 +7,6 @@
     <!-- 预加载，为什么预加载，因为m3u8需要命中缓存 -->
     <link rel="preconnect" href="douyincdn.com">
     <link rel="preconnect" href="douyinliving.com">
-    <th:block th:if="${type == 'hls'}">
-        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getFullHd1()}" crossorigin="anonymous">
-        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getHd1()}" crossorigin="anonymous">
-        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getSd1()}" crossorigin="anonymous">
-        <link rel="preload" as="fetch" type="video/m3u8" th:href="${multi.getSd2()}" crossorigin="anonymous">
-    </th:block>
     <!-- css js -->
     <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
     <script src="../assets/js/polyfill.min.js" th:src="@{/assets/js/polyfill.min.js}"></script>
@@ -85,7 +79,7 @@
         }
     }
 
-    function checkIsMobile(){
+    function checkIsMobile() {
         return /Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
@@ -99,12 +93,18 @@
             },
             pluginOptions: {
                 hls: {
+                    enableWorker: true,
                     lowLatencyMode: true, // 降低直播延迟
-                    backBufferLength: 90,
-                    maxBufferLength: 180,    // 最大缓冲时长（秒）
-                    maxBufferSize: 200 * 1024 * 1024,  // 最大缓冲大小（字节）
-                    liveSyncDurationCount: 3,
+                    backBufferLength: 30,
+                    maxMaxBufferLength: 30,
+                    maxBufferLength: 10,    // 最大缓冲时长（秒）
+                    maxBufferSize: 0,  // 最大缓冲大小（字节）
+                    liveSyncDuration: 3,
+                    liveSyncDurationCount: 2,
+                    liveMaxLatencyDurationCount: 6,
                     startLevel: -1,
+                    abrEwmaDefaultEstimate: 5e5,
+                    maxBufferHole: 0.5,
                     keyLoader: (uri, callback) => {
                         fetch(uri, {
                             headers: {
@@ -134,12 +134,33 @@
         });
         // 监听错误并自动恢复
         dp.on('error', (err) => {
-            if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
-                const hls = dp.plugins.hls;
-                if (hls && hls.error && hls.error.fatal) {
-                    hls.startLoad(); // 网络错误重试
+            console.error('视频加载失败，正在尝试重连...', err);
+            try {
+                setTimeout(function () {
+                    // 简单重连：重新加载当前视频源
+                    dp.video.load();
+                    dp.video.play();
+                    // 如果上面无效，可以使用：dp.destroy() 后重新 new DPlayer()
+                }, 2000);
+            } catch (e) {
+                try {
+                    if (dp !== undefined && dp !== null) {
+                        dp.destroy();
+                    } else {
+                        videoElement.innerHTML = '';
+                    }
+                    const player = initDp();
+                    preparePlay(player);
+                } catch (e) {
+                    console.error('视频加载失败', e);
                 }
             }
+            // if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
+            //     const hls = dp.plugins.hls;
+            //     if (hls && hls.error && hls.error.fatal) {
+            //         hls.startLoad(); // 网络错误重试
+            //     }
+            // }
         });
         return dp;
     }
