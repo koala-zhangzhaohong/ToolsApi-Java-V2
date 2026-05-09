@@ -34,12 +34,15 @@
         padding-top: 2px;
         padding-bottom: 2px;
         margin-left: auto;
-        display: -webkit-box;
-        -webkit-line-clamp: 1; /* 限制显示的行数为3 */
-        -webkit-box-orient: vertical;
+        text-align: right;
+        /*display: -webkit-box;*/
+        /*-webkit-line-clamp: 1; !* 限制显示的行数为3 *!*/
+        /*-webkit-box-orient: vertical;*/
         overflow: hidden;
         text-overflow: ellipsis; /* 显示省略号 */
-        text-align: center;
+        white-space: nowrap;
+        /*text-align: center;*/
+        width: 100%;
     }
 
     .info-wrapper {
@@ -107,8 +110,6 @@
 
     .info-desc, .info-nickname, .info-user-id, .info-unique-id {
         word-break: break-all;
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
 </style>
 <body>
