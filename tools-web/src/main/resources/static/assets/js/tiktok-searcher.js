@@ -50,10 +50,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (checkIsNotEmptyContent(json.media_data.preview_path_hls) || checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
             let url = '';
-            if (checkIsNotEmptyContent(json.media_data.preview_path_hls)) {
+            if (getClient() === 'iOS' && checkIsNotEmptyContent(json.media_data.preview_path_hls)) {
                 url = json.media_data.preview_path_hls;
-            } else {
+            } else if (checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
                 url = json.media_data.preview_path_flv;
+            } else {
+                url = json.media_data.preview_path_hls;
             }
             const div = document.createElement('div');
             div.innerHTML = `<iframe src="${url}&lastKey=${localStorage.getItem("last_live_key")}" frameborder="0" width="100%" height="auto" scrolling="auto" style="height: 60vh"></iframe>`;
@@ -245,13 +247,26 @@ document.addEventListener('DOMContentLoaded', function () {
         return text.length > 0;
     }
 
-    function getQueryVariable(url, variable)
-    {
+    function getClient() {
+        let client = '';
+        if (/(iPhone|iPad|iPod|iOS)/i.test(navigator.userAgent)) {  //判断iPhone|iPad|iPod|iOS
+            client = 'iOS';
+        } else if (/(Android)/i.test(navigator.userAgent)) {  //判断Android
+            client = 'Android';
+        } else {
+            client = 'PC';
+        }
+        return client;
+    }
+
+    function getQueryVariable(url, variable) {
         const query = url.split("?")[1];
         const vars = query.split("&");
-        for (let i=0; i<vars.length; i++) {
+        for (let i = 0; i < vars.length; i++) {
             const pair = vars[i].split("=");
-            if(pair[0] === variable){return pair[1];}
+            if (pair[0] === variable) {
+                return pair[1];
+            }
         }
         return "null";
     }
