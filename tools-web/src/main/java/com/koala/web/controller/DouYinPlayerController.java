@@ -57,7 +57,7 @@ public class DouYinPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/video/short")
-    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "3") String version, @RequestParam(required = false, defaultValue = "false") Boolean proxy, @RequestParam(required = false, defaultValue = "0") Integer proxyExtra, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "4") String version, @RequestParam(required = false, defaultValue = "false") Boolean proxy, @RequestParam(required = false, defaultValue = "0") Integer proxyExtra, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[videoPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -71,7 +71,9 @@ public class DouYinPlayerController {
                     model.addAttribute("path", tmp.getProxyPath());
                     model.addAttribute("multi", tmp.getProxyMultiVideoQualityInfoList().get(proxyExtra - 1));
                 }
-                if ("3".equals(version)) {
+                if ("4".equals(version)) {
+                    return "video/zwplayer/tiktok/index";
+                } else if ("3".equals(version)) {
                     return "video/dplayer/tiktok/index";
                 } else if ("2".equals(version)) {
                     return "video/plyr/index";
@@ -117,7 +119,7 @@ public class DouYinPlayerController {
                 model.addAttribute("type", type);
                 if ("3".equals(version)) {
                     return "live/zwplayer/index";
-                }else if ("2".equals(version)) {
+                } else if ("2".equals(version)) {
                     return "live/dplayer/index";
                 } else if ("1".equals(version)) {
                     return "live/flvjs/index";

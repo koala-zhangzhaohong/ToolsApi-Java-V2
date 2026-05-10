@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title th:text="${title}"></title>
-    <!-- 预加载，为什么预加载，因为m3u8需要命中缓存 -->
-    <link rel="preconnect" href="douyincdn.com">
-    <link rel="preconnect" href="douyinliving.com">
     <!-- css js -->
     <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
     <script src="../assets/js/zwplayer/zwplayer.js" th:src="@{/assets/js/zwplayer/zwplayer.js}"></script>
@@ -19,33 +16,17 @@
     let zw;
     const videoElement = document.getElementById('video-player');
     const qualityList = [];
-    if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
+    if (checkContentIsNotEmpty("[[${multi.getHd()}]]")) {
         qualityList.push({
-            name: '原画',
-            url: '[[${multi.getFullHd1()}]]&mime_type=video_[[${type}]]',
-            type: '[[${type}]]',
-        });
-    }
-    if (checkContentIsNotEmpty("[[${multi.getHd1()}]]")) {
-        qualityList.push({
-            name: '超清',
-            url: '[[${multi.getHd1()}]]&mime_type=video_[[${type}]]',
-            type: '[[${type}]]',
+            name: '高清',
+            url: '[[${multi.getHd()}]]&mime_type=video_mp4',
             default: true,
         });
     }
-    if (checkContentIsNotEmpty("[[${multi.getSd1()}]]")) {
-        qualityList.push({
-            name: '高清',
-            url: '[[${multi.getSd1()}]]&mime_type=video_[[${type}]]',
-            type: '[[${type}]]',
-        });
-    }
-    if (checkContentIsNotEmpty("[[${multi.getSd2()}]]")) {
+    if (checkContentIsNotEmpty("[[${multi.getSd()}]]")) {
         qualityList.push({
             name: '标清',
-            url: '[[${multi.getSd2()}]]&mime_type=video_[[${type}]]',
-            type: '[[${type}]]',
+            url: '[[${multi.getSd()}]]&mime_type=video_mp4',
         });
     }
 
@@ -84,7 +65,7 @@
             snapshotButton: true,
             controlbar: true,
             autoplay: true,
-            isLive: true,
+            isLive: false,
             onready: function () {
                 console.log('[ZW player]', 'on ready');
             },
@@ -125,16 +106,6 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         initZw();
-        if (window.self !== window.top) {
-            if ("[[${key}]]" === "[[${lastKey}]]") {
-                console.log("on reload player", "[[${key}]]");
-                // initZw();
-            } else {
-                console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
-            }
-        } else {
-            console.log("on load player");
-        }
     });
 </script>
 </body>

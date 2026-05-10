@@ -74,7 +74,8 @@ public class KugouPlayerController {
                         case 3 -> {
                             resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, quality, customParams));
                         }
-                        case 2 -> {}
+                        case 2 -> {
+                        }
                         case 1 -> {
                             resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
                         }
@@ -110,7 +111,7 @@ public class KugouPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/mv/short")
-    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "1") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "2") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[videoPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -118,7 +119,9 @@ public class KugouPlayerController {
                 ShortKugouItemDataModel tmp = GsonUtil.toBean(redisService.get(KUGOU_DATA_KEY_PREFIX + itemKey), ShortKugouItemDataModel.class);
                 model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() : "VideoPlayer");
                 model.addAttribute("media", GsonUtil.toString(tmp.getMvInfo()));
-                if ("1".equals(version)) {
+                if ("2".equals(version)) {
+                    return "video/zwplayer/kugou/index";
+                } else if ("1".equals(version)) {
                     return "video/dplayer/kugou/index";
                 }
             }
