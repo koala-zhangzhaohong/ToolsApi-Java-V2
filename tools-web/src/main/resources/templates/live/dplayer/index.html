@@ -87,10 +87,19 @@
             }
             index++;
         }
+        if (!dp.paused) {
+            dp.pause();
+        }
         initDp();
         setTimeout(() => {
             dp.play();
         }, 500); // 延迟500毫秒
+    }
+
+    const onClick = () => {
+        if (dp.muted) {
+            dp.volume(0.8);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
+        }
     }
 
     function checkContentIsNotEmpty(input) {
@@ -103,19 +112,10 @@
     }
 
     function preparePlay() {
-        if ('[[${type}]]' === 'hls') {
-            setTimeout(() => {
-                dp.video.muted = true;
-                dp.play();
-            }, 500); // 延迟500毫秒
-        }
-        if (checkIsMobile()) {
-            document.querySelector('.dplayer').addEventListener('click', () => {
-                if (dp.video.muted) {
-                    dp.volume(0.8);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
-                }
-            });
-        }
+        setTimeout(() => {
+            dp.muted = true;
+            dp.play();
+        }, 500); // 延迟500毫秒
     }
 
     function checkIsMobile() {
@@ -125,7 +125,7 @@
     function safeDestroyPlayer() {
         if (dp) {
             // 1. 停止视频播放
-            if (!dp.video.paused) {
+            if (!dp.paused) {
                 dp.pause();
             }
             // 2. 调用 DPlayer 销毁方法
@@ -136,6 +136,7 @@
             }
             dp.destroy();
             // 3. 清理 DOM 节点
+            document.querySelector('.dplayer').removeEventListener('click', onClick)
             const container = dp.container;
             if (container) {
                 container.innerHTML = '';
@@ -228,6 +229,9 @@
         dp.on('quality_start', onChangeQuality);
         // 监听错误并自动恢复
         dp.on('error', handleError);
+        if (checkIsMobile()) {
+            document.querySelector('.dplayer').addEventListener('click', onClick);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -239,12 +243,6 @@
                 preparePlay();
             } else {
                 console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
-                if ('[[${type}]]' === 'hls') {
-                    setTimeout(() => {
-                        dp.video.muted = false;
-                        // dp.play();
-                    }, 500); // 延迟500毫秒
-                }
             }
         } else {
             console.log("on load player");
