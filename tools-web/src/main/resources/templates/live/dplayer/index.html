@@ -102,10 +102,10 @@
         return false;
     }
 
-    function preparePlay(muted) {
+    function preparePlay() {
         if ('[[${type}]]' === 'hls') {
             setTimeout(() => {
-                dp.video.muted = muted;
+                dp.video.muted = true;
                 dp.play();
             }, 500); // 延迟500毫秒
         }
@@ -236,14 +236,19 @@
             if ("[[${key}]]" === "[[${lastKey}]]") {
                 console.log("on reload player", "[[${key}]]");
                 initDp();
-                preparePlay(true);
+                preparePlay();
             } else {
                 console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
-                preparePlay(false);
+                if ('[[${type}]]' === 'hls') {
+                    setTimeout(() => {
+                        dp.video.muted = false;
+                        // dp.play();
+                    }, 500); // 延迟500毫秒
+                }
             }
         } else {
             console.log("on load player");
-            preparePlay(true);
+            preparePlay();
         }
     });
 </script>
