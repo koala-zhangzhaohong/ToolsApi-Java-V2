@@ -156,9 +156,44 @@
                 defaultQuality: qualityIndex,
                 type: '[[${type}]]'
             },
+            pluginOptions: {
+                hls: {
+                    enableWorker: true,
+                    lowLatencyMode: true, // 降低直播延迟
+                    backBufferLength: 30,
+                    maxMaxBufferLength: 30,
+                    maxBufferLength: 10,    // 最大缓冲时长（秒）
+                    maxBufferSize: 200 * 1000 * 1000,  // 最大缓冲大小（字节）
+                    liveSyncDuration: 3,
+                    liveSyncDurationCount: 2,
+                    liveMaxLatencyDurationCount: 6,
+                    startLevel: -1,
+                    startFragPrefetch: true,
+                    abrEwmaDefaultEstimate: 5e5,
+                    maxBufferHole: 0.5,
+                    keyLoader: (uri, callback) => {
+                        fetch(uri, {
+                            headers: {
+                                'Referer': 'https://www.douyin.com/'
+                            }
+                        })
+                            .then(response => response.arrayBuffer())
+                            .then(key => callback(null, new Uint8Array(key)))
+                            .catch(error => callback(error));
+                    }
+                },
+                flv: {
+                    isLive: true,
+                    enableWorker: true,
+                    enableStashBuffer: false,
+                    lazyLoad: true,
+                    lazyLoadMaxDuration: 180,
+                    cors: true
+                }
+            },
             customType: {
                 hls: function (video, player) {
-                    const hls = new Hls();
+                    const hls = dp && dp.dp.pluginOptions && dp.pluginOptions.hls ? new Hls(dp.pluginOptions.hls) : new Hls();
                     hls.loadSource(video.src);
                     hls.attachMedia(video);
                     hls.on(Hls.Events.MANIFEST_PARSED, function () {
@@ -183,40 +218,6 @@
                     flvPlayer.attachMediaElement(video);
                     flvPlayer.load();
                     flvPlayer.play();
-                }
-            },
-            pluginOptions: {
-                hls: {
-                    enableWorker: true,
-                    lowLatencyMode: true, // 降低直播延迟
-                    backBufferLength: 30,
-                    maxMaxBufferLength: 30,
-                    maxBufferLength: 10,    // 最大缓冲时长（秒）
-                    maxBufferSize: 0,  // 最大缓冲大小（字节）
-                    liveSyncDuration: 3,
-                    liveSyncDurationCount: 2,
-                    liveMaxLatencyDurationCount: 6,
-                    startLevel: -1,
-                    abrEwmaDefaultEstimate: 5e5,
-                    maxBufferHole: 0.5,
-                    keyLoader: (uri, callback) => {
-                        fetch(uri, {
-                            headers: {
-                                'Referer': 'https://www.douyin.com/'
-                            }
-                        })
-                            .then(response => response.arrayBuffer())
-                            .then(key => callback(null, new Uint8Array(key)))
-                            .catch(error => callback(error));
-                    }
-                },
-                flv: {
-                    isLive: true,
-                    enableWorker: true,
-                    enableStashBuffer: false,
-                    lazyLoad: true,
-                    lazyLoadMaxDuration: 180,
-                    cors: true
                 }
             },
             autoplay: false,
