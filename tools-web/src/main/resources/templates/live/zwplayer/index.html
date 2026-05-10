@@ -23,14 +23,14 @@
     if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
         qualityList.push({
             name: '蓝光',
-            url: '[[${multi.getFullHd1()}]]',
+            url: '[[${multi.getFullHd1()}]]&mime_type=video_[[${type}]]',
             type: '[[${type}]]',
         });
     }
     if (checkContentIsNotEmpty("[[${multi.getHd1()}]]")) {
         qualityList.push({
             name: '超清',
-            url: '[[${multi.getHd1()}]]',
+            url: '[[${multi.getHd1()}]]&mime_type=video_[[${type}]]',
             type: '[[${type}]]',
             default: true,
         });
@@ -38,14 +38,14 @@
     if (checkContentIsNotEmpty("[[${multi.getSd1()}]]")) {
         qualityList.push({
             name: '高清',
-            url: '[[${multi.getSd1()}]]',
+            url: '[[${multi.getSd1()}]]&mime_type=video_[[${type}]]',
             type: '[[${type}]]',
         });
     }
     if (checkContentIsNotEmpty("[[${multi.getSd2()}]]")) {
         qualityList.push({
             name: '标清',
-            url: '[[${multi.getSd2()}]]',
+            url: '[[${multi.getSd2()}]]&mime_type=video_[[${type}]]',
             type: '[[${type}]]',
         });
     }
@@ -82,6 +82,7 @@
             snapshotButton: true,
             controlbar: true,
             autoplay: true,
+            isLive: true,          // 直播设置为true
         };
         zw = new ZWPlayer(info);
     }
