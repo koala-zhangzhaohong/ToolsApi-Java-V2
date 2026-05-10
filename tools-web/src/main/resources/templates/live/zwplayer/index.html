@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title th:text="${title}"></title>
+    <!-- 预加载，为什么预加载，因为m3u8需要命中缓存 -->
+    <link rel="preconnect" href="douyincdn.com">
+    <link rel="preconnect" href="douyinliving.com">
+    <!-- css js -->
+    <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
+    <link href="../assets/css/zw-player.css" th:href="@{/assets/css/zw-player.css}" rel="stylesheet">
+    <script src="../assets/js/zwplayer/zwplayer.js" th:src="@{/assets/js/zwplayer/zwplayer.js}"></script>
+</head>
+<body class="custom-container">
+<div id="video-player" class="zw-video-player-custom">
+    <meta name="referrer" content="never">
+</div>
+<script>
+    let zw;
+    const videoElement = document.getElementById('video-player');
+    const qualityList = [];
+    if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
+        qualityList.push({
+            name: '蓝光',
+            url: '[[${multi.getFullHd1()}]]',
+            type: '[[${type}]]',
+        });
+    }
+    if (checkContentIsNotEmpty("[[${multi.getHd1()}]]")) {
+        qualityList.push({
+            name: '超清',
+            url: '[[${multi.getHd1()}]]',
+            type: '[[${type}]]',
+            default: true,
+        });
+    }
+    if (checkContentIsNotEmpty("[[${multi.getSd1()}]]")) {
+        qualityList.push({
+            name: '高清',
+            url: '[[${multi.getSd1()}]]',
+            type: '[[${type}]]',
+        });
+    }
+    if (checkContentIsNotEmpty("[[${multi.getSd2()}]]")) {
+        qualityList.push({
+            name: '标清',
+            url: '[[${multi.getSd2()}]]',
+            type: '[[${type}]]',
+        });
+    }
+
+    function checkContentIsNotEmpty(input) {
+        if (input && input.length > 0) {
+            if (input !== "null" && input !== "") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function checkIsMobile() {
+        return /Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    function safeDestroyPlayer() {
+        if (zw) {
+            // 1. 停止视频播放
+
+            zw = null;
+            console.log('ZW player 已彻底销毁');
+        }
+    }
+
+    function initZw() {
+        safeDestroyPlayer();
+        const info = {
+            playerElm: 'video-player',
+            url: qualityList,
+            infoButton: true,
+            optionButton: true,
+            snapshotButton: true,
+            controlbar: true,
+            autoplay: true,
+        };
+        zw = new ZWPlayer(info);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initZw();
+        if (window.self !== window.top) {
+            if ("[[${key}]]" === "[[${lastKey}]]") {
+                console.log("on reload player", "[[${key}]]");
+                initZw();
+            } else {
+                console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
+            }
+        } else {
+            console.log("on load player");
+        }
+    });
+</script>
+</body>

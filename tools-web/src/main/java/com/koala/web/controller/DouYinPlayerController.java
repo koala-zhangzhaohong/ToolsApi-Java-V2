@@ -99,7 +99,7 @@ public class DouYinPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/live/short")
-    public String liveWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "type", required = false, defaultValue = "flv") String type, @RequestParam(value = "version", required = false, defaultValue = "2") String version, @RequestParam(required = false, value = "lastKey", defaultValue = "null") String lastKey, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String liveWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "type", required = false, defaultValue = "flv") String type, @RequestParam(value = "version", required = false, defaultValue = "3") String version, @RequestParam(required = false, value = "lastKey", defaultValue = "null") String lastKey, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[livePlayer] itemKey: {}, lastKey: {}, Sec-Fetch-Dest: {}", itemKey, lastKey, request.getHeader("Sec-Fetch-Dest"));
@@ -115,7 +115,9 @@ public class DouYinPlayerController {
                     model.addAttribute("multi", tmp.getMultiLiveQualityInfo().getFlv());
                 }
                 model.addAttribute("type", type);
-                if ("2".equals(version)) {
+                if ("3".equals(version)) {
+                    return "live/zwplayer/index";
+                }else if ("2".equals(version)) {
                     return "live/dplayer/index";
                 } else if ("1".equals(version)) {
                     return "live/flvjs/index";

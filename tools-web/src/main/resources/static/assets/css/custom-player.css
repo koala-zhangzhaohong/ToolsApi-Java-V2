@@ -48,7 +48,7 @@
     transform: translate(-50%, 0);
 }
 
-.dk-video-player-custom {
+.dk-video-player-custom, .zw-video-player-custom {
     height: 100vh;
 }
 
@@ -81,10 +81,11 @@
         width: 100%;
         height: auto;
     }
+
     .swiper-item-container {
         display: grid;
         place-items: center; /* 同时实现水平和垂直居中 */
-        height: 100vh;       /* 容器高度，根据需要设置 */
+        height: 100vh; /* 容器高度，根据需要设置 */
     }
 }
 
