@@ -58,23 +58,23 @@
 
     const handleError = (err) => {
         console.error('视频加载失败，正在尝试重连...', err);
-        // try {
-        //     dp.video.load();
-        //     dp.video.play();
-        // } catch (e) {
-        //     try {
-        //         initDp();
-        //         preparePlay();
-        //     } catch (e) {
-        //         console.error('视频加载失败', e);
-        //     }
-        // }
-        if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
-            const hls = dp.plugins.hls;
-            if (hls && hls.error && hls.error.fatal) {
-                hls.startLoad(); // 网络错误重试
+        try {
+            dp.video.load();
+            dp.video.play();
+        } catch (e) {
+            try {
+                initDp();
+                preparePlay();
+            } catch (e) {
+                console.error('视频加载失败', e);
             }
         }
+        // if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
+        //     const hls = dp.plugins.hls;
+        //     if (hls && hls.error && hls.error.fatal) {
+        //         hls.startLoad(); // 网络错误重试
+        //     }
+        // }
     }
 
     const onChangeQuality = (quality) => {
@@ -87,18 +87,18 @@
             }
             index++;
         }
-        if (!dp.paused) {
-            dp.pause();
+        if (!dp.video.paused) {
+            dp.video.pause();
         }
         initDp();
         setTimeout(() => {
-            dp.play();
+            dp.video.play();
         }, 500); // 延迟500毫秒
     }
 
     const onClick = () => {
-        if (dp.muted) {
-            dp.volume(0.8);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
+        if (dp.video.muted) {
+            dp.video.volume(0.8);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
         }
     }
 
@@ -113,8 +113,8 @@
 
     function preparePlay() {
         setTimeout(() => {
-            dp.muted = true;
-            dp.play();
+            dp.video.muted = true;
+            dp.video.play();
         }, 500); // 延迟500毫秒
     }
 
@@ -125,8 +125,8 @@
     function safeDestroyPlayer() {
         if (dp) {
             // 1. 停止视频播放
-            if (!dp.paused) {
-                dp.pause();
+            if (!dp.video.paused) {
+                dp.video.pause();
             }
             // 2. 调用 DPlayer 销毁方法
             // 尝试销毁底层插件
