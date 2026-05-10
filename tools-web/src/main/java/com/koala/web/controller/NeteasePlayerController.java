@@ -62,7 +62,7 @@ public class NeteasePlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/mv/short")
-    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "1") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "2") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[videoPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -71,7 +71,9 @@ public class NeteasePlayerController {
                 model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() : "VideoPlayer");
                 model.addAttribute("path", tmp.getPath());
                 model.addAttribute("multi", tmp.getMultiMvQualityInfo());
-                if ("1".equals(version)) {
+                if ("2".equals(version)) {
+                    return "video/zwplayer/netease/index";
+                } else if ("1".equals(version)) {
                     return "video/dplayer/netease/index";
                 }
             }

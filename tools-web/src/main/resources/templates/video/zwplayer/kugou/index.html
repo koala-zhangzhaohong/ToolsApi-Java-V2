@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title th:text="${title}"></title>
+    <!-- css js -->
+    <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
+    <script src="../assets/js/zwplayer/zwplayer.js" th:src="@{/assets/js/zwplayer/zwplayer.js}"></script>
+    <script type="text/javascript" src="../assets/js/Util.js"
+            th:src="@{/assets/js/Util.js(v=1.0)}"></script>
+</head>
+<body class="custom-container">
+<div id="video-player" class="zw-video-player-custom">
+    <meta name="referrer" content="never">
+</div>
+<script>
+    let zw;
+    const videoElement = document.getElementById('video-player');
+    const qualityList = [];
+    if (checkContentIsNotEmpty("[[${media}]]")) {
+        Array.from(JSON.parse(Util.htmlspecialchars_decode('[[${media}]]'))).forEach((value) => {
+            qualityList.push({
+                name: value.name,
+                url: value.path,
+            });
+        });
+    }
+
+    function checkContentIsNotEmpty(input) {
+        if (input && input.length > 0) {
+            if (input !== "null" && input !== "") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function checkIsMobile() {
+        return /Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    function safeDestroyPlayer() {
+        if (zw) {
+            if (zw.paused) {
+                zw.pause();
+            }
+            zw.destroy();
+            zw = null;
+            videoElement.innerHTML = '';
+            console.log('[ZW player]', 'on destroy');
+        }
+    }
+
+    function initZw() {
+        safeDestroyPlayer();
+        const info = {
+            playerElm: 'video-player',
+            url: qualityList,
+            infoButton: true,
+            optionButton: true,
+            snapshotButton: true,
+            controlbar: true,
+            autoplay: true,
+            isLive: false,
+            onready: function () {
+                console.log('[ZW player]', 'on ready');
+            },
+            onmediaevent: function (event) {
+                console.log(event)
+                switch (event.type) {
+                    case 'play':
+                        console.log('[ZW player]', '开始播放');
+                        break;
+                    case 'playing':
+                        console.log('[ZW player]', '正在播放');
+                        break;
+                    case 'pause':
+                        console.log('[ZW player]', '播放暂停');
+                        break;
+                    case 'seeking':
+                        console.log('[ZW player]', '正在 seek');
+                        break;
+                    case 'seeked':
+                        console.log('[ZW player]', 'seek 结束');
+                        break;
+                    case 'waiting':
+                        console.log('[ZW player]', '正在等待');
+                        break;
+                    case 'ended':
+                        console.log('[ZW player]', '播放结束');
+                        break;
+                    case 'error':
+                        console.log('[ZW player]', '播放错误');
+                        initZw();
+                        break;
+                }
+
+            },
+        };
+        zw = new ZWPlayer(info);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initZw();
+    });
+</script>
+</body>
