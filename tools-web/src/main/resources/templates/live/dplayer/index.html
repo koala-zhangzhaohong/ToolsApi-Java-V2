@@ -23,6 +23,8 @@
     <meta name="referrer" content="never">
 </div>
 <script>
+    let dp;
+    let qualityIndex = 0;
     const videoElement = document.getElementById('video-player');
     const qualityList = [];
     if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
@@ -54,6 +56,40 @@
         });
     }
 
+    const handleError = (err) => {
+        console.error('视频加载失败，正在尝试重连...', err);
+        // try {
+        //     dp.video.load();
+        //     dp.video.play();
+        // } catch (e) {
+        //     try {
+        //         initDp();
+        //         preparePlay();
+        //     } catch (e) {
+        //         console.error('视频加载失败', e);
+        //     }
+        // }
+        if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
+            const hls = dp.plugins.hls;
+            if (hls && hls.error && hls.error.fatal) {
+                hls.startLoad(); // 网络错误重试
+            }
+        }
+    }
+
+    const onChangeQuality = (quality) => {
+        // 可显示加载动画或提示
+        let index = 0;
+        for (const qualityItem of qualityList) {
+            if (qualityItem.name === quality.name) {
+                qualityIndex = index;
+                break;
+            }
+            index++;
+        }
+        initDp();
+    }
+
     function checkContentIsNotEmpty(input) {
         if (input && input.length > 0) {
             if (input !== "null" && input !== "") {
@@ -63,17 +99,17 @@
         return false;
     }
 
-    function preparePlay(current) {
+    function preparePlay() {
         if ('[[${type}]]' === 'hls') {
             setTimeout(() => {
-                current.video.muted = true;
-                current.play();
+                dp.video.muted = true;
+                dp.play();
             }, 500); // 延迟500毫秒
         }
         if (checkIsMobile()) {
             document.querySelector('.dplayer').addEventListener('click', () => {
-                if (current.video.muted) {
-                    current.volume(0.7);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
+                if (dp.video.muted) {
+                    dp.volume(0.7);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
                 }
             });
         }
@@ -83,13 +119,67 @@
         return /Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
+    function safeDestroyPlayer() {
+        if (dp) {
+            // 1. 停止视频播放
+            if (!dp.video.paused) {
+                dp.pause();
+            }
+            // 2. 调用 DPlayer 销毁方法
+            // 尝试销毁底层插件
+            if (dp.plugins) {
+                if (dp.plugins.hls) dp.plugins.hls.destroy();
+                if (dp.plugins.flv) dp.plugins.flv.destroy();
+            }
+            dp.destroy();
+            // 3. 清理 DOM 节点
+            const container = dp.container;
+            if (container) {
+                container.innerHTML = '';
+            }
+            // 4. 解除引用
+            dp = null;
+            console.log('DPlayer 已彻底销毁');
+        }
+    }
+
     function initDp() {
-        const dp = new DPlayer({
+        safeDestroyPlayer();
+        dp = new DPlayer({
             container: videoElement,
             video: {
                 quality: qualityList,
-                defaultQuality: 0,
+                defaultQuality: qualityIndex,
                 type: '[[${type}]]'
+            },
+            customType: {
+                hls: function (video, player) {
+                    const hls = new Hls();
+                    hls.loadSource(video.src);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                        video.play();
+                    });
+                    hls.sessionId = crypto.randomUUID();
+                    player.sessionId = hls.sessionId;
+                    player.events.on('destroy', () => {
+                        hls.destroy();
+                    });
+                    player.events.on('quality_end', () => {
+                        if (hls.sessionId !== player.sessionId) {
+                            hls.destroy();
+                        }
+                    });
+                },
+                flv: function (video, player) {
+                    const flvPlayer = flvjs.createPlayer({
+                        type: 'flv',
+                        url: video.src
+                    });
+                    flvPlayer.attachMediaElement(video);
+                    flvPlayer.load();
+                    flvPlayer.play();
+                }
             },
             pluginOptions: {
                 hls: {
@@ -125,61 +215,32 @@
                     cors: true
                 }
             },
-            autoplay: true,
+            autoplay: false,
             hotkey: true,
             airplay: true,
             live: true,
             preload: 'none',
             muted: true
         });
+        dp.on('quality_start', onChangeQuality);
         // 监听错误并自动恢复
-        dp.on('error', (err) => {
-            console.error('视频加载失败，正在尝试重连...', err);
-            try {
-                setTimeout(function () {
-                    // 简单重连：重新加载当前视频源
-                    dp.video.load();
-                    dp.video.play();
-                    // 如果上面无效，可以使用：dp.destroy() 后重新 new DPlayer()
-                }, 2000);
-            } catch (e) {
-                try {
-                    if (dp !== undefined && dp !== null) {
-                        dp.destroy();
-                    } else {
-                        videoElement.innerHTML = '';
-                    }
-                    const player = initDp();
-                    preparePlay(player);
-                } catch (e) {
-                    console.error('视频加载失败', e);
-                }
-            }
-            // if (dp.type === 'hls' && window.Hls && window.Hls.isSupported()) {
-            //     const hls = dp.plugins.hls;
-            //     if (hls && hls.error && hls.error.fatal) {
-            //         hls.startLoad(); // 网络错误重试
-            //     }
-            // }
-        });
-        return dp;
+        dp.on('error', handleError);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const dp = initDp();
+        initDp();
         if (window.self !== window.top) {
             if ("[[${key}]]" === "[[${lastKey}]]") {
                 console.log("on reload player", "[[${key}]]");
-                videoElement.innerHTML = '';
-                const player = initDp();
-                preparePlay(player);
+                initDp();
+                preparePlay();
             } else {
                 console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
                 // preparePlay(dp);
             }
         } else {
             console.log("on load player");
-            preparePlay(dp);
+            preparePlay();
         }
     });
 </script>
