@@ -88,9 +88,7 @@
             index++;
         }
         initDp();
-        setTimeout(() => {
-            dp.play();
-        }, 500); // 延迟500毫秒
+        doPlay();
     }
 
     function checkContentIsNotEmpty(input) {
@@ -102,10 +100,25 @@
         return false;
     }
 
-    function preparePlay(muted) {
+    function doPlay() {
         if ('[[${type}]]' === 'hls') {
             setTimeout(() => {
-                dp.video.muted = muted;
+                dp.play();
+            }, 500); // 延迟500毫秒
+        }
+        if (checkIsMobile()) {
+            document.querySelector('.dplayer').addEventListener('click', () => {
+                if (dp.video.muted) {
+                    dp.volume(0.8);  // 使用DPlayer的volume方法 [src/js/player.js#L287](https://link.gitcode.com/i/272768102819405aeb7b48dcab844a49#L287)
+                }
+            });
+        }
+    }
+
+    function preparePlay() {
+        if ('[[${type}]]' === 'hls') {
+            setTimeout(() => {
+                dp.video.muted = true;
                 dp.play();
             }, 500); // 延迟500毫秒
         }
@@ -236,14 +249,14 @@
             if ("[[${key}]]" === "[[${lastKey}]]") {
                 console.log("on reload player", "[[${key}]]");
                 initDp();
-                preparePlay(true);
+                preparePlay();
             } else {
                 console.log("on load player", "current: [[${key}]]", "last: [[${lastKey}]]");
-                preparePlay(false);
+                doPlay();
             }
         } else {
             console.log("on load player");
-            preparePlay(true);
+            preparePlay();
         }
     });
 </script>
