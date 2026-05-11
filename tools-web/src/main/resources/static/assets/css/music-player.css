@@ -1577,6 +1577,11 @@ body {
     text-align: center;
 }
 
+.quality-radio {
+    margin: 12px;
+    font-size: small;
+}
+
 @media only screen and (min-width: 960px) {
     .player-container-custom {
         margin-left: 50px;
