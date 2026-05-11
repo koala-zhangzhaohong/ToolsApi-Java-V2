@@ -17,7 +17,7 @@
 
 <div class="player-container">
     <!-- Settings Button -->
-    <button class="settings-btn" id="settingsBtn">
+    <button class="settings-btn" id="settingsBtn" style="visibility: hidden;">
         <i class="fas fa-cog"></i>
     </button>
 
@@ -216,6 +216,20 @@
             <h3>音质切换</h3>
             <button class="close-quality" id="closeQualityModal">&times;</button>
         </div>
+        <div class="quality-tabs">
+            <button class="quality-tab active" data-tab="defaultQuality">标准</button>
+            <button class="quality-tab" data-tab="highQuality">高品</button>
+            <button class="quality-tab" data-tab="flacQuality">无损</button>
+        </div>
+        <div class="quality-tab-content active" id="defaultQualityTab">
+            <div class="quality-container-empty">暂无数据</div>
+        </div>
+        <div class="quality-tab-content" id="highQualityTab">
+            <div class="quality-container-empty">暂无数据</div>
+        </div>
+        <div class="quality-tab-content" id="flacQualityTab">
+            <div class="quality-container-empty">暂无数据</div>
+        </div>
     </div>
 </div>
 
@@ -248,7 +262,7 @@
 
         <div class="playlist-tabs">
             <button class="playlist-tab active" data-tab="songs">歌曲</button>
-            <button class="playlist-tab" data-tab="upload">上传文件</button>
+            <button class="playlist-tab" data-tab="upload" style="visibility: hidden" disabled>上传文件</button>
         </div>
 
         <div class="playlist-tab-content active" id="songsTab">
@@ -498,6 +512,8 @@
         // 音质切换
         const changeQualityBtn = document.getElementById('changeQualityBtn');
         const qualityModal = document.getElementById('qualityModal');
+        const qualityTabs = document.querySelectorAll('.quality-tab');
+        const qualityTabContents = document.querySelectorAll('.quality-tab-content');
         const closeQualityModal = document.getElementById('closeQualityModal');
 
         // 新增的播放速度控制元素
@@ -677,6 +693,20 @@
             shufflePlaylistBtn.addEventListener('click', shufflePlaylist);
             importPlaylistBtn.addEventListener('click', importPlaylist);
             exportPlaylistBtn.addEventListener('click', exportPlaylist);
+
+            qualityTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const tabId = e.target.dataset.tab;
+
+                    // 移除所有活动标签
+                    qualityTabs.forEach(t => t.classList.remove('active'));
+                    qualityTabContents.forEach(c => c.classList.remove('active'));
+
+                    // 激活选中的标签
+                    e.target.classList.add('active');
+                    document.getElementById(tabId + 'Tab').classList.add('active');
+                });
+            });
 
             // 播放列表标签切换
             playlistTabs.forEach(tab => {
@@ -1498,6 +1528,10 @@
                 showNotification('无法播放：找不到音频文件');
             }
             return true;
+        }
+
+        function changeQualityUI() {
+
         }
 
         // 更新播放列表UI
@@ -2369,11 +2403,11 @@
         }
 
         function toggleQualityModal() {
-            const isVisible = equalizerModal.style.display === 'flex';
-            equalizerModal.style.display = isVisible ? 'none' : 'flex';
+            const isVisible = qualityModal.style.display === 'flex';
+            qualityModal.style.display = isVisible ? 'none' : 'flex';
 
-            if (!isVisible && !equalizer && isEqualizerEnabled) {
-                initEqualizer();
+            if (!isVisible) {
+                changeQualityUI();
             }
         }
 
