@@ -9,7 +9,8 @@
     <script type="text/javascript" src="../assets/js/Util.js" th:src="@{/assets/js/Util.js(v=1.0)}"></script>
     <link href="../assets/css/music-player.css" th:href="@{/assets/css/music-player.css}" rel="stylesheet">
     <link href="../assets/css/all.min.css" th:href="@{/assets/css/all.min.css}" rel="stylesheet">
-    <script type="text/javascript" src="../assets/js/jschardet.min.js" th:src="@{/assets/js/jschardet.min.js(v=1.0)}"></script>
+    <script type="text/javascript" src="../assets/js/jschardet.min.js"
+            th:src="@{/assets/js/jschardet.min.js(v=1.0)}"></script>
 </head>
 <body>
 <div class="background"></div>
@@ -162,6 +163,9 @@
         <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
             <i class="fas fa-align-left"></i>
         </button>
+        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
+            <i class="fas fa-retweet"></i>
+        </button>
     </div>
 
     <!-- Main Controls -->
@@ -184,7 +188,7 @@
             </button>
         </div>
 
-        <button class="refresh-background" id="refreshBackground" title="刷新背景">
+        <button class="refresh-background" id="refreshBackground" style="visibility: hidden" title="刷新背景">
             <i class="fas fa-sync-alt"></i>
         </button>
     </div>
@@ -201,6 +205,16 @@
         </div>
         <div id="lyricLines">
             <!-- 歌词将通过JS动态添加 -->
+        </div>
+    </div>
+</div>
+
+<!-- Quality Modal -->
+<div class="quality-modal" id="qualityModal">
+    <div class="quality-content">
+        <div class="quality-header">
+            <h3>音质切换</h3>
+            <button class="close-quality" id="closeQualityModal">&times;</button>
         </div>
     </div>
 </div>
@@ -407,7 +421,7 @@
 <div class="notification" id="notification">通知内容</div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // DOM元素
         const audioPlayer = new Audio();
         const coverImage = document.getElementById('coverImage');
@@ -480,6 +494,11 @@
         const playlistCount = document.getElementById('playlistCount');
         const playlistDuration = document.getElementById('playlistDuration');
         const loadingSpinner = document.getElementById('loadingSpinner');
+
+        // 音质切换
+        const changeQualityBtn = document.getElementById('changeQualityBtn');
+        const qualityModal = document.getElementById('qualityModal');
+        const closeQualityModal = document.getElementById('closeQualityModal');
 
         // 新增的播放速度控制元素
         const speedButtons = document.querySelectorAll('.speed-btn');
@@ -575,7 +594,7 @@
             audioPlayer.playbackRate = 1.0;
 
             // 修复暂停按钮问题 - 添加正确的事件处理
-            playPauseBtn.addEventListener('click', function() {
+            playPauseBtn.addEventListener('click', function () {
                 togglePlayPause();
             });
         }
@@ -585,44 +604,44 @@
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open('MusicPlayerDB', 1);
 
-                request.onerror = function(event) {
+                request.onerror = function (event) {
                     console.error('数据库打开失败:', event);
                     reject(event);
                 };
 
-                request.onsuccess = function(event) {
+                request.onsuccess = function (event) {
                     db = event.target.result;
                     console.log('数据库打开成功');
                     resolve();
                 };
 
-                request.onupgradeneeded = function(event) {
+                request.onupgradeneeded = function (event) {
                     const db = event.target.result;
 
                     // 创建播放列表存储
                     if (!db.objectStoreNames.contains('playlist')) {
-                        const playlistStore = db.createObjectStore('playlist', { keyPath: 'id', autoIncrement: true });
-                        playlistStore.createIndex('title', 'title', { unique: false });
+                        const playlistStore = db.createObjectStore('playlist', {keyPath: 'id', autoIncrement: true});
+                        playlistStore.createIndex('title', 'title', {unique: false});
                     }
 
                     // 创建音频文件存储
                     if (!db.objectStoreNames.contains('audioFiles')) {
-                        const audioStore = db.createObjectStore('audioFiles', { keyPath: 'id' });
+                        const audioStore = db.createObjectStore('audioFiles', {keyPath: 'id'});
                     }
 
                     // 创建封面图片存储
                     if (!db.objectStoreNames.contains('coverImages')) {
-                        const coverStore = db.createObjectStore('coverImages', { keyPath: 'id' });
+                        const coverStore = db.createObjectStore('coverImages', {keyPath: 'id'});
                     }
 
                     // 创建歌词存储
                     if (!db.objectStoreNames.contains('lyrics')) {
-                        const lyricsStore = db.createObjectStore('lyrics', { keyPath: 'id' });
+                        const lyricsStore = db.createObjectStore('lyrics', {keyPath: 'id'});
                     }
 
                     // 创建播放记录存储
                     if (!db.objectStoreNames.contains('playbackState')) {
-                        const stateStore = db.createObjectStore('playbackState', { keyPath: 'id' });
+                        const stateStore = db.createObjectStore('playbackState', {keyPath: 'id'});
                     }
                 };
             });
@@ -691,6 +710,9 @@
                     btn.classList.add('active');
                 });
             });
+
+            changeQualityBtn.addEventListener('click', toggleQualityModal);
+            closeQualityModal.addEventListener('click', toggleQualityModal);
 
             // 均衡器控制
             equalizerBtn.addEventListener('click', toggleEqualizerModal);
@@ -783,7 +805,7 @@
             exitFullscreenBtn.addEventListener('click', toggleFullscreenMode);
 
             // 全屏模式点击空白区域退出
-            fullscreenMode.addEventListener('click', function(e) {
+            fullscreenMode.addEventListener('click', function (e) {
                 // 确保点击的是背景区域，而不是控制按钮等元素
                 if (e.target === fullscreenMode) {
                     toggleFullscreenMode();
@@ -842,13 +864,13 @@
             const playlistStore = playlistTransaction.objectStore('playlist');
 
             const getAllRequest = playlistStore.getAll();
-            getAllRequest.onsuccess = function() {
+            getAllRequest.onsuccess = function () {
                 const cachedPlaylistItems = getAllRequest.result;
 
                 if (cachedPlaylistItems && cachedPlaylistItems.length > 0) {
                     // 先加载播放列表元数据
                     cachedPlaylistItems.forEach(item => {
-                        const dummyFile = new File([""], item.title + ".mp3", { type: "audio/mpeg" });
+                        const dummyFile = new File([""], item.title + ".mp3", {type: "audio/mpeg"});
 
                         addToPlaylist(dummyFile, {
                             title: item.title,
@@ -869,7 +891,7 @@
                 }
             };
 
-            getAllRequest.onerror = function(event) {
+            getAllRequest.onerror = function (event) {
                 console.error('加载播放列表失败:', event);
                 hideLoadingSpinner();
             };
@@ -892,7 +914,7 @@
                     const audioStore = audioTransaction.objectStore('audioFiles');
                     const audioRequest = audioStore.get(track.id);
 
-                    audioRequest.onsuccess = function() {
+                    audioRequest.onsuccess = function () {
                         const audioData = audioRequest.result;
                         if (audioData && audioData.file) {
                             playlist[index].file = audioData.file;
@@ -903,7 +925,7 @@
                         const coverStore = coverTransaction.objectStore('coverImages');
                         const coverRequest = coverStore.get(track.id);
 
-                        coverRequest.onsuccess = function() {
+                        coverRequest.onsuccess = function () {
                             const coverData = coverRequest.result;
                             if (coverData && coverData.file) {
                                 playlist[index].cover = coverData.file;
@@ -914,7 +936,7 @@
                             const lyricsStore = lyricsTransaction.objectStore('lyrics');
                             const lyricsRequest = lyricsStore.get(track.id);
 
-                            lyricsRequest.onsuccess = function() {
+                            lyricsRequest.onsuccess = function () {
                                 const lyricsData = lyricsRequest.result;
                                 if (lyricsData) {
                                     playlist[index].lyrics = lyricsData.lyrics;
@@ -930,7 +952,7 @@
                                 }
                             };
 
-                            lyricsRequest.onerror = function(event) {
+                            lyricsRequest.onerror = function (event) {
                                 console.error('加载歌词失败:', event);
                                 loadedCount++;
                                 if (loadedCount === totalItems) {
@@ -940,7 +962,7 @@
                             };
                         };
 
-                        coverRequest.onerror = function(event) {
+                        coverRequest.onerror = function (event) {
                             console.error('加载封面失败:', event);
                             loadedCount++;
                             if (loadedCount === totalItems) {
@@ -950,7 +972,7 @@
                         };
                     };
 
-                    audioRequest.onerror = function(event) {
+                    audioRequest.onerror = function (event) {
                         console.error('加载音频失败:', event);
                         loadedCount++;
                         if (loadedCount === totalItems) {
@@ -970,7 +992,7 @@
             const store = transaction.objectStore('playbackState');
             const request = store.get('currentState');
 
-            request.onsuccess = function() {
+            request.onsuccess = function () {
                 const state = request.result;
                 if (state && playlist.length > 0) {
                     // 验证索引是否有效
@@ -979,7 +1001,7 @@
                         lastPlayedPosition = state.position;
 
                         // 加载曲目并设置播放位置
-                        loadTrack(currentTrackIndex, function() {
+                        loadTrack(currentTrackIndex, function () {
                             if (lastPlayedPosition > 0) {
                                 audioPlayer.currentTime = lastPlayedPosition;
                                 showNotification(`恢复播放: ${playlist[currentTrackIndex].title}`);
@@ -992,7 +1014,7 @@
                 }
             };
 
-            request.onerror = function(event) {
+            request.onerror = function (event) {
                 console.error('加载播放状态失败:', event);
             };
         }
@@ -1051,11 +1073,11 @@
                     const store = transaction.objectStore(storeName);
                     const clearRequest = store.clear();
 
-                    clearRequest.onsuccess = function() {
+                    clearRequest.onsuccess = function () {
                         console.log(`清除 ${storeName} 成功`);
                     };
 
-                    clearRequest.onerror = function(event) {
+                    clearRequest.onerror = function (event) {
                         console.error(`清除 ${storeName} 失败:`, event);
                     };
                 });
@@ -1269,11 +1291,11 @@
             fileInput.accept = '.json';
             fileInput.style.display = 'none';
 
-            fileInput.addEventListener('change', function() {
+            fileInput.addEventListener('change', function () {
                 if (this.files && this.files[0]) {
                     const reader = new FileReader();
 
-                    reader.onload = function(e) {
+                    reader.onload = function (e) {
                         try {
                             const importedData = JSON.parse(e.target.result);
 
@@ -1291,7 +1313,7 @@
                                 importedData.forEach(item => {
                                     if (item.title) {
                                         // 创建一个虚拟音频文件
-                                        const dummyFile = new File([""], item.title + ".mp3", { type: "audio/mpeg" });
+                                        const dummyFile = new File([""], item.title + ".mp3", {type: "audio/mpeg"});
 
                                         addToPlaylist(dummyFile, {
                                             title: item.title,
@@ -1337,7 +1359,7 @@
 
             // 转换为JSON字符串
             const jsonString = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
+            const blob = new Blob([jsonString], {type: 'application/json'});
 
             // 创建下载链接
             const url = URL.createObjectURL(blob);
@@ -1766,7 +1788,7 @@
 
             // 更新当前播放的歌曲封面
             const fileReader = new FileReader();
-            fileReader.onload = function(e) {
+            fileReader.onload = function (e) {
                 coverImage.src = e.target.result;
                 coverImage.style.display = 'block';
                 coverPlaceholder.style.display = 'none';
@@ -1809,7 +1831,7 @@
                 return;
             }
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 // 直接使用GBK编码解码歌词文件
                 const decoder = new TextDecoder('gbk');
                 const lyricsText = decoder.decode(new Uint8Array(e.target.result));
@@ -1908,7 +1930,7 @@
                 }
 
                 // 检测连续3个空行或省略号作为分段标志
-                else if ((line === '' && i > 0 && lyricsArray[i-1].text === '') ||
+                else if ((line === '' && i > 0 && lyricsArray[i - 1].text === '') ||
                     line === '...' ||
                     line === '…') {
 
@@ -2069,6 +2091,11 @@
         function toggleLyricOverlay() {
             const isVisible = lyricOverlay.style.display === 'flex';
             lyricOverlay.style.display = isVisible ? 'none' : 'flex';
+            if (isVisible) {
+                document.querySelector('.player-container').classList.remove('player-container-custom');
+            } else {
+                document.querySelector('.player-container').classList.add('player-container-custom');
+            }
 
             if (!isVisible) {
                 lyricTitle.textContent = songTitle.textContent;
@@ -2338,6 +2365,15 @@
                 eqToggleBtn.classList.add('active');
 
                 showNotification('已启用均衡器');
+            }
+        }
+
+        function toggleQualityModal() {
+            const isVisible = equalizerModal.style.display === 'flex';
+            equalizerModal.style.display = isVisible ? 'none' : 'flex';
+
+            if (!isVisible && !equalizer && isEqualizerEnabled) {
+                initEqualizer();
             }
         }
 
@@ -2743,10 +2779,10 @@
 
             // 创建一个新图片对象预加载
             const img = new Image();
-            img.onload = function() {
+            img.onload = function () {
                 background.style.backgroundImage = `url(${bgUrl})`;
             };
-            img.onerror = function() {
+            img.onerror = function () {
                 console.error('背景图片加载失败');
             };
             img.src = bgUrl;
@@ -3035,7 +3071,8 @@
             artist: '艺术家' || '未知艺术家',
             duration: 0,
             id: 1,
-            lyrics: "[id:$00000000]\n[ar:关晓彤]\n[ti:我们的18岁]\n[by:]\n[hash:ffa21505313cdb729724f090a0c754d8]\n[al:]\n[sign:]\n[qq:]\n[total:213234]\n[offset:0]\n[00:00.81]关晓彤 - 我们的18岁\n[00:02.80]作词：李三木\n[00:04.02]作曲：刘佳\n[00:18.48]我们的十八岁\n[00:20.54]I wanna say\n[00:22.12]要汹涌别皱眉\n[00:25.34]永远的十八岁\n[00:27.22]I walk my way\n[00:28.96]青春就要万岁万岁\n[00:34.45]涂上最二次元的装扮\n[00:38.22]路人都向我看\n[00:41.78]我就是喜欢我的喜欢\n[00:44.93]管你习不习惯\n[00:48.48]先拍照P图分享晚餐\n[00:51.87]还要秀下耳环\n[00:55.04]晒一晒美丽有人点赞\n[00:58.69]放肆一起做伴\n[01:02.97]我们的十八岁\n[01:04.95]I wanna say\n[01:06.69]要汹涌别皱眉\n[01:09.80]永远的十八岁\n[01:11.73]I walk my way\n[01:13.47]青春就要万岁万岁\n[01:31.41]帅气的男生住在隔班\n[01:34.52]只能远远观看\n[01:38.15]手里的课本还没读完\n[01:41.61]青春就要离散\n[01:45.19]下一个路口的下一站\n[01:48.55]能否不要转弯\n[01:51.57]初恋会变成别人的伴\n[01:55.04]有你们就会心安\n[01:59.53]我们的十八岁\n[02:01.51]I wanna say\n[02:03.25]要汹涌别皱眉\n[02:06.41]永远的十八岁\n[02:08.34]I walk my way\n[02:10.08]青春就要万岁万岁\n[02:14.13]任性的十八岁\n[02:15.46]没什么不对\n[02:17.54]太美的十八岁\n[02:18.72]不能被浪费\n[02:20.60]我们的十八岁\n[02:22.53]永远的十八岁\n[02:24.26]爱爱不后悔\n[02:27.53]练习好步调\n[02:30.69]和时间赛跑\n[02:34.21]已经准备好\n[02:36.15]已经准备好\n[02:37.94]记得带着微笑yeah\n[02:44.14]我们的十八岁\n[02:46.08]I wanna say\n[02:47.81]要汹涌别皱眉\n[02:50.88]永远的十八岁\n[02:52.86]I walk my way\n[02:54.59]青春就要万岁万岁\n[02:58.00]我们的十八岁\n[02:59.73]I wanna say\n[03:01.41]要汹涌别皱眉\n[03:04.62]永远的十八岁\n[03:06.46]I walk my way\n[03:08.35]青春就要万岁万岁\n"
+            lyrics: "[id:$00000000]\n[ar:关晓彤]\n[ti:我们的18岁]\n[by:]\n[hash:ffa21505313cdb729724f090a0c754d8]\n[al:]\n[sign:]\n[qq:]\n[total:213234]\n[offset:0]\n[00:00.81]关晓彤 - 我们的18岁\n[00:02.80]作词：李三木\n[00:04.02]作曲：刘佳\n[00:18.48]我们的十八岁\n[00:20.54]I wanna say\n[00:22.12]要汹涌别皱眉\n[00:25.34]永远的十八岁\n[00:27.22]I walk my way\n[00:28.96]青春就要万岁万岁\n[00:34.45]涂上最二次元的装扮\n[00:38.22]路人都向我看\n[00:41.78]我就是喜欢我的喜欢\n[00:44.93]管你习不习惯\n[00:48.48]先拍照P图分享晚餐\n[00:51.87]还要秀下耳环\n[00:55.04]晒一晒美丽有人点赞\n[00:58.69]放肆一起做伴\n[01:02.97]我们的十八岁\n[01:04.95]I wanna say\n[01:06.69]要汹涌别皱眉\n[01:09.80]永远的十八岁\n[01:11.73]I walk my way\n[01:13.47]青春就要万岁万岁\n[01:31.41]帅气的男生住在隔班\n[01:34.52]只能远远观看\n[01:38.15]手里的课本还没读完\n[01:41.61]青春就要离散\n[01:45.19]下一个路口的下一站\n[01:48.55]能否不要转弯\n[01:51.57]初恋会变成别人的伴\n[01:55.04]有你们就会心安\n[01:59.53]我们的十八岁\n[02:01.51]I wanna say\n[02:03.25]要汹涌别皱眉\n[02:06.41]永远的十八岁\n[02:08.34]I walk my way\n[02:10.08]青春就要万岁万岁\n[02:14.13]任性的十八岁\n[02:15.46]没什么不对\n[02:17.54]太美的十八岁\n[02:18.72]不能被浪费\n[02:20.60]我们的十八岁\n[02:22.53]永远的十八岁\n[02:24.26]爱爱不后悔\n[02:27.53]练习好步调\n[02:30.69]和时间赛跑\n[02:34.21]已经准备好\n[02:36.15]已经准备好\n[02:37.94]记得带着微笑yeah\n[02:44.14]我们的十八岁\n[02:46.08]I wanna say\n[02:47.81]要汹涌别皱眉\n[02:50.88]永远的十八岁\n[02:52.86]I walk my way\n[02:54.59]青春就要万岁万岁\n[02:58.00]我们的十八岁\n[02:59.73]I wanna say\n[03:01.41]要汹涌别皱眉\n[03:04.62]永远的十八岁\n[03:06.46]I walk my way\n[03:08.35]青春就要万岁万岁\n",
+            cover: "https://imge.kugou.com/stdmusic/1080/20200909/20200909125705582284.jpg"
         }, false); // 不保存到本地存储，避免重复
     });
 </script>

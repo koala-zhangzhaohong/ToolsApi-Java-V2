@@ -113,13 +113,17 @@ body {
 /* Album cover */
 .cover {
     position: relative;
-    margin: 15px; /* 减小外边距 */
+    /*margin: 15px; !* 减小外边距 *!*/
     border-radius: var(--radius-md);
     overflow: hidden;
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
     cursor: pointer;
-    max-height: 200px; /* 限制封面最大高度 */
+    /*max-height: 200px; !* 限制封面最大高度 *!*/
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    display: block;
+    align-content: center;
 }
 
 .cover-background {
@@ -148,7 +152,7 @@ body {
     object-fit: cover;
     display: block;
     transition: filter var(--transition-speed) ease;
-    max-height: 200px; /* 限制图片高度 */
+    /*max-height: 200px; !* 限制图片高度 *!*/
 }
 
 .cover img:hover {
@@ -164,7 +168,7 @@ body {
     font-size: 18px;
     text-align: center;
     padding: 20px;
-    height: 200px; /* 固定高度 */
+    /*height: 200px; !* 固定高度 *!*/
 }
 
 /* Controls section */
@@ -356,7 +360,8 @@ body {
 
 /* Visualization */
 .visualization {
-    height: 50px; /* 减小高度 */
+    /*height: 50px; !* 减小高度 *!*/
+    height: 96px; /* 减小高度 */
     margin: 0 15px;
     display: flex;
     align-items: flex-end;
@@ -1426,7 +1431,7 @@ body {
 }
 
 /* 新增均衡器面板 */
-.equalizer-modal {
+.equalizer-modal, .quality-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -1441,7 +1446,7 @@ body {
     z-index: 1100;
 }
 
-.equalizer-content {
+.equalizer-content, .quality-content {
     background: rgba(30, 30, 30, 0.9);
     width: 90%;
     max-width: 350px;
@@ -1449,19 +1454,19 @@ body {
     border-radius: var(--radius-md);
 }
 
-.equalizer-header {
+.equalizer-header, .quality-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
 }
 
-.equalizer-header h3 {
+.equalizer-header h3, .quality-header h3 {
     color: white;
     font-size: 18px;
 }
 
-.close-equalizer {
+.close-equalizer, .close-quality {
     background: none;
     border: none;
     color: white;
@@ -1555,7 +1560,7 @@ body {
 }
 
 @media only screen and (min-width: 960px) {
-    .player-container {
+    .player-container-custom {
         margin-left: 50px;
     }
 }
