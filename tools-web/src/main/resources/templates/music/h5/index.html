@@ -9,6 +9,7 @@
     <script type="text/javascript" src="../assets/js/Util.js" th:src="@{/assets/js/Util.js(v=1.0)}"></script>
     <link href="../assets/css/music-player.css" th:href="@{/assets/css/music-player.css}" rel="stylesheet">
     <link href="../assets/css/all.min.css" th:href="@{/assets/css/all.min.css}" rel="stylesheet">
+    <link href="../assets/css/loading.css" th:href="@{/assets/css/loading.css}" rel="stylesheet">
     <script type="text/javascript" src="../assets/js/jschardet.min.js"
             th:src="@{/assets/js/jschardet.min.js(v=1.0)}"></script>
 </head>
@@ -222,13 +223,16 @@
             <button class="quality-tab" data-tab="flacQuality">无损</button>
         </div>
         <div class="quality-tab-content active" id="defaultQualityTab">
-            <div class="quality-container-empty">暂无数据</div>
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
         <div class="quality-tab-content" id="highQualityTab">
-            <div class="quality-container-empty">暂无数据</div>
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
         <div class="quality-tab-content" id="flacQualityTab">
-            <div class="quality-container-empty">暂无数据</div>
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
     </div>
 </div>

@@ -289,11 +289,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 const container = document.getElementById(tabId + 'Tab');
                 container.classList.add('active');
 
+                if (container.querySelectorAll(`input[name="${tabId}"]`).length > 0) {
+                    return;
+                }
                 initQualityRadioData(container, tabId);
             });
         });
 
         function initQualityRadioData(container, tabId) {
+            const emptyContainer = container.querySelector('.quality-empty-container');
+            emptyContainer.style.display = 'none';
+            const loadingContainer = container.querySelector('.quality-loading-container');
+            loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
+            loadingContainer.style.display = 'block';
             const urlList = [];
             fetch(`http://127.0.0.1:8080/tools/Kugou/api/playInfo?hash=A4532F03250D843C1F9BFE700B47E5F5&albumId=878777`)
                 .then(response => response.json()) // 解析 JSON
@@ -307,11 +315,20 @@ document.addEventListener('DOMContentLoaded', function () {
                             container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
                             urlList.push(url);
                         });
+                        qualityInfo.set(`${tabId}`, urlList);
+                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
+                    } else {
+                        loadingContainer.innerHTML = '';
+                        loadingContainer.style.display = 'none';
+                        emptyContainer.style.display = 'block';
                     }
-                    qualityInfo.set(`${tabId}`, urlList);
-                    container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                 })    // 处理数据
-                .catch(error => console.error(error)); // 处理错误
+                .catch(error => {
+                    console.error(error);
+                    loadingContainer.innerHTML = '';
+                    loadingContainer.style.display = 'none';
+                    emptyContainer.style.display = 'block';
+                }); // 处理错误
         }
 
         const onSelectQuality = (event) => {
@@ -2709,7 +2726,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 break;
         }
     }
-    
+
     init();
     addToPlaylist("http://fsandroid.tx.kugou.com/202605112242/7ea4c09293523665680eeed43cd2e547/v3/a4532f03250d843c1f9bfe700b47e5f5/yp/full/ap1005_us928881638_df2lorgp0ydjfp47krxk4b8tye_pi2_mx878777_qu320_s688115276.flac", {
         title: '标题',

@@ -1573,13 +1573,18 @@ body {
 
 .quality-container-empty {
     display: block;
-    height: 60px;
+    height: 216px;
     text-align: center;
 }
 
 .quality-radio {
     margin: 12px;
     font-size: small;
+}
+
+.quality-empty-container {
+    margin-top: 48px;
+    font-size: 12px;
 }
 
 @media only screen and (min-width: 960px) {
