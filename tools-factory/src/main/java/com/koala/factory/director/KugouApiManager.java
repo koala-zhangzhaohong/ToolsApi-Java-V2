@@ -37,11 +37,11 @@ public class KugouApiManager {
         if (config.getAlbumMusicInfo()) {
             builder.getAlbumMusicInfo();
         }
-        if (config.getMusicInfo()) {
-            builder.generatePlayInfo();
-        }
         if (config.getLyricInfo()) {
             builder.getLyricInfo();
+        }
+        if (config.getMusicInfo()) {
+            builder.generatePlayInfo();
         }
         return builder.getProduct();
     }

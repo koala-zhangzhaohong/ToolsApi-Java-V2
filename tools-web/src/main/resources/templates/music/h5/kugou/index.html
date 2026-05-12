@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}"></title>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script type="text/javascript" src="../assets/js/Util.js" th:src="@{/assets/js/Util.js(v=1.0)}"></script>
+    <link href="../assets/css/music-player.css" th:href="@{/assets/css/music-player.css}" rel="stylesheet">
+    <link href="../assets/css/all.min.css" th:href="@{/assets/css/all.min.css}" rel="stylesheet">
+    <link href="../assets/css/loading.css" th:href="@{/assets/css/loading.css}" rel="stylesheet">
+    <script type="text/javascript" src="../assets/js/jschardet.min.js"
+            th:src="@{/assets/js/jschardet.min.js(v=1.0)}"></script>
+</head>
+<body>
+<div id="loading-overlay">
+    <div class="arc"></div>
+    <h1><span>LOADING</span></h1>
+</div>
+<div class="background"></div>
+
+<div class="player-container">
+    <!-- Settings Button -->
+    <button class="settings-btn" id="settingsBtn" style="visibility: hidden;">
+        <i class="fas fa-cog"></i>
+    </button>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="action-btn" id="playlistBtn" title="播放列表">
+            <i class="fas fa-list"></i>
+        </button>
+        <button class="action-btn" id="toggleFullscreen" title="全屏模式">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <h3>设置</h3>
+
+        <div class="settings-option">
+            <label for="themeSelect">主题颜色</label>
+            <select id="themeSelect" class="settings-select">
+                <option value="purple">紫色主题</option>
+                <option value="blue">蓝色主题</option>
+                <option value="green">绿色主题</option>
+                <option value="pink">粉色主题</option>
+            </select>
+        </div>
+
+        <div class="settings-option">
+            <label for="darkModeToggle">深色/浅色模式</label>
+            <div class="toggle-switch">
+                <input type="checkbox" id="darkModeToggle" checked>
+                <label for="darkModeToggle"></label>
+            </div>
+        </div>
+
+        <div class="settings-option">
+            <label for="visualizationSelect">可视化效果</label>
+            <select id="visualizationSelect" class="settings-select">
+                <option value="bars">频谱柱状图</option>
+                <option value="circle">环形可视化</option>
+                <option value="none">关闭可视化</option>
+            </select>
+        </div>
+
+        <div class="settings-option">
+            <label for="autoplayToggle">自动播放下一首</label>
+            <div class="toggle-switch">
+                <input type="checkbox" id="autoplayToggle" checked>
+                <label for="autoplayToggle"></label>
+            </div>
+        </div>
+
+        <div class="settings-option">
+            <label for="crossfadeSelect">淡入淡出效果</label>
+            <select id="crossfadeSelect" class="settings-select">
+                <option value="0">关闭</option>
+                <option value="1">1 秒</option>
+                <option value="2">2 秒</option>
+                <option value="3">3 秒</option>
+            </select>
+        </div>
+
+        <div class="settings-option">
+            <label for="cacheToggle">缓存播放记录</label>
+            <div class="toggle-switch">
+                <input type="checkbox" id="cacheToggle" checked>
+                <label for="cacheToggle"></label>
+            </div>
+        </div>
+
+        <div class="settings-option">
+            <button id="resetSettings" class="settings-button">重置所有设置</button>
+        </div>
+
+        <div class="settings-option">
+            <button id="clearCache" class="settings-button">清除缓存数据</button>
+        </div>
+    </div>
+
+    <!-- Album Cover -->
+    <div class="cover" id="coverArt">
+        <div class="cover-background" id="coverBackground"></div>
+        <div id="coverPlaceholder">暂无封面</div>
+        <img src="" alt="专辑封面" id="coverImage" style="display: none;">
+    </div>
+
+    <!-- Visualization -->
+    <div class="visualization" id="visualization">
+        <!-- 音频可视化条将通过JS动态创建 -->
+    </div>
+
+    <!-- Now Playing Info -->
+    <div class="now-playing">
+        <div class="song-title" id="songTitle">未加载音乐</div>
+        <div class="song-artist" id="songArtist">未知艺术家</div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <input type="range" id="progressBar" min="0" max="100" value="0">
+        <div class="progress-info">
+            <span id="currentTime">00:00</span>
+            <span id="totalTime">00:00</span>
+        </div>
+    </div>
+
+    <!-- Volume Control -->
+    <div class="volume-control-container">
+        <div class="volume-wrapper">
+            <div class="volume-icon" id="volumeIcon">
+                <i class="fas fa-volume-up"></i>
+            </div>
+            <div class="volume-slider">
+                <input type="range" id="volumeControl" min="0" max="100" value="80">
+            </div>
+            <div class="volume-value" id="volumeValue">80%</div>
+        </div>
+    </div>
+
+    <!-- Playback Speed Control -->
+    <div class="speed-container">
+        <div class="speed-wrapper">
+            <button class="speed-btn" data-speed="0.5">0.5x</button>
+            <button class="speed-btn" data-speed="0.75">0.75x</button>
+            <button class="speed-btn active" data-speed="1.0">1.0x</button>
+            <button class="speed-btn" data-speed="1.25">1.25x</button>
+            <button class="speed-btn" data-speed="1.5">1.5x</button>
+            <button class="speed-btn" data-speed="2.0">2.0x</button>
+        </div>
+    </div>
+
+    <!-- Extra Controls for Mobile -->
+    <div class="extra-controls">
+        <button class="feature-btn" id="toggleMiniPlayer" title="迷你播放器">
+            <i class="fas fa-compress"></i>
+        </button>
+        <button class="feature-btn" id="equalizerBtn" title="音效均衡器">
+            <i class="fas fa-sliders-h"></i>
+        </button>
+        <button class="feature-btn" id="sleepTimerBtn" title="睡眠定时器">
+            <i class="fas fa-clock"></i>
+        </button>
+        <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
+            <i class="fas fa-align-left"></i>
+        </button>
+        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
+            <i class="fas fa-retweet"></i>
+        </button>
+    </div>
+
+    <!-- Main Controls -->
+    <div class="controls">
+        <div class="repeat-btn" id="repeatBtn" title="切换重复模式">
+            <i class="fas fa-redo-alt"></i>
+        </div>
+
+        <div class="playback-controls">
+            <button class="control-btn control-btn-small" id="prevBtn">
+                <i class="fas fa-step-backward"></i>
+            </button>
+
+            <button class="control-btn" id="playPauseBtn">
+                <i class="fas fa-play" id="playPauseIcon"></i>
+            </button>
+
+            <button class="control-btn control-btn-small" id="nextBtn">
+                <i class="fas fa-step-forward"></i>
+            </button>
+        </div>
+
+        <button class="refresh-background" id="refreshBackground" style="visibility: hidden" title="刷新背景">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+
+    <div class="date-time" id="dateTime"></div>
+</div>
+
+<!-- Lyric Overlay -->
+<div class="lyric-overlay" id="lyricOverlay">
+    <div class="lyric-content" id="lyricContent">
+        <div class="lyric-header">
+            <div class="lyric-title" id="lyricTitle">歌词</div>
+            <button class="close-lyrics" id="closeLyrics">&times;</button>
+        </div>
+        <div id="lyricLines">
+            <!-- 歌词将通过JS动态添加 -->
+        </div>
+    </div>
+</div>
+
+<!-- Quality Modal -->
+<div class="quality-modal" id="qualityModal">
+    <div class="quality-content">
+        <div class="quality-header">
+            <h3>音质切换</h3>
+            <button class="close-quality" id="closeQualityModal">&times;</button>
+        </div>
+        <div class="quality-tabs">
+            <button class="quality-tab" data-tab="lossyQuality" id="lossyQuality">标准</button>
+            <button class="quality-tab active" data-tab="defaultQuality" id="defaultQuality">较高</button>
+            <button class="quality-tab" data-tab="highQuality" id="highQuality">极高</button>
+            <button class="quality-tab" data-tab="flacQuality" id="flacQuality">无损</button>
+        </div>
+        <div class="quality-tab-content active" id="lossyQualityTab">
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
+        </div>
+        <div class="quality-tab-content active" id="defaultQualityTab">
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
+        </div>
+        <div class="quality-tab-content" id="highQualityTab">
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
+        </div>
+        <div class="quality-tab-content" id="flacQualityTab">
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
+        </div>
+    </div>
+</div>
+
+<!-- Sleep Timer Modal -->
+<div class="sleep-timer-modal" id="sleepTimerModal">
+    <div class="sleep-timer-content">
+        <h3>睡眠定时器</h3>
+        <div class="sleep-timer-options">
+            <button class="sleep-option" data-minutes="15">15分钟</button>
+            <button class="sleep-option" data-minutes="30">30分钟</button>
+            <button class="sleep-option" data-minutes="45">45分钟</button>
+            <button class="sleep-option" data-minutes="60">60分钟</button>
+            <button class="sleep-option" data-minutes="90">90分钟</button>
+        </div>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+        <div class="timer-buttons">
+            <button class="timer-btn timer-cancel" id="cancelTimer">取消</button>
+            <button class="timer-btn" id="setTimer">设置</button>
+        </div>
+    </div>
+</div>
+
+<!-- Playlist Modal -->
+<div class="playlist-modal" id="playlistModal">
+    <div class="playlist-content">
+        <div class="playlist-header">
+            <h3>播放列表</h3>
+            <button class="close-playlist" id="closePlaylist">&times;</button>
+        </div>
+
+        <div class="playlist-tabs">
+            <button class="playlist-tab active" data-tab="songs">歌曲</button>
+            <button class="playlist-tab" data-tab="upload" style="visibility: hidden" disabled>上传文件</button>
+        </div>
+
+        <div class="playlist-tab-content active" id="songsTab">
+            <div class="playlist-info-bar">
+                <span><span id="playlistCount">0</span> 首音乐</span>
+                <span>总时长: <span id="playlistDuration">00:00</span></span>
+            </div>
+
+            <ul class="playlist-items" id="playlistItems">
+                <!-- 播放列表项目将通过JS动态添加 -->
+            </ul>
+
+            <div class="playlist-actions">
+                <button class="playlist-action-btn" id="shufflePlaylist">
+                    <i class="fas fa-random"></i> 随机播放
+                </button>
+                <button class="playlist-action-btn danger" id="clearPlaylistBtn">
+                    <i class="fas fa-trash"></i> 清空列表
+                </button>
+            </div>
+        </div>
+
+        <div class="playlist-tab-content" id="uploadTab">
+            <div class="file-upload-area">
+                <div class="file-upload-message">
+                    选择文件上传或拖放文件到此处
+                </div>
+                <div class="file-upload-buttons">
+                    <button class="file-upload-btn">
+                        <i class="fas fa-music"></i> 添加音乐
+                        <input type="file" id="audioFileInput" class="file-input" accept="audio/*">
+                    </button>
+
+                    <button class="file-upload-btn">
+                        <i class="fas fa-image"></i> 添加封面
+                        <input type="file" id="coverFileInput" class="file-input" accept="image/*">
+                    </button>
+
+                    <button class="file-upload-btn">
+                        <i class="fas fa-file-alt"></i> 添加歌词
+                        <input type="file" id="lyricsFileInput" class="file-input" accept=".lrc,.txt">
+                    </button>
+                </div>
+            </div>
+
+            <div class="playlist-actions">
+                <button class="playlist-action-btn" id="importPlaylistBtn">
+                    <i class="fas fa-file-import"></i> 导入播放列表
+                </button>
+                <button class="playlist-action-btn" id="exportPlaylistBtn">
+                    <i class="fas fa-file-export"></i> 导出播放列表
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Equalizer Modal -->
+<div class="equalizer-modal" id="equalizerModal">
+    <div class="equalizer-content">
+        <div class="equalizer-header">
+            <h3>音效均衡器</h3>
+            <button class="close-equalizer" id="closeEqualizer">&times;</button>
+        </div>
+
+        <div class="eq-presets">
+            <button class="eq-preset active" data-preset="normal">正常</button>
+            <button class="eq-preset" data-preset="pop">流行</button>
+            <button class="eq-preset" data-preset="rock">摇滚</button>
+            <button class="eq-preset" data-preset="jazz">爵士</button>
+            <button class="eq-preset" data-preset="classic">古典</button>
+            <button class="eq-preset" data-preset="bass">重低音</button>
+        </div>
+
+        <div class="eq-bands">
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="60">
+                </div>
+                <div class="eq-band-label">60Hz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="170">
+                </div>
+                <div class="eq-band-label">170Hz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="310">
+                </div>
+                <div class="eq-band-label">310Hz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="600">
+                </div>
+                <div class="eq-band-label">600Hz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="1000">
+                </div>
+                <div class="eq-band-label">1kHz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="1000">
+                </div>
+                <div class="eq-band-label">1kHz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="3000">
+                </div>
+                <div class="eq-band-label">3kHz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="6000">
+                </div>
+                <div class="eq-band-label">6kHz</div>
+            </div>
+            <div class="eq-band">
+                <div class="eq-slider">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="12000">
+                </div>
+                <div class="eq-band-label">12kHz</div>
+            </div>
+        </div>
+
+        <div class="eq-toggle">
+            <button class="eq-toggle-btn" id="eqToggleBtn">启用均衡器</button>
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen Mode -->
+<div class="fullscreen-mode" id="fullscreenMode">
+    <button class="exit-fullscreen-btn" id="exitFullscreenBtn" title="退出全屏">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="fullscreen-cover">
+        <img src="" alt="专辑封面" id="fullscreenCover">
+    </div>
+    <div class="fullscreen-info">
+        <div class="fullscreen-title" id="fullscreenTitle">未加载音乐</div>
+        <div class="fullscreen-artist" id="fullscreenArtist">未知艺术家</div>
+    </div>
+    <div class="fullscreen-controls">
+        <button class="control-btn control-btn-small" id="fullscreenPrev">
+            <i class="fas fa-step-backward"></i>
+        </button>
+        <button class="control-btn" id="fullscreenPlayPause">
+            <i class="fas fa-play" id="fullscreenPlayIcon"></i>
+        </button>
+        <button class="control-btn control-btn-small" id="fullscreenNext">
+            <i class="fas fa-step-forward"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div class="loading-spinner" id="loadingSpinner">
+    <div class="spinner"></div>
+</div>
+
+<!-- Notification -->
+<div class="notification" id="notification">通知内容</div>
+<script type="text/javascript" src="../assets/js/music-player.js"
+        th:src="@{/assets/js/music-player.js(v=1.0)}"></script>
+<script>
+    setCurrentHost("[[${host}]]");
+    setQuality("[[${quality}]]");
+    // 初始化播放器
+    setData(Util.htmlspecialchars_decode("[[${jsonInfo}]]").replaceAll("\n", "\\n"));
+</script>
+</body>
+</html>
