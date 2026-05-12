@@ -123,7 +123,7 @@
     <!-- Progress Bar -->
     <div class="progress-container">
         <input type="range" id="progressBar" min="0" max="100" value="0"
-               style="writing-mode: vertical-lr; direction: rtl;">
+               style="writing-mode: horizontal-tb; direction: ltr;">
         <div class="progress-info">
             <span id="currentTime">00:00</span>
             <span id="totalTime">00:00</span>
@@ -138,7 +138,7 @@
             </div>
             <div class="volume-slider">
                 <input type="range" id="volumeControl" min="0" max="100" value="80"
-                       style="writing-mode: vertical-lr; direction: rtl;">
+                       style="writing-mode: horizontal-tb; direction: ltr;">
             </div>
             <div class="volume-value" id="volumeValue">80%</div>
         </div>
@@ -355,55 +355,64 @@
         <div class="eq-bands">
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="60">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="60"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">60Hz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="170">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="170"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">170Hz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="310">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="310"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">310Hz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="600">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="600"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">600Hz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="1000">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="1000"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">1kHz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="1000">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="1000"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">1kHz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="3000">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="3000"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">3kHz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="6000">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="6000"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">6kHz</div>
             </div>
             <div class="eq-band">
                 <div class="eq-slider">
-                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="12000">
+                    <input type="range" min="-12" max="12" value="0" class="eq-band-slider" data-frequency="12000"
+                           style="writing-mode: vertical-lr; direction: rtl;">
                 </div>
                 <div class="eq-band-label">12kHz</div>
             </div>
