@@ -15,7 +15,8 @@
 </head>
 <body>
 <div id="loading-overlay">
-    <div class="arc"></div><h1><span>LOADING</span></h1>
+    <div class="arc"></div>
+    <h1><span>LOADING</span></h1>
 </div>
 <div class="background"></div>
 
@@ -221,9 +222,14 @@
             <button class="close-quality" id="closeQualityModal">&times;</button>
         </div>
         <div class="quality-tabs">
-            <button class="quality-tab active" data-tab="defaultQuality">标准</button>
-            <button class="quality-tab" data-tab="highQuality">高品</button>
-            <button class="quality-tab" data-tab="flacQuality">无损</button>
+            <button class="quality-tab" data-tab="lossyQuality" id="lossyQuality">标准</button>
+            <button class="quality-tab active" data-tab="defaultQuality" id="defaultQuality">较高</button>
+            <button class="quality-tab" data-tab="highQuality" id="highQuality">极高</button>
+            <button class="quality-tab" data-tab="flacQuality" id="flacQuality">无损</button>
+        </div>
+        <div class="quality-tab-content active" id="lossyQualityTab">
+            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
         <div class="quality-tab-content active" id="defaultQualityTab">
             <div class="quality-container-empty quality-loading-container" style="display: none"></div>

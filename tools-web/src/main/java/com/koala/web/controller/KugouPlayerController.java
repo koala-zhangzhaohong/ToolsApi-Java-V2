@@ -107,7 +107,7 @@ public class KugouPlayerController {
                         model.addAttribute("jsonInfo", GsonUtil.toString(info));
                     }
                     if ("2".equals(version)) {
-                        return "music/h5/index";
+                        return "music/h5/kugou/index";
                     } else if ("1".equals(version)) {
                         return "music/dplayer/kugou/index";
                     }

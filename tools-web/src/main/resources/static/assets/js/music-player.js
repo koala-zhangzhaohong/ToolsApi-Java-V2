@@ -145,7 +145,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     let db;
 
     const qualityInfo = new Map();
-    qualityInfo.set('currentQualityName', 'defaultQuality');
     qualityInfo.set('currentQualityIndex', 0);
 
     // 预设均衡器参数
@@ -161,8 +160,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (currentQuality === 'default') {
         qualityInfo.set('currentQualityName', 'defaultQuality');
     } else if (currentQuality === '128') {
-        qualityInfo.set('currentQualityName', 'defaultQuality');
+        qualityInfo.set('currentQualityName', 'lossyQuality');
     } else if (currentQuality === '320') {
+        qualityInfo.set('currentQualityName', 'defaultQuality');
+    } else if (currentQuality === 'high') {
         qualityInfo.set('currentQualityName', 'highQuality');
     } else if (currentQuality === 'flac') {
         qualityInfo.set('currentQualityName', 'flacQuality');
@@ -309,6 +310,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 if (container.querySelectorAll(`input[name="${tabId}"]`).length > 0) {
                     return;
                 }
+
                 initQualityRadioData(container, tabId);
             });
         });
@@ -320,7 +322,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
             loadingContainer.style.display = 'block';
             const urlList = [];
-            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}`)
+            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(tabId).get("hash")}&albumId=${getHashWithAlbumId(tabId).get("albumId")}`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
@@ -365,12 +367,16 @@ document.addEventListener('DOMContentLoaded', async function () {
             params.set("hash", "null");
             params.set("albumId", "null");
             switch (name) {
-                case 'defaultQuality':
+                case 'lossyQuality':
                     params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
                     params.set("albumId", musicInfo.album_info.album_id);
                     break;
-                case 'highQuality':
+                case 'defaultQuality':
                     params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
+                    params.set("albumId", musicInfo.album_info.album_id);
+                    break;
+                case 'highQuality':
+                    params.set("hash", musicInfo.audio_info.play_info_list["high"].hash);
                     params.set("albumId", musicInfo.album_info.album_id);
                     break;
                 case 'flacQuality':
@@ -1201,7 +1207,36 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     function changeQualityUI() {
+        const tabId = qualityInfo.get('currentQualityName');
+        const urlListContent = String(qualityInfo.get(tabId));
+        const urlList = urlListContent.split(",");
+        if (urlList.length > 0) {
+            // 移除所有活动标签
+            qualityTabs.forEach(t => {
+                t.classList.remove('active');
+                if (t.id === tabId) {
+                    t.classList.add('active');
+                }
+            });
+            if (qualityTabContents.length !== urlList.length) {
 
+            }
+            qualityTabContents.forEach(c => {
+                c.classList.remove('active')
+                if (c.id === `${tabId}Tab`) {
+                    c.classList.add('active');
+                    if (c.querySelectorAll(`input[name="${tabId}"]`).length !== urlList.length) {
+                        c.innerHTML = ''
+                        let index = 0;
+                        urlList.forEach(url => {
+                            index = index + 1;
+                            c.innerHTML = c.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
+                        })
+                    }
+                    c.querySelector(`input[name="${qualityInfo.get('currentQualityName')}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
+                }
+            });
+        }
     }
 
     // 更新播放列表UI
@@ -1989,7 +2024,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const volume = volumeControl.value;
         const icon = volumeIcon.querySelector('i');
 
-        if (volume == 0) {
+        if (volume === 0) {
             icon.className = 'fas fa-volume-mute';
         } else if (volume < 30) {
             icon.className = 'fas fa-volume-off';
@@ -2765,12 +2800,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         params.set("hash", "null");
         params.set("albumId", "null");
         switch (name) {
-            case 'defaultQuality':
+            case 'lossyQuality':
                 params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
                 params.set("albumId", musicInfo.album_info.album_id);
                 break;
-            case 'highQuality':
+            case 'defaultQuality':
                 params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
+                params.set("albumId", musicInfo.album_info.album_id);
+                break;
+            case 'highQuality':
+                params.set("hash", musicInfo.audio_info.play_info_list["high"].hash);
                 params.set("albumId", musicInfo.album_info.album_id);
                 break;
             case 'flacQuality':
@@ -2844,7 +2883,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             const emptyContainer = document.querySelector('.quality-empty-container');
             const tabId = qualityInfo.get('currentQualityName');
             const urlList = [];
-            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}`)
+            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(tabId).get("hash")}&albumId=${getHashWithAlbumId(tabId).get("albumId")}`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
