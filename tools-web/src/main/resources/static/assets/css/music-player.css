@@ -1534,8 +1534,8 @@ body {
 }
 
 .eq-slider input[type="range"] {
-    writing-mode: bt-lr; /* IE */
-    -webkit-appearance: slider-vertical; /* WebKit */
+    /*writing-mode: bt-lr; !* IE *!*/
+    /*-webkit-appearance: slider-vertical; !* WebKit *!*/
     width: 8px;
     height: 100px;
     padding: 0;
