@@ -14,7 +14,7 @@
             th:src="@{/assets/js/jschardet.min.js(v=1.0)}"></script>
 </head>
 <body>
-<div id="loading-overlay">
+<div id="loading-overlay" class="enable-gpu">
     <div class="arc"></div>
     <h1><span>LOADING</span></h1>
 </div>
@@ -110,7 +110,7 @@
     </div>
 
     <!-- Visualization -->
-    <div class="visualization" id="visualization">
+    <div class="visualization enable-gpu" id="visualization">
         <!-- 音频可视化条将通过JS动态创建 -->
     </div>
 
@@ -158,8 +158,8 @@
 
     <!-- Extra Controls for Mobile -->
     <div class="extra-controls">
-        <button class="feature-btn" id="toggleMiniPlayer" title="迷你播放器">
-            <i class="fas fa-compress"></i>
+        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
+            <i class="fas fa-retweet"></i>
         </button>
         <button class="feature-btn" id="equalizerBtn" title="音效均衡器">
             <i class="fas fa-sliders-h"></i>
@@ -170,14 +170,15 @@
         <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
             <i class="fas fa-align-left"></i>
         </button>
-        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
-            <i class="fas fa-retweet"></i>
+        <button class="feature-btn" id="toggleMiniPlayer" title="迷你播放器" style="visibility: hidden; display: none;"
+                disabled>
+            <i class="fas fa-compress"></i>
         </button>
     </div>
 
     <!-- Main Controls -->
     <div class="controls">
-        <div class="repeat-btn" id="repeatBtn" title="切换重复模式">
+        <div class="repeat-btn" id="repeatBtn" title="切换重复模式" style="visibility: hidden; display: none;" disabled>
             <i class="fas fa-redo-alt"></i>
         </div>
 
@@ -195,7 +196,7 @@
             </button>
         </div>
 
-        <button class="refresh-background" id="refreshBackground" style="visibility: hidden" title="刷新背景">
+        <button class="refresh-background" id="refreshBackground" style="visibility: hidden; display: none;" title="刷新背景">
             <i class="fas fa-sync-alt"></i>
         </button>
     </div>
@@ -230,19 +231,19 @@
             <button class="quality-tab" data-tab="flacQuality" id="flacQuality">无损</button>
         </div>
         <div class="quality-tab-content active" id="lossyQualityTab">
-            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty enable-gpu quality-loading-container" style="display: none"></div>
             <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
         <div class="quality-tab-content active" id="defaultQualityTab">
-            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty enable-gpu quality-loading-container" style="display: none"></div>
             <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
         <div class="quality-tab-content" id="highQualityTab">
-            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty enable-gpu quality-loading-container" style="display: none"></div>
             <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
         <div class="quality-tab-content" id="flacQualityTab">
-            <div class="quality-container-empty quality-loading-container" style="display: none"></div>
+            <div class="quality-container-empty enable-gpu quality-loading-container" style="display: none"></div>
             <div class="quality-container-empty quality-empty-container">暂无数据</div>
         </div>
     </div>

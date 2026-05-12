@@ -104,11 +104,11 @@ body {
 }
 
 /* Glass morphism effect on hover */
-.player-container:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-    background: rgba(255, 255, 255, 0.1);
-}
+/*.player-container:hover {*/
+/*    transform: translateY(-5px);*/
+/*    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);*/
+/*    background: rgba(255, 255, 255, 0.1);*/
+/*}*/
 
 /* Album cover */
 .cover {
@@ -1534,8 +1534,6 @@ body {
 }
 
 .eq-slider input[type="range"] {
-    /*writing-mode: bt-lr; !* IE *!*/
-    /*-webkit-appearance: slider-vertical; !* WebKit *!*/
     width: 8px;
     height: 100px;
     padding: 0;
@@ -1597,4 +1595,11 @@ body {
     body {
         flex-direction: column;
     }
+}
+
+.enable-gpu {
+    /*创建新图层并启用GPU */
+    transform: translateZ(0);
+    /*提示浏览器优化 */
+    will-change: transform;
 }
