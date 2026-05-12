@@ -104,11 +104,11 @@ body {
 }
 
 /* Glass morphism effect on hover */
-.player-container:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-    background: rgba(255, 255, 255, 0.1);
-}
+/*.player-container:hover {*/
+/*    transform: translateY(-5px);*/
+/*    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);*/
+/*    background: rgba(255, 255, 255, 0.1);*/
+/*}*/
 
 /* Album cover */
 .cover {
