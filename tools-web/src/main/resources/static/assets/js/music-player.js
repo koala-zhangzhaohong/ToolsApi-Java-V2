@@ -2784,6 +2784,17 @@ document.addEventListener('DOMContentLoaded', async function () {
         return params;
     }
 
+    function removeLoadingView() {
+        const overlay = document.getElementById('loading-overlay');
+        // 渐隐效果
+        overlay.style.transition = 'opacity 0.5s';
+        overlay.style.opacity = '0';
+        // 隐藏后移除DOM
+        setTimeout(function() {
+            overlay.style.display = 'none';
+        }, 500);
+    }
+
     init();
 
     if (musicInfo.lyric_info == null) {
@@ -2849,5 +2860,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.error('添加信息错误', e);
     }
 
+    removeLoadingView();
 
 });
