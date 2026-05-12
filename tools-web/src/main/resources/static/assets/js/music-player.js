@@ -1,6 +1,7 @@
 let currentHost = "";
 let musicInfo = null;
 let currentQuality = "default";
+const qualityInfo = new Map();
 
 function setCurrentHost(input) {
     currentHost = input;
@@ -16,6 +17,40 @@ function setData(input) {
     } catch (e) {
         console.log('数据异常，请重试', e);
     }
+}
+
+const getHashWithAlbumId = (name) => {
+    const params = new Map();
+    params.set("hash", "null");
+    params.set("albumId", "null");
+    switch (name) {
+        case 'lossyQuality':
+            params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
+            params.set("albumId", musicInfo.album_info.album_id);
+            params.set("timeLength", musicInfo.audio_info.play_info_list["128"].time_length);
+            break;
+        case 'defaultQuality':
+            params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
+            params.set("albumId", musicInfo.album_info.album_id);
+            params.set("timeLength", musicInfo.audio_info.play_info_list["320"].time_length);
+            break;
+        case 'highQuality':
+            params.set("hash", musicInfo.audio_info.play_info_list["high"].hash);
+            params.set("albumId", musicInfo.album_info.album_id);
+            params.set("timeLength", musicInfo.audio_info.play_info_list["high"].time_length);
+            break;
+        case 'flacQuality':
+            params.set("hash", musicInfo.audio_info.play_info_list["flac"].hash);
+            params.set("albumId", musicInfo.album_info.album_id);
+            params.set("timeLength", musicInfo.audio_info.play_info_list["flac"].time_length);
+            break;
+        default:
+            params.set("hash", "null");
+            params.set("albumId", "null");
+            params.set("timeLength", 0);
+            break;
+    }
+    return params;
 }
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -144,7 +179,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 用于缓存的IndexedDB
     let db;
 
-    const qualityInfo = new Map();
     qualityInfo.set('currentQualityIndex', 0);
 
     // 预设均衡器参数
@@ -360,35 +394,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 togglePlayPause(true);
             }
             toggleQualityModal();
-        }
-
-        const getHashWithAlbumId = (name) => {
-            const params = new Map();
-            params.set("hash", "null");
-            params.set("albumId", "null");
-            switch (name) {
-                case 'lossyQuality':
-                    params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
-                    params.set("albumId", musicInfo.album_info.album_id);
-                    break;
-                case 'defaultQuality':
-                    params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
-                    params.set("albumId", musicInfo.album_info.album_id);
-                    break;
-                case 'highQuality':
-                    params.set("hash", musicInfo.audio_info.play_info_list["high"].hash);
-                    params.set("albumId", musicInfo.album_info.album_id);
-                    break;
-                case 'flacQuality':
-                    params.set("hash", musicInfo.audio_info.play_info_list["flac"].hash);
-                    params.set("albumId", musicInfo.album_info.album_id);
-                    break;
-                default:
-                    params.set("hash", "null");
-                    params.set("albumId", "null");
-                    break;
-            }
-            return params;
         }
 
         // 播放列表标签切换
@@ -2795,35 +2800,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         toggleQualityModal();
     }
 
-    const getHashWithAlbumId = (name) => {
-        const params = new Map();
-        params.set("hash", "null");
-        params.set("albumId", "null");
-        switch (name) {
-            case 'lossyQuality':
-                params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
-                params.set("albumId", musicInfo.album_info.album_id);
-                break;
-            case 'defaultQuality':
-                params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
-                params.set("albumId", musicInfo.album_info.album_id);
-                break;
-            case 'highQuality':
-                params.set("hash", musicInfo.audio_info.play_info_list["high"].hash);
-                params.set("albumId", musicInfo.album_info.album_id);
-                break;
-            case 'flacQuality':
-                params.set("hash", musicInfo.audio_info.play_info_list["flac"].hash);
-                params.set("albumId", musicInfo.album_info.album_id);
-                break;
-            default:
-                params.set("hash", "null");
-                params.set("albumId", "null");
-                break;
-        }
-        return params;
-    }
-
     function removeLoadingView() {
         const overlay = document.getElementById('loading-overlay');
         // 渐隐效果
@@ -2918,7 +2894,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         addToPlaylist(urlListContent.split(",")[qualityInfo.get('currentQualityIndex')], {
             title: `${musicInfo.songname}`,
             artist: `${musicInfo.author_name}` || '未知艺术家',
-            duration: 0,
+            duration: `${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("timeLength")}` || 0,
             id: `${musicInfo.audio_id}`,
             lyrics: `${musicInfo.lyric_info}`,
             cover: `${musicInfo.album_info.sizable_cover.replace("{size}", "1080")}`
