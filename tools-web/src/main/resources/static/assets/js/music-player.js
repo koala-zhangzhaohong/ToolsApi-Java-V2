@@ -2798,72 +2798,80 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     init();
 
-    if (musicInfo.album_info == null || musicInfo.audio_info == null || musicInfo.lyric_info == null) {
-        await fetch(`${currentHost}tools/Kugou/api?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}&albumInfo=${(musicInfo.album_info == null)}&musicInfo=${(musicInfo.audio_info == null)}&lyricInfo=${(musicInfo.lyric_info == null)}`)
-            .then(response => response.json()) // 解析 JSON
-            .then(response => {
-                try {
-                    const albumInfo = response.data.album_info.data[0];
-                    if (albumInfo !== null && albumInfo !== undefined && albumInfo !== "") {
-                        musicInfo.album_info = albumInfo;
+    try {
+        if (musicInfo.album_info == null || musicInfo.audio_info == null || musicInfo.lyric_info == null) {
+            await fetch(`${currentHost}tools/Kugou/api?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}&albumInfo=${(musicInfo.album_info == null)}&musicInfo=${(musicInfo.audio_info == null)}&lyricInfo=${(musicInfo.lyric_info == null)}`)
+                .then(response => response.json()) // 解析 JSON
+                .then(response => {
+                    try {
+                        const albumInfo = response.data.album_info.data[0];
+                        if (albumInfo !== null && albumInfo !== undefined && albumInfo !== "") {
+                            musicInfo.album_info = albumInfo;
+                        }
+                    } catch (e) {
+                        // console.error(e);
                     }
-                } catch (e) {
-                    // console.error(e);
-                }
-                try {
-                    const audioInfo = response.data.music_info_data.audio_info;
-                    if (audioInfo !== null && audioInfo !== undefined && audioInfo !== "") {
-                        musicInfo.audio_info = audioInfo;
+                    try {
+                        const audioInfo = response.data.music_info_data.audio_info;
+                        if (audioInfo !== null && audioInfo !== undefined && audioInfo !== "") {
+                            musicInfo.audio_info = audioInfo;
+                        }
+                    } catch (e) {
+                        // console.error(e);
                     }
-                } catch (e) {
-                    // console.error(e);
-                }
-                try {
-                    const lyric = response.data.lyric_info_data.decode_content;
-                    if (lyric !== null && lyric !== undefined && lyric !== "") {
-                        musicInfo.lyric_info = lyric;
+                    try {
+                        const lyric = response.data.lyric_info_data.decode_content;
+                        if (lyric !== null && lyric !== undefined && lyric !== "") {
+                            musicInfo.lyric_info = lyric;
+                        }
+                    } catch (e) {
+                        // console.error(e);
                     }
-                } catch (e) {
-                    // console.error(e);
-                }
-            })    // 处理数据
-            .catch(error => {
-                console.error(error);
-            }); // 处理错误
+                })    // 处理数据
+                .catch(error => {
+                    console.error(error);
+                }); // 处理错误
+        }
+    } catch (e) {
+        console.error('数据拉取失败', e);
     }
 
-    if (document.querySelectorAll(`input[name="${qualityInfo.get('currentQualityName')}"]`).length > 0) {
-        // 有数据
-    } else {
-        const container = document.getElementById('defaultQualityTab');
-        const emptyContainer = document.querySelector('.quality-empty-container');
-        const tabId = qualityInfo.get('currentQualityName');
-        const urlList = [];
-        await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}`)
-            .then(response => response.json()) // 解析 JSON
-            .then(response => {
-                if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
-                    emptyContainer.style.display = 'none';
-                    container.innerHTML = '';
-                    let index = 0;
-                    response.data.url.forEach((url) => {
-                        index = index + 1;
-                        container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
-                        urlList.push(url);
-                    });
-                    qualityInfo.set(`${tabId}`, urlList.join(","));
-                    container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
-                    if (urlList.length > 0) {
-                        document.querySelector(`input[name="${tabId}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
+    try {
+        if (document.querySelectorAll(`input[name="${qualityInfo.get('currentQualityName')}"]`).length > 0) {
+            // 有数据
+        } else {
+            const container = document.getElementById('defaultQualityTab');
+            const emptyContainer = document.querySelector('.quality-empty-container');
+            const tabId = qualityInfo.get('currentQualityName');
+            const urlList = [];
+            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}`)
+                .then(response => response.json()) // 解析 JSON
+                .then(response => {
+                    if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
+                        emptyContainer.style.display = 'none';
+                        container.innerHTML = '';
+                        let index = 0;
+                        response.data.url.forEach((url) => {
+                            index = index + 1;
+                            container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
+                            urlList.push(url);
+                        });
+                        qualityInfo.set(`${tabId}`, urlList.join(","));
+                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
+                        if (urlList.length > 0) {
+                            document.querySelector(`input[name="${tabId}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
+                        }
+                    } else {
+                        emptyContainer.style.display = 'block';
                     }
-                } else {
+                })    // 处理数据
+                .catch(error => {
+                    console.error(error);
                     emptyContainer.style.display = 'block';
-                }
-            })    // 处理数据
-            .catch(error => {
-                console.error(error);
-                emptyContainer.style.display = 'block';
-            }); // 处理错误
+                }); // 处理错误
+        }
+    } catch (e) {
+        console.error('播放信息拉取失败', e);
     }
 
     try {
