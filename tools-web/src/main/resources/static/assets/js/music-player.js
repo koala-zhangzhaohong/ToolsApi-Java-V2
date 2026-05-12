@@ -335,6 +335,12 @@ document.addEventListener('DOMContentLoaded', async function () {
             const radio = event.target;
             qualityInfo.set('currentQualityName', `${radio.name}`);
             qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
+            if (playlist.length === 0) return;
+            playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
+            if (loadTrack(0)) {
+                togglePlayPause(true);
+            }
+            toggleQualityModal();
         }
 
         const getHashWithAlbumId = (name) => {
@@ -2757,6 +2763,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         const radio = event.target;
         qualityInfo.set('currentQualityName', `${radio.name}`);
         qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
+        if (playlist.length === 0) return;
+        playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
+        if (loadTrack(0)) {
+            togglePlayPause(true);
+        }
+        toggleQualityModal();
     }
 
     const getHashWithAlbumId = (name) => {
@@ -2790,7 +2802,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         overlay.style.transition = 'opacity 0.5s';
         overlay.style.opacity = '0';
         // 隐藏后移除DOM
-        setTimeout(function() {
+        setTimeout(function () {
             overlay.style.display = 'none';
         }, 500);
     }
