@@ -1,8 +1,13 @@
 let currentHost = "";
 let musicInfo = null;
+let currentQuality = "default";
 
 function setCurrentHost(input) {
     currentHost = input;
+}
+
+function setQuality(input) {
+    currentQuality = input;
 }
 
 function setData(input) {
@@ -152,6 +157,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         classic: [4, 3, 2, 1, 0, 1, 3, 4],
         bass: [6, 5, 4, 3, 0, 0, 0, 0]
     };
+
+    if (currentQuality === 'default') {
+        qualityInfo.set('currentQualityName', 'defaultQuality');
+    } else if (currentQuality === '128') {
+        qualityInfo.set('currentQualityName', 'defaultQuality');
+    } else if (currentQuality === '320') {
+        qualityInfo.set('currentQualityName', 'highQuality');
+    } else if (currentQuality === 'flac') {
+        qualityInfo.set('currentQualityName', 'flacQuality');
+    } else {
+        qualityInfo.set('currentQualityName', 'defaultQuality');
+    }
 
     // ----------------------------------------
     // 初始化函数
@@ -717,8 +734,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const store = transaction.objectStore('audioFiles');
 
         store.put({
-            id: track.id,
-            file: track.file
+            id: track.id, file: track.file
         });
     }
 
@@ -730,8 +746,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const store = transaction.objectStore('coverImages');
 
         store.put({
-            id: track.id,
-            file: track.cover
+            id: track.id, file: track.cover
         });
     }
 
@@ -814,10 +829,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
             // 保存播放列表元数据
             saveStore.put({
-                id: track.id,
-                title: track.title,
-                artist: track.artist,
-                duration: track.duration
+                id: track.id, title: track.title, artist: track.artist, duration: track.duration
             });
 
             // 保存相关媒体文件
@@ -1042,9 +1054,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 创建要导出的数据
         const exportData = playlist.map(track => ({
-            title: track.title,
-            artist: track.artist,
-            duration: track.duration
+            title: track.title, artist: track.artist, duration: track.duration
         }));
 
         // 转换为JSON字符串
@@ -1336,10 +1346,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     function savePlaylistToLocalStorage() {
         // 由于 File 对象无法直接序列化，我们只保存元数据
         const playlistData = playlist.map(track => ({
-            title: track.title,
-            artist: track.artist,
-            duration: track.duration,
-            id: track.id
+            title: track.title, artist: track.artist, duration: track.duration, id: track.id
         }));
 
         localStorage.setItem('playlistMetadata', JSON.stringify(playlistData));
@@ -1450,9 +1457,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
             // 添加到播放列表
             addToPlaylist(file, {
-                title,
-                artist,
-                duration
+                title, artist, duration
             });
         });
 
@@ -1575,8 +1580,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                 if (text) {
                     lyrics.push({
-                        time,
-                        text
+                        time, text
                     });
                 }
             }
@@ -1595,9 +1599,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         const sections = [];
         let currentSection = {
-            title: '默认段落',
-            startIndex: 0,
-            endIndex: 0
+            title: '默认段落', startIndex: 0, endIndex: 0
         };
 
         // 识别空行或特殊标记作为分段标志
@@ -1605,9 +1607,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             const line = lyricsArray[i].text;
 
             // 检测是否是段落标题行（无时间标记的行、全大写的行、或以特定词开头的行）
-            if ((line.startsWith('[') && line.includes(']') && !line.match(/^\[\d{2}:\d{2}\.\d{2,3}\]/)) ||
-                (line.toUpperCase() === line && line.length > 5) ||
-                line.match(/^(verse|chorus|bridge|intro|outro|pre-chorus|hook|refrain|interlude)/i)) {
+            if ((line.startsWith('[') && line.includes(']') && !line.match(/^\[\d{2}:\d{2}\.\d{2,3}\]/)) || (line.toUpperCase() === line && line.length > 5) || line.match(/^(verse|chorus|bridge|intro|outro|pre-chorus|hook|refrain|interlude)/i)) {
 
                 // 结束上一个段落
                 if (i > 0) {
@@ -1624,9 +1624,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
 
             // 检测连续3个空行或省略号作为分段标志
-            else if ((line === '' && i > 0 && lyricsArray[i - 1].text === '') ||
-                line === '...' ||
-                line === '…') {
+            else if ((line === '' && i > 0 && lyricsArray[i - 1].text === '') || line === '...' || line === '…') {
 
                 // 结束上一个段落
                 currentSection.endIndex = i - 1;
@@ -1634,9 +1632,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                 // 开始新段落
                 currentSection = {
-                    title: `段落 ${sections.length + 1}`,
-                    startIndex: i + 1,
-                    endIndex: 0
+                    title: `段落 ${sections.length + 1}`, startIndex: i + 1, endIndex: 0
                 };
             }
         }
@@ -1763,9 +1759,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         // 添加高亮
         if (index !== -1) {
             // 查找对应时间戳的行
-            const currentLine = Array.from(lines).find(
-                line => parseFloat(line.dataset.time) === lyrics[index].time
-            );
+            const currentLine = Array.from(lines).find(line => parseFloat(line.dataset.time) === lyrics[index].time);
 
             if (currentLine) {
                 currentLine.classList.add('active');
@@ -1773,8 +1767,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 // 滚动到当前行
                 if (lyricOverlay.style.display === 'flex') {
                     currentLine.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
+                        behavior: 'smooth', block: 'center'
                     });
                 }
             }
@@ -2267,9 +2260,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 点击设置面板外部关闭
     function closeSettingsPanelOutside(e) {
-        if (settingsPanel.classList.contains('active') &&
-            !settingsPanel.contains(e.target) &&
-            e.target !== settingsBtn) {
+        if (settingsPanel.classList.contains('active') && !settingsPanel.contains(e.target) && e.target !== settingsBtn) {
             settingsPanel.classList.remove('active');
         }
     }
@@ -2486,9 +2477,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     function updateDateTime() {
         const now = new Date();
         const options = {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
+            hour: '2-digit', minute: '2-digit', hour12: false
         };
         dateTimeDisplay.textContent = now.toLocaleTimeString([], options);
     }
@@ -2809,18 +2798,37 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     init();
 
-    if (musicInfo.lyric_info == null) {
-        await fetch(`${currentHost}tools/Kugou/api?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}&lyricInfo=true`)
+    if (musicInfo.album_info == null || musicInfo.audio_info == null || musicInfo.lyric_info == null) {
+        await fetch(`${currentHost}tools/Kugou/api?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}&albumInfo=${(musicInfo.album_info == null)}&musicInfo=${(musicInfo.audio_info == null)}&lyricInfo=${(musicInfo.lyric_info == null)}`)
             .then(response => response.json()) // 解析 JSON
             .then(response => {
-                const lyric = response.data.lyric_info_data.decode_content;
-                if (lyric !== null && lyric !== undefined && lyric !== "") {
-                    musicInfo.lyric_info = lyric;
+                try {
+                    const albumInfo = response.data.album_info.data[0];
+                    if (albumInfo !== null && albumInfo !== undefined && albumInfo !== "") {
+                        musicInfo.album_info = albumInfo;
+                    }
+                } catch (e) {
+                    // console.error(e);
+                }
+                try {
+                    const audioInfo = response.data.music_info_data.audio_info;
+                    if (audioInfo !== null && audioInfo !== undefined && audioInfo !== "") {
+                        musicInfo.audio_info = audioInfo;
+                    }
+                } catch (e) {
+                    // console.error(e);
+                }
+                try {
+                    const lyric = response.data.lyric_info_data.decode_content;
+                    if (lyric !== null && lyric !== undefined && lyric !== "") {
+                        musicInfo.lyric_info = lyric;
+                    }
+                } catch (e) {
+                    // console.error(e);
                 }
             })    // 处理数据
             .catch(error => {
                 console.error(error);
-                emptyContainer.style.display = 'block';
             }); // 处理错误
     }
 
@@ -2846,7 +2854,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     qualityInfo.set(`${tabId}`, urlList.join(","));
                     container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                     if (urlList.length > 0) {
-                        document.querySelector(`input[name="${tabId}"][value="${urlList[0]}"]`).checked = true;
+                        document.querySelector(`input[name="${tabId}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
                     }
                 } else {
                     emptyContainer.style.display = 'block';

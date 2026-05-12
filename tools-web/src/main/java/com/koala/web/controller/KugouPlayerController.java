@@ -55,7 +55,7 @@ public class KugouPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/music/short")
-    public String musicWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, @RequestParam(value = "version", required = false, defaultValue = "1") String version, @RequestParam(value = "extra", required = false, defaultValue = "3") Integer extra, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String musicWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, @RequestParam(value = "version", required = false, defaultValue = "2") String version, @RequestParam(value = "extra", required = false, defaultValue = "3") Integer extra, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[musicPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -103,6 +103,7 @@ public class KugouPlayerController {
                         model.addAttribute("thumb", info.getMusicInfo().getAlbumInfo().getSizableCover().replace("{size}", "1080"));
                     } else {
                         model.addAttribute("host", hostManager.getHost());
+                        model.addAttribute("quality", quality);
                         model.addAttribute("jsonInfo", GsonUtil.toString(info));
                     }
                     if ("2".equals(version)) {

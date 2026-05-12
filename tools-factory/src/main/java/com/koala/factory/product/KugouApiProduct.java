@@ -14,6 +14,7 @@ import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -244,6 +245,8 @@ public class KugouApiProduct {
                     patternMusicInfo.setAuthorName(this.authorName);
                     patternMusicInfo.setAlbumInfo(patternAlbumInfo);
                     patternMusicInfo.setAudioInfo(patternAudioInfo);
+                    Map<String, String> lyricsData = GsonUtil.toMaps(this.lyricInfoData);
+                    patternMusicInfo.setLyricInfo(ObjectUtils.isEmpty(lyricsData) ? null : lyricsData.get("decode_content"));
                     redisService.set(KUGOU_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortKugouItemDataModel(this.title, this.authorName, patternMusicInfo, null)), EXPIRE_TIME);
                     respData.getMockPreviewPath().put(KugouRequestQualityEnums.QUALITY_DEFAULT.getType(), host + "tools/Kugou/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&quality=" + KugouRequestQualityEnums.QUALITY_DEFAULT.getType());
                     respData.getMockDownloadPath().put(KugouRequestQualityEnums.QUALITY_DEFAULT.getType(), host + "tools/Kugou/download/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&quality=" + KugouRequestQualityEnums.QUALITY_DEFAULT.getType());

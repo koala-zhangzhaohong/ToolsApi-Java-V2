@@ -37,4 +37,6 @@ public class KugouAlbumCustomMusicInfoModel implements Serializable {
     private AlbumInfoModel albumInfo;
     @SerializedName("audio_info")
     private AudioInfoModel audioInfo;
+    @SerializedName("lyric_info")
+    private String lyricInfo;
 }

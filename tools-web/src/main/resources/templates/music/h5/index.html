@@ -444,6 +444,7 @@
         th:src="@{/assets/js/music-player.js(v=1.0)}"></script>
 <script>
     setCurrentHost("[[${host}]]");
+    setQuality("[[${quality}]]");
     // 初始化播放器
     setData(Util.htmlspecialchars_decode("[[${jsonInfo}]]").replaceAll("\n", "\\n"));
 </script>
