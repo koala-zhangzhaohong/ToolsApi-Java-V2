@@ -12,6 +12,7 @@ import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HeaderUtil;
 import com.koala.service.utils.HttpClientUtil;
+import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,6 +44,9 @@ public class KugouPlayerController {
 
     private static final Logger logger = LoggerFactory.getLogger(KugouPlayerController.class);
 
+    @Resource
+    private HostManager hostManager;
+
     @Resource(name = "RedisService")
     private RedisService redisService;
 
@@ -61,43 +65,49 @@ public class KugouPlayerController {
             }
             if (StringUtils.hasLength(itemKey)) {
                 try {
-                    ShortKugouItemDataModel tmp = GsonUtil.toBean(redisService.get(KUGOU_DATA_KEY_PREFIX + itemKey), ShortKugouItemDataModel.class);
-                    String artist = StringUtils.hasLength(tmp.getAuthorName()) ? " - " + tmp.getAuthorName() : "";
-                    model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : "MusicPlayer");
-                    String hash = tmp.getMusicInfo().getAudioInfo().getPlayInfoList().get(quality).getHash();
-                    String albumId = tmp.getMusicInfo().getAlbumInfo().getAlbumId();
-                    String mid = KugouMidGenerator.getMid();
-                    String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
-                    long timestamp = System.currentTimeMillis();
-                    String resp = null;
-                    switch (extra) {
-                        case 3 -> {
-                            resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, quality, customParams));
+                    ShortKugouItemDataModel info = GsonUtil.toBean(redisService.get(KUGOU_DATA_KEY_PREFIX + itemKey), ShortKugouItemDataModel.class);
+                    String artist = StringUtils.hasLength(info.getAuthorName()) ? " - " + info.getAuthorName() : "";
+                    model.addAttribute("title", StringUtils.hasLength(info.getTitle()) ? info.getTitle() + artist : "MusicPlayer");
+                    // version 2 以后不再调用 info接口 extra在version2以及之后版本失效
+                    if ("1".equals(version)) {
+                        String hash = info.getMusicInfo().getAudioInfo().getPlayInfoList().get(quality).getHash();
+                        String albumId = info.getMusicInfo().getAlbumInfo().getAlbumId();
+                        String mid = KugouMidGenerator.getMid();
+                        String cookie = customParams.getKugouCustomParams().get("kg_cookie").toString();
+                        long timestamp = System.currentTimeMillis();
+                        String resp = null;
+                        switch (extra) {
+                            case 3 -> {
+                                resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V5, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV3(timestamp, hash, mid, albumId, quality, customParams));
+                            }
+                            case 2 -> {
+                            }
+                            case 1 -> {
+                                resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
+                            }
+                            default -> {
+                                response.setStatus(HttpStatus.SC_NOT_FOUND);
+                                return "404/index";
+                            }
                         }
-                        case 2 -> {
+                        KugouPlayInfoRespDataModel respData = null;
+                        if (StringUtils.hasLength(resp)) {
+                            respData = GsonUtil.toBean(resp, KugouPlayInfoRespDataModel.class);
                         }
-                        case 1 -> {
-                            resp = HttpClientUtil.doGet(KUGOU_DETAIL_SERVER_URL_V2, HeaderUtil.getKugouPublicHeader(null, cookie), KugouPlayInfoParamsGenerator.getPlayInfoParamsV1(hash, mid, albumId, customParams));
-                        }
-                        default -> {
+                        if (Objects.isNull(respData)) {
                             response.setStatus(HttpStatus.SC_NOT_FOUND);
                             return "404/index";
                         }
+                        model.addAttribute("type", "audio/" + respData.getExtName());
+                        model.addAttribute("media", GsonUtil.toString(respData.getUrl()));
+                        model.addAttribute("thumb", info.getMusicInfo().getAlbumInfo().getSizableCover().replace("{size}", "1080"));
+                    } else {
+                        model.addAttribute("host", hostManager.getHost());
+                        model.addAttribute("jsonInfo", GsonUtil.toString(info));
                     }
-                    KugouPlayInfoRespDataModel respData = null;
-                    if (StringUtils.hasLength(resp)) {
-                        respData = GsonUtil.toBean(resp, KugouPlayInfoRespDataModel.class);
-                    }
-                    if (Objects.isNull(respData)) {
-                        response.setStatus(HttpStatus.SC_NOT_FOUND);
-                        return "404/index";
-                    }
-                    model.addAttribute("type", "audio/" + respData.getExtName());
-                    model.addAttribute("media", GsonUtil.toString(respData.getUrl()));
-                    model.addAttribute("thumb", tmp.getMusicInfo().getAlbumInfo().getSizableCover().replace("{size}", "1080"));
                     if ("2".equals(version)) {
                         return "music/h5/index";
-                    }else if ("1".equals(version)) {
+                    } else if ("1".equals(version)) {
                         return "music/dplayer/kugou/index";
                     }
                 } catch (Exception e) {

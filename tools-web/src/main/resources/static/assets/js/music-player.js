@@ -1,19 +1,19 @@
 let currentHost = "";
-let jsonData = null;
+let musicInfo = null;
 
 function setCurrentHost(input) {
     currentHost = input;
 }
 
 function setData(input) {
-    jsonData = input;
+    try {
+        musicInfo = JSON.parse(input).music_info;
+    } catch (e) {
+        console.log('数据异常，请重试', e);
+    }
 }
 
-function doInit() {
-
-}
-
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     // DOM元素
     const audioPlayer = new Audio();
     const coverImage = document.getElementById('coverImage');
@@ -296,18 +296,18 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
-        function initQualityRadioData(container, tabId) {
+        async function initQualityRadioData(container, tabId) {
             const emptyContainer = container.querySelector('.quality-empty-container');
             emptyContainer.style.display = 'none';
             const loadingContainer = container.querySelector('.quality-loading-container');
             loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
             loadingContainer.style.display = 'block';
             const urlList = [];
-            fetch(`http://127.0.0.1:8080/tools/Kugou/api/playInfo?hash=A4532F03250D843C1F9BFE700B47E5F5&albumId=878777`)
+            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
-                        container.querySelector('.quality-container-empty').style.display = 'none';
+                        emptyContainer.style.display = 'none';
                         container.innerHTML = '';
                         let index = 0;
                         response.data.url.forEach((url) => {
@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
                             urlList.push(url);
                         });
-                        qualityInfo.set(`${tabId}`, urlList);
+                        qualityInfo.set(`${tabId}`, urlList.join(","));
                         container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                     } else {
                         loadingContainer.innerHTML = '';
@@ -335,6 +335,31 @@ document.addEventListener('DOMContentLoaded', function () {
             const radio = event.target;
             qualityInfo.set('currentQualityName', `${radio.name}`);
             qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
+        }
+
+        const getHashWithAlbumId = (name) => {
+            const params = new Map();
+            params.set("hash", "null");
+            params.set("albumId", "null");
+            switch (name) {
+                case 'defaultQuality':
+                    params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
+                    params.set("albumId", musicInfo.album_info.album_id);
+                    break;
+                case 'highQuality':
+                    params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
+                    params.set("albumId", musicInfo.album_info.album_id);
+                    break;
+                case 'flacQuality':
+                    params.set("hash", musicInfo.audio_info.play_info_list["flac"].hash);
+                    params.set("albumId", musicInfo.album_info.album_id);
+                    break;
+                default:
+                    params.set("hash", "null");
+                    params.set("albumId", "null");
+                    break;
+            }
+            return params;
         }
 
         // 播放列表标签切换
@@ -2727,14 +2752,102 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // 下面一个逻辑相同
+    const onSelectQuality = (event) => {
+        const radio = event.target;
+        qualityInfo.set('currentQualityName', `${radio.name}`);
+        qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
+    }
+
+    const getHashWithAlbumId = (name) => {
+        const params = new Map();
+        params.set("hash", "null");
+        params.set("albumId", "null");
+        switch (name) {
+            case 'defaultQuality':
+                params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
+                params.set("albumId", musicInfo.album_info.album_id);
+                break;
+            case 'highQuality':
+                params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
+                params.set("albumId", musicInfo.album_info.album_id);
+                break;
+            case 'flacQuality':
+                params.set("hash", musicInfo.audio_info.play_info_list["flac"].hash);
+                params.set("albumId", musicInfo.album_info.album_id);
+                break;
+            default:
+                params.set("hash", "null");
+                params.set("albumId", "null");
+                break;
+        }
+        return params;
+    }
+
     init();
-    addToPlaylist("http://fsandroid.tx.kugou.com/202605112242/7ea4c09293523665680eeed43cd2e547/v3/a4532f03250d843c1f9bfe700b47e5f5/yp/full/ap1005_us928881638_df2lorgp0ydjfp47krxk4b8tye_pi2_mx878777_qu320_s688115276.flac", {
-        title: '标题',
-        artist: '艺术家' || '未知艺术家',
-        duration: 0,
-        id: 1,
-        lyrics: "[id:$00000000]\n[ar:关晓彤]\n[ti:我们的18岁]\n[by:]\n[hash:ffa21505313cdb729724f090a0c754d8]\n[al:]\n[sign:]\n[qq:]\n[total:213234]\n[offset:0]\n[00:00.81]关晓彤 - 我们的18岁\n[00:02.80]作词：李三木\n[00:04.02]作曲：刘佳\n[00:18.48]我们的十八岁\n[00:20.54]I wanna say\n[00:22.12]要汹涌别皱眉\n[00:25.34]永远的十八岁\n[00:27.22]I walk my way\n[00:28.96]青春就要万岁万岁\n[00:34.45]涂上最二次元的装扮\n[00:38.22]路人都向我看\n[00:41.78]我就是喜欢我的喜欢\n[00:44.93]管你习不习惯\n[00:48.48]先拍照P图分享晚餐\n[00:51.87]还要秀下耳环\n[00:55.04]晒一晒美丽有人点赞\n[00:58.69]放肆一起做伴\n[01:02.97]我们的十八岁\n[01:04.95]I wanna say\n[01:06.69]要汹涌别皱眉\n[01:09.80]永远的十八岁\n[01:11.73]I walk my way\n[01:13.47]青春就要万岁万岁\n[01:31.41]帅气的男生住在隔班\n[01:34.52]只能远远观看\n[01:38.15]手里的课本还没读完\n[01:41.61]青春就要离散\n[01:45.19]下一个路口的下一站\n[01:48.55]能否不要转弯\n[01:51.57]初恋会变成别人的伴\n[01:55.04]有你们就会心安\n[01:59.53]我们的十八岁\n[02:01.51]I wanna say\n[02:03.25]要汹涌别皱眉\n[02:06.41]永远的十八岁\n[02:08.34]I walk my way\n[02:10.08]青春就要万岁万岁\n[02:14.13]任性的十八岁\n[02:15.46]没什么不对\n[02:17.54]太美的十八岁\n[02:18.72]不能被浪费\n[02:20.60]我们的十八岁\n[02:22.53]永远的十八岁\n[02:24.26]爱爱不后悔\n[02:27.53]练习好步调\n[02:30.69]和时间赛跑\n[02:34.21]已经准备好\n[02:36.15]已经准备好\n[02:37.94]记得带着微笑yeah\n[02:44.14]我们的十八岁\n[02:46.08]I wanna say\n[02:47.81]要汹涌别皱眉\n[02:50.88]永远的十八岁\n[02:52.86]I walk my way\n[02:54.59]青春就要万岁万岁\n[02:58.00]我们的十八岁\n[02:59.73]I wanna say\n[03:01.41]要汹涌别皱眉\n[03:04.62]永远的十八岁\n[03:06.46]I walk my way\n[03:08.35]青春就要万岁万岁\n",
-        cover: "https://imge.kugou.com/stdmusic/1080/20200909/20200909125705582284.jpg"
-    }, false); // 不保存到本地存储，避免重复
+
+    if (musicInfo.lyric_info == null) {
+        await fetch(`${currentHost}tools/Kugou/api?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}&lyricInfo=true`)
+            .then(response => response.json()) // 解析 JSON
+            .then(response => {
+                const lyric = response.data.lyric_info_data.decode_content;
+                if (lyric !== null && lyric !== undefined && lyric !== "") {
+                    musicInfo.lyric_info = lyric;
+                }
+            })    // 处理数据
+            .catch(error => {
+                console.error(error);
+                emptyContainer.style.display = 'block';
+            }); // 处理错误
+    }
+
+    if (document.querySelectorAll(`input[name="${qualityInfo.get('currentQualityName')}"]`).length > 0) {
+        // 有数据
+    } else {
+        const container = document.getElementById('defaultQualityTab');
+        const emptyContainer = document.querySelector('.quality-empty-container');
+        const tabId = qualityInfo.get('currentQualityName');
+        const urlList = [];
+        await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}`)
+            .then(response => response.json()) // 解析 JSON
+            .then(response => {
+                if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
+                    emptyContainer.style.display = 'none';
+                    container.innerHTML = '';
+                    let index = 0;
+                    response.data.url.forEach((url) => {
+                        index = index + 1;
+                        container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
+                        urlList.push(url);
+                    });
+                    qualityInfo.set(`${tabId}`, urlList.join(","));
+                    container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
+                    if (urlList.length > 0) {
+                        document.querySelector(`input[name="${tabId}"][value="${urlList[0]}"]`).checked = true;
+                    }
+                } else {
+                    emptyContainer.style.display = 'block';
+                }
+            })    // 处理数据
+            .catch(error => {
+                console.error(error);
+                emptyContainer.style.display = 'block';
+            }); // 处理错误
+    }
+
+    try {
+        const urlListContent = String(qualityInfo.get(qualityInfo.get('currentQualityName')));
+        addToPlaylist(urlListContent.split(",")[qualityInfo.get('currentQualityIndex')], {
+            title: `${musicInfo.songname}`,
+            artist: `${musicInfo.author_name}` || '未知艺术家',
+            duration: 0,
+            id: `${musicInfo.audio_id}`,
+            lyrics: `${musicInfo.lyric_info}`,
+            cover: `${musicInfo.album_info.sizable_cover.replace("{size}", "1080")}`
+        }, false); // 不保存到本地存储，避免重复
+    } catch (e) {
+        console.error('添加信息错误', e);
+    }
+
 
 });
