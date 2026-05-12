@@ -42,6 +42,7 @@ public class KugouMusicInfoDataGenerator {
         });
         audioInfo.setPlayInfoList(playInfoData);
         musicInfoData.setAudioInfo(audioInfo);
+        musicInfoData.setLyricInfo(data.getLyricInfo());
         return musicInfoData;
     }
 

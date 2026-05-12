@@ -12,8 +12,10 @@ import com.koala.data.models.kugou.KugouMusicDataRespModel;
 import com.koala.data.models.shortUrl.ShortKugouItemDataModel;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -40,22 +42,17 @@ public class KugouApiProduct {
     private String hash;
     private String albumId;
     private Integer version = 4;
+    @Setter
     private String url;
+    @Setter
     private String host;
     private RedisService redisService;
+    @Setter
     private Map<String, Object> customParams;
     private KugouAlbumInfoRespDataModel<?> albumInfoData = null;
     private KugouAlbumMusicInfoRespDataModel<?> albumMusicInfoData = null;
     private KugouAlbumCustomMusicInfoModel musicInfoData = null;
     private String lyricInfoData;
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
 
     public void setVersion(Integer version) {
         this.version = version;
@@ -173,6 +170,10 @@ public class KugouApiProduct {
             if (tmp2.isEmpty())
                 return;
             KugouAlbumMusicItemPatternInfoDataModel tmp = GsonUtil.toBean(GsonUtil.toString(tmp2.get(0)), KugouAlbumMusicItemPatternInfoDataModel.class);
+            if (this.lyricInfoData != null) {
+                Map<String, String> lyricData = GsonUtil.toMaps(this.lyricInfoData);
+                tmp.setLyricInfo(ObjectUtils.isEmpty(this.lyricInfoData) || ObjectUtils.isEmpty(lyricData) ? null : lyricData.get("content"));
+            }
             this.musicInfoData = generateMusicInfoData(tmp);
         } catch (Exception e) {
             e.printStackTrace();
@@ -244,6 +245,10 @@ public class KugouApiProduct {
                     patternMusicInfo.setAuthorName(this.authorName);
                     patternMusicInfo.setAlbumInfo(patternAlbumInfo);
                     patternMusicInfo.setAudioInfo(patternAudioInfo);
+                    if (this.lyricInfoData != null) {
+                        Map<String, String> lyricData = GsonUtil.toMaps(this.lyricInfoData);
+                        patternMusicInfo.setLyricInfo(ObjectUtils.isEmpty(this.lyricInfoData) || ObjectUtils.isEmpty(lyricData) ? null : lyricData.get("content"));
+                    }
                     redisService.set(KUGOU_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortKugouItemDataModel(this.title, this.authorName, patternMusicInfo, null)), EXPIRE_TIME);
                     respData.getMockPreviewPath().put(KugouRequestQualityEnums.QUALITY_DEFAULT.getType(), host + "tools/Kugou/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&quality=" + KugouRequestQualityEnums.QUALITY_DEFAULT.getType());
                     respData.getMockDownloadPath().put(KugouRequestQualityEnums.QUALITY_DEFAULT.getType(), host + "tools/Kugou/download/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&quality=" + KugouRequestQualityEnums.QUALITY_DEFAULT.getType());
@@ -272,7 +277,4 @@ public class KugouApiProduct {
         return !StringUtils.hasLength(this.hash) && !StringUtils.hasLength(this.albumId);
     }
 
-    public void setCustomParams(Map<String, Object> kugouCustomParams) {
-        this.customParams = kugouCustomParams;
-    }
 }
