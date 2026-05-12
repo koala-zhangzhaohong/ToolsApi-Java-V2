@@ -2225,7 +2225,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             // 使用对数刻度为低频提供更多可见度
             const barIndex = Math.floor(Math.pow(i / bars.length, 1.5) * dataArray.length);
             const value = dataArray[barIndex];
-            const height = Math.max(3, value * 0.7); // 最小高度为3px
+            const height = Math.max(3, value * 0.3); // 最小高度为3px
             bars[i].style.height = `${height}px`;
 
             // 根据频率创建渐变颜色
