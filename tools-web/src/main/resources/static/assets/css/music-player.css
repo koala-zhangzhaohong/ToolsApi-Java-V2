@@ -1596,3 +1596,10 @@ body {
         flex-direction: column;
     }
 }
+
+.enable-gpu {
+    /*创建新图层并启用GPU */
+    transform: translateZ(0);
+    /*提示浏览器优化 */
+    will-change: transform;
+}
