@@ -1898,6 +1898,17 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 更新可视化效果
         updateVisualization();
+
+        // 如果播完了 就停止播放 进度条0
+        if (percent >= 100) {
+            if (isPlaying) {
+                audioPlayer.pause();
+                isPlaying = false;
+                playPauseIcon.className = 'fas fa-play';
+                fullscreenPlayIcon.className = 'fas fa-play';
+                audioPlayer.currentTime = 0;
+            }
+        }
     }
 
     // 格式化时间为 MM:SS 格式
@@ -2718,7 +2729,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 break;
             case 'r': // R键，切换重复模式
             case 'R':
-                toggleRepeatMode();
+                // toggleRepeatMode();
                 break;
             case 'f': // F键，切换全屏
             case 'F':

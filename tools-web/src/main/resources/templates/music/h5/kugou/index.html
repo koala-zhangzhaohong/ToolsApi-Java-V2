@@ -158,8 +158,8 @@
 
     <!-- Extra Controls for Mobile -->
     <div class="extra-controls">
-        <button class="feature-btn" id="toggleMiniPlayer" title="迷你播放器">
-            <i class="fas fa-compress"></i>
+        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
+            <i class="fas fa-retweet"></i>
         </button>
         <button class="feature-btn" id="equalizerBtn" title="音效均衡器">
             <i class="fas fa-sliders-h"></i>
@@ -170,14 +170,15 @@
         <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
             <i class="fas fa-align-left"></i>
         </button>
-        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
-            <i class="fas fa-retweet"></i>
+        <button class="feature-btn" id="toggleMiniPlayer" title="迷你播放器" style="visibility: hidden; display: none;"
+                disabled>
+            <i class="fas fa-compress"></i>
         </button>
     </div>
 
     <!-- Main Controls -->
     <div class="controls">
-        <div class="repeat-btn" id="repeatBtn" title="切换重复模式">
+        <div class="repeat-btn" id="repeatBtn" title="切换重复模式" style="visibility: hidden; display: none;" disabled>
             <i class="fas fa-redo-alt"></i>
         </div>
 
@@ -195,7 +196,7 @@
             </button>
         </div>
 
-        <button class="refresh-background" id="refreshBackground" style="visibility: hidden" title="刷新背景">
+        <button class="refresh-background" id="refreshBackground" style="visibility: hidden; display: none;" title="刷新背景">
             <i class="fas fa-sync-alt"></i>
         </button>
     </div>
