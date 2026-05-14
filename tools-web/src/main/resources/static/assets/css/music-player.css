@@ -361,12 +361,16 @@ body {
 /* Visualization */
 .visualization {
     /*height: 50px; !* 减小高度 *!*/
-    height: 96px; /* 减小高度 */
+    height: 100px; /* 减小高度 */
     margin: 0 15px;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     padding-bottom: 8px;
+}
+
+.visualization-canvas {
+    width: 100% !important;
 }
 
 .bar {

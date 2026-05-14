@@ -145,6 +145,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const eqBandSliders = document.querySelectorAll('.eq-band-slider');
     const eqToggleBtn = document.getElementById('eqToggleBtn');
 
+    // canvas 配置
+    const barsCount = 32;
+
     // 状态变量
     let isPlaying = false;
     let currentRepeatMode = 'none'; // none, all, one
@@ -179,6 +182,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 用于缓存的IndexedDB
     let db;
 
+    const worker = new Worker(`${currentHost}assets/js/dataProcessor.js`);
+    let visualizationChart;
+    let lastVisualizationData;
+
     qualityInfo.set('currentQualityIndex', 0);
 
     // 预设均衡器参数
@@ -204,6 +211,23 @@ document.addEventListener('DOMContentLoaded', async function () {
     } else {
         qualityInfo.set('currentQualityName', 'defaultQuality');
     }
+
+    worker.addEventListener('message', function (event) {
+        const {operation, config} = event.data;
+
+        switch (operation) {
+            case 'update':
+                break;
+            case 'init':
+                const canvas = document.createElement('canvas');
+                canvas.classList.add('visualization-canvas');
+                visualization.appendChild(canvas);
+                canvas.style.height = '100px';
+                canvas.style.width = '100%';
+                visualizationChart = new Chart(canvas, config);
+                break;
+        }
+    });
 
     // ----------------------------------------
     // 初始化函数
@@ -299,15 +323,11 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 创建可视化频谱柱
     function createVisualizationBars() {
-        const barsCount = 32;
-        visualization.innerHTML = '';
-
-        for (let i = 0; i < barsCount; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'bar';
-            bar.style.height = '3px';
-            visualization.appendChild(bar);
+        if (visualizationChart) {
+            visualizationChart.destroy();
         }
+        visualization.innerHTML = '';
+        worker.postMessage({operation: 'init'});
     }
 
     // 设置事件监听器
@@ -2233,23 +2253,33 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 渲染柱状可视化
     function renderBarVisualization() {
-        const bars = visualization.querySelectorAll('.bar');
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
-        for (let i = 0; i < bars.length; i++) {
-            // 使用对数刻度为低频提供更多可见度
-            const barIndex = Math.floor(Math.pow(i / bars.length, 1.5) * dataArray.length);
-            const value = dataArray[barIndex];
-            const height = Math.max(3, value * 0.3); // 最小高度为3px
-            bars[i].style.height = `${height}px`;
+        const tmpData = arrayBufferToString(dataArray);
+        // 数据没有改变
+        if (tmpData === lastVisualizationData) {
+            return;
+        }
+        lastVisualizationData = tmpData;
 
-            // 根据频率创建渐变颜色
-            const hue = 250 - (value / 255) * 50; // 从紫色到蓝色的渐变
-            bars[i].style.backgroundColor = `hsl(${hue}, 70%, 60%)`;
+        for (let i = 0; i < barsCount; i++) {
+            // 使用对数刻度为低频提供更多可见度
+            visualizationChart.data.datasets[0].data[i] = {x: i, y: Math.min(100, Math.max(3, dataArray[i] / 3))};
+            const hue = 250 - (dataArray[i] / 255) * 50; // 从紫色到蓝色的渐变
+            visualizationChart.data.datasets[0].backgroundColor = `hsl(${hue}, 70%, 60%)`;
+            visualizationChart.data.datasets[0].background = `hsl(${hue}, 70%, 60%)`;
         }
 
+        visualizationChart.update();
+
         visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
+
+        // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
+    }
+
+    function arrayBufferToString(buffer) {
+        return new TextDecoder().decode(buffer);
     }
 
     // 渲染环形可视化（使用Canvas API）
@@ -2270,8 +2300,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (visualizationMode === 'none') {
             cancelAnimationFrame(visualizationAnimationFrame);
-            const bars = visualization.querySelectorAll('.bar');
-            bars.forEach(bar => bar.style.height = '3px');
+            createVisualizationBars();
         } else {
             updateVisualization();
         }
