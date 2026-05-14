@@ -145,6 +145,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const eqBandSliders = document.querySelectorAll('.eq-band-slider');
     const eqToggleBtn = document.getElementById('eqToggleBtn');
 
+    // canvas 配置
+    const barsCount = 32;
+
     // 状态变量
     let isPlaying = false;
     let currentRepeatMode = 'none'; // none, all, one
@@ -178,6 +181,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 用于缓存的IndexedDB
     let db;
+
+    let visualizationChart;
 
     qualityInfo.set('currentQualityIndex', 0);
 
@@ -299,15 +304,79 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 创建可视化频谱柱
     function createVisualizationBars() {
-        const barsCount = 32;
         visualization.innerHTML = '';
 
+        const canvas = document.createElement('canvas');
+        canvas.classList.add('visualization-canvas');
+        visualization.appendChild(canvas);
+
+        canvas.style.height = '100px';
+        canvas.style.width = '100%';
+
+        const labels = [];
+        const color = [];
+        const barsData = [];
+        const defaultMin = 3;
+        const hue = 250 - (defaultMin / 255) * 50; // 从紫色到蓝色的渐变
+
         for (let i = 0; i < barsCount; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'bar';
-            bar.style.height = '3px';
-            visualization.appendChild(bar);
+            labels.push(String(i));
+            color.push(`hsl(${hue}, 70%, 60%)`);
+            barsData.push(defaultMin);
         }
+
+        const data = {
+            labels,
+            datasets: [{
+                axis: 'y',
+                data: barsData,
+                fill: false,
+                backgroundColor: color,
+                borderColor: color,
+                borderWidth: 0,     // 设置线条宽度
+                barThickness: 4
+            }]
+        };
+
+        const config = {
+            type: 'bar', // 设置图表类型
+            data: data,  // 设置数据集
+            options: {
+                responsive: true,
+                hover: {
+                    mode: 'nearest',
+                    intersect: false
+                },
+                // 限制每秒执行次数
+                events: ['mousemove', 'mouseout', 'click'],
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        display: false, // 隐藏Y轴
+                        ticks: {
+                            display: false // 隐藏Y轴的刻度
+                        }
+                    },
+                    x: {
+                        display: false, // 隐藏X轴
+                        ticks: {
+                            display: false // 隐藏X轴的刻度
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // 改为 true 显示
+                    },
+                    tooltip: {
+                        enabled: false // 使用 plugins.tooltip 来禁用提示框
+                    }
+                }
+            }
+        };
+
+        visualizationChart = new Chart(canvas, config);
     }
 
     // 设置事件监听器
@@ -2233,21 +2302,18 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 渲染柱状可视化
     function renderBarVisualization() {
-        const bars = visualization.querySelectorAll('.bar');
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
-        for (let i = 0; i < bars.length; i++) {
+        for (let i = 0; i < barsCount; i++) {
             // 使用对数刻度为低频提供更多可见度
-            const barIndex = Math.floor(Math.pow(i / bars.length, 1.5) * dataArray.length);
-            const value = dataArray[barIndex];
-            const height = Math.max(3, value * 0.3); // 最小高度为3px
-            bars[i].style.height = `${height}px`;
-
-            // 根据频率创建渐变颜色
-            const hue = 250 - (value / 255) * 50; // 从紫色到蓝色的渐变
-            bars[i].style.backgroundColor = `hsl(${hue}, 70%, 60%)`;
+            visualizationChart.data.datasets[0].data[i] = Math.min(100, Math.max(3, dataArray[i] / 3));
+            const hue = 250 - (dataArray[i] / 255) * 50; // 从紫色到蓝色的渐变
+            visualizationChart.data.datasets[0].backgroundColor = `hsl(${hue}, 70%, 60%)`;
+            visualizationChart.data.datasets[0].background = `hsl(${hue}, 70%, 60%)`;
         }
+
+        visualizationChart.update();
 
         visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
     }
@@ -2270,8 +2336,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (visualizationMode === 'none') {
             cancelAnimationFrame(visualizationAnimationFrame);
-            const bars = visualization.querySelectorAll('.bar');
-            bars.forEach(bar => bar.style.height = '3px');
+            createVisualizationBars();
         } else {
             updateVisualization();
         }
