@@ -183,6 +183,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     let db;
 
     let visualizationChart;
+    let lastVisualizationData;
 
     qualityInfo.set('currentQualityIndex', 0);
 
@@ -304,6 +305,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 创建可视化频谱柱
     function createVisualizationBars() {
+        if (visualizationChart) {
+            visualizationChart.destroy();
+        }
         visualization.innerHTML = '';
 
         const canvas = document.createElement('canvas');
@@ -322,18 +326,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         for (let i = 0; i < barsCount; i++) {
             labels.push(String(i));
             color.push(`hsl(${hue}, 70%, 60%)`);
-            barsData.push(defaultMin);
+            barsData.push({x: i, y: defaultMin});
         }
 
         const data = {
-            labels,
-            datasets: [{
-                axis: 'y',
-                data: barsData,
-                fill: false,
-                backgroundColor: color,
-                borderColor: color,
-                borderWidth: 0,     // 设置线条宽度
+            labels, datasets: [{
+                axis: 'y', data: barsData, fill: false, backgroundColor: color, borderColor: color, borderWidth: 0,     // 设置线条宽度
                 barThickness: 4
             }]
         };
@@ -342,34 +340,25 @@ document.addEventListener('DOMContentLoaded', async function () {
             type: 'bar', // 设置图表类型
             data: data,  // 设置数据集
             options: {
-                responsive: true,
-                hover: {
-                    mode: 'nearest',
-                    intersect: false
-                },
-                // 限制每秒执行次数
-                events: ['mousemove', 'mouseout', 'click'],
-                scales: {
+                parsing: false, responsive: true, hover: {
+                    mode: 'nearest', intersect: false
+                }, // 限制每秒执行次数
+                events: ['mousemove', 'mouseout', 'click'], scales: {
                     y: {
-                        min: 0,
-                        max: 100,
-                        display: false, // 隐藏Y轴
+                        min: 0, max: 100, display: false, // 隐藏Y轴
                         ticks: {
                             display: false // 隐藏Y轴的刻度
                         }
-                    },
-                    x: {
+                    }, x: {
                         display: false, // 隐藏X轴
                         ticks: {
                             display: false // 隐藏X轴的刻度
                         }
                     }
-                },
-                plugins: {
+                }, plugins: {
                     legend: {
                         display: false // 改为 true 显示
-                    },
-                    tooltip: {
+                    }, tooltip: {
                         enabled: false // 使用 plugins.tooltip 来禁用提示框
                     }
                 }
@@ -2305,9 +2294,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
+        const tmpData = arrayBufferToString(dataArray);
+        // 数据没有改变
+        if (tmpData === lastVisualizationData) {
+            return;
+        }
+        lastVisualizationData = tmpData;
+
         for (let i = 0; i < barsCount; i++) {
             // 使用对数刻度为低频提供更多可见度
-            visualizationChart.data.datasets[0].data[i] = Math.min(100, Math.max(3, dataArray[i] / 3));
+            visualizationChart.data.datasets[0].data[i] = {x: i, y: Math.min(100, Math.max(3, dataArray[i] / 3))};
             const hue = 250 - (dataArray[i] / 255) * 50; // 从紫色到蓝色的渐变
             visualizationChart.data.datasets[0].backgroundColor = `hsl(${hue}, 70%, 60%)`;
             visualizationChart.data.datasets[0].background = `hsl(${hue}, 70%, 60%)`;
@@ -2316,6 +2312,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         visualizationChart.update();
 
         visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
+    }
+
+    function arrayBufferToString(buffer) {
+        return new TextDecoder().decode(buffer);
     }
 
     // 渲染环形可视化（使用Canvas API）
