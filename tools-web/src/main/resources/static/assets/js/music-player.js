@@ -218,9 +218,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         switch (operation) {
             case 'update':
-                visualizationDataset = dataset;
-                updateVisualizationData();
-                visualizationAnimationFrame = requestAnimationFrame(updateVisualizationData);
+                visualizationChart.data.datasets[0] = dataset;
+                visualizationChart.update();
                 break;
             case 'init':
                 const canvas = document.createElement('canvas');
@@ -2266,26 +2265,26 @@ document.addEventListener('DOMContentLoaded', async function () {
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
-        const tmpData = arrayBufferToString(dataArray);
-        // 数据没有改变
-        if (tmpData === lastVisualizationData) {
-            return;
-        }
-        lastVisualizationData = tmpData;
+        // const tmpData = arrayBufferToString(dataArray);
+        // // 数据没有改变
+        // if (tmpData === lastVisualizationData) {
+        //     return;
+        // }
+        // lastVisualizationData = tmpData;
+        //
+        // for (let i = 0; i < barsCount; i++) {
+        //     // 使用对数刻度为低频提供更多可见度
+        //     visualizationChart.data.datasets[0].data[i] = {x: i, y: Math.min(100, Math.max(3, dataArray[i] / 3))};
+        //     const hue = 250 - (dataArray[i] / 255) * 50; // 从紫色到蓝色的渐变
+        //     visualizationChart.data.datasets[0].backgroundColor = `hsl(${hue}, 70%, 60%)`;
+        //     visualizationChart.data.datasets[0].background = `hsl(${hue}, 70%, 60%)`;
+        // }
+        //
+        // visualizationChart.update();
+        //
+        // visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
 
-        for (let i = 0; i < barsCount; i++) {
-            // 使用对数刻度为低频提供更多可见度
-            visualizationChart.data.datasets[0].data[i] = {x: i, y: Math.min(100, Math.max(3, dataArray[i] / 3))};
-            const hue = 250 - (dataArray[i] / 255) * 50; // 从紫色到蓝色的渐变
-            visualizationChart.data.datasets[0].backgroundColor = `hsl(${hue}, 70%, 60%)`;
-            visualizationChart.data.datasets[0].background = `hsl(${hue}, 70%, 60%)`;
-        }
-
-        visualizationChart.update();
-
-        visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-
-        // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
+        worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
 
     function arrayBufferToString(buffer) {
