@@ -1,30 +1,11 @@
 // dataProcessor.js
 const barsCount = 32;
-let lastVisualizationData;
 
 self.addEventListener('message', function (event) {
     const operation = event.data.operation;
-    const chartData = event.data.chartData;
-    const dataset = event.data.dataset;
 
     switch (operation) {
         case 'update':
-            const tmpData = arrayBufferToString(chartData);
-            // 数据没有改变
-            if (tmpData === lastVisualizationData) {
-                return;
-            }
-            lastVisualizationData = tmpData;
-
-            for (let i = 0; i < barsCount; i++) {
-                // 使用对数刻度为低频提供更多可见度
-                // noinspection JSValidateTypes
-                dataset.data[i] = {x: i, y: Math.min(100, Math.max(3, chartData[i] / 3))};
-                const hue = 250 - (chartData[i] / 255) * 50; // 从紫色到蓝色的渐变
-                dataset.backgroundColor = `hsl(${hue}, 70%, 60%)`;
-                dataset.background = `hsl(${hue}, 70%, 60%)`;
-            }
-            self.postMessage({operation: 'update', dataset});
             break;
         case 'init':
             const labels = [];
@@ -78,7 +59,3 @@ self.addEventListener('message', function (event) {
             break;
     }
 }, false);
-
-function arrayBufferToString(buffer) {
-    return new TextDecoder().decode(buffer);
-}

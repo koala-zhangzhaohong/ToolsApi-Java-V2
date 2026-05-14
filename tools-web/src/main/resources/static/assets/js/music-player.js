@@ -213,12 +213,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     worker.addEventListener('message', function (event) {
-        const {operation, dataset, config} = event.data;
+        const {operation, config} = event.data;
 
         switch (operation) {
             case 'update':
-                visualizationChart.data.datasets[0] = dataset;
-                visualizationChart.update();
                 break;
             case 'init':
                 const canvas = document.createElement('canvas');
