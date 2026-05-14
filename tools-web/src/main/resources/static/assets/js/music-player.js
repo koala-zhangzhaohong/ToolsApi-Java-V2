@@ -182,8 +182,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 用于缓存的IndexedDB
     let db;
 
+    const worker = new Worker(`${currentHost}assets/js/dataProcessor.js`);
     let visualizationChart;
     let lastVisualizationData;
+    let visualizationDataset;
 
     qualityInfo.set('currentQualityIndex', 0);
 
@@ -209,6 +211,32 @@ document.addEventListener('DOMContentLoaded', async function () {
         qualityInfo.set('currentQualityName', 'flacQuality');
     } else {
         qualityInfo.set('currentQualityName', 'defaultQuality');
+    }
+
+    worker.addEventListener('message', function (event) {
+        const {operation, dataset, config} = event.data;
+
+        switch (operation) {
+            case 'update':
+                visualizationDataset = dataset;
+                updateVisualizationData();
+                visualizationAnimationFrame = requestAnimationFrame(updateVisualizationData);
+                break;
+            case 'init':
+                const canvas = document.createElement('canvas');
+                canvas.classList.add('visualization-canvas');
+                visualization.appendChild(canvas);
+                canvas.style.height = '100px';
+                canvas.style.width = '100%';
+                visualizationChart = new Chart(canvas, config);
+                break;
+        }
+    });
+
+    function updateVisualizationData() {
+        visualizationChart.data.datasets[0] = visualizationDataset;
+        visualizationChart.update();
+        visualizationAnimationFrame = requestAnimationFrame(updateVisualizationData);
     }
 
     // ----------------------------------------
@@ -309,63 +337,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             visualizationChart.destroy();
         }
         visualization.innerHTML = '';
-
-        const canvas = document.createElement('canvas');
-        canvas.classList.add('visualization-canvas');
-        visualization.appendChild(canvas);
-
-        canvas.style.height = '100px';
-        canvas.style.width = '100%';
-
-        const labels = [];
-        const color = [];
-        const barsData = [];
-        const defaultMin = 3;
-        const hue = 250 - (defaultMin / 255) * 50; // 从紫色到蓝色的渐变
-
-        for (let i = 0; i < barsCount; i++) {
-            labels.push(String(i));
-            color.push(`hsl(${hue}, 70%, 60%)`);
-            barsData.push({x: i, y: defaultMin});
-        }
-
-        const data = {
-            labels, datasets: [{
-                axis: 'y', data: barsData, fill: false, backgroundColor: color, borderColor: color, borderWidth: 0,     // 设置线条宽度
-                barThickness: 4
-            }]
-        };
-
-        const config = {
-            type: 'bar', // 设置图表类型
-            data: data,  // 设置数据集
-            options: {
-                parsing: false, responsive: true, hover: {
-                    mode: 'nearest', intersect: false
-                }, // 限制每秒执行次数
-                events: ['mousemove', 'mouseout', 'click'], scales: {
-                    y: {
-                        min: 0, max: 100, display: false, // 隐藏Y轴
-                        ticks: {
-                            display: false // 隐藏Y轴的刻度
-                        }
-                    }, x: {
-                        display: false, // 隐藏X轴
-                        ticks: {
-                            display: false // 隐藏X轴的刻度
-                        }
-                    }
-                }, plugins: {
-                    legend: {
-                        display: false // 改为 true 显示
-                    }, tooltip: {
-                        enabled: false // 使用 plugins.tooltip 来禁用提示框
-                    }
-                }
-            }
-        };
-
-        visualizationChart = new Chart(canvas, config);
+        worker.postMessage({operation: 'init'});
     }
 
     // 设置事件监听器
@@ -2312,6 +2284,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         visualizationChart.update();
 
         visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
+
+        // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
 
     function arrayBufferToString(buffer) {
