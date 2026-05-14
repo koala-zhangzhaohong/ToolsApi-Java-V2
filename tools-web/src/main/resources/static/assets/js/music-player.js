@@ -185,7 +185,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const worker = new Worker(`${currentHost}assets/js/dataProcessor.js`);
     let visualizationChart;
     let lastVisualizationData;
-    let visualizationDataset;
 
     qualityInfo.set('currentQualityIndex', 0);
 
@@ -231,12 +230,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 break;
         }
     });
-
-    function updateVisualizationData() {
-        visualizationChart.data.datasets[0] = visualizationDataset;
-        visualizationChart.update();
-        visualizationAnimationFrame = requestAnimationFrame(updateVisualizationData);
-    }
 
     // ----------------------------------------
     // 初始化函数
