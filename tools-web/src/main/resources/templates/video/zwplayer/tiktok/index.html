@@ -21,13 +21,14 @@
         qualityList.push({
             name: '高清',
             url: '[[${multi.getHd()}]]&mime_type=video_mp4',
-            default: true,
+            default: checkContentIsNotEmpty("[[${multi.getHd()}]]"),
         });
     }
     if (checkContentIsNotEmpty("[[${multi.getSd()}]]")) {
         qualityList.push({
             name: '标清',
             url: '[[${multi.getSd()}]]&mime_type=video_mp4',
+            default: !checkContentIsNotEmpty("[[${multi.getHd()}]]"),
         });
     }
 

@@ -337,11 +337,13 @@ public class DouYinApiProduct {
                                     }
                                     String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
                                     String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
-                                    proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
-                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(hd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(sd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
-                                    ));
+                                    if (!ObjectUtils.isEmpty(hd) && !ObjectUtils.isEmpty(sd)) {
+                                        proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
+                                        mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
+                                                ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(hd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
+                                                ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(sd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
+                                        ));
+                                    }
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                     break;
