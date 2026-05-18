@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const refreshBtn = document.querySelector('.refresh-btn')
     const emptyHistory = document.querySelector('.empty-history');
     const suggestionChips = document.querySelectorAll('.suggestion-chip');
-    const rankList = document.getElementById('ranklist-table');
-    const rankListEmptyData = document.getElementById('ranklist-empty-data');
+    // const rankList = document.getElementById('ranklist-table');
+    // const rankListEmptyData = document.getElementById('ranklist-empty-data');
     const apiEmptyData = document.getElementById('api-empty-data');
     const apiData = document.getElementById('api-data');
     const apiInfoData = document.getElementById('info-container');
@@ -271,23 +271,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return "null";
     }
 
-    function updateRankListData() {
-        const json = JSON.parse(jsonData);
-        rankList.innerHTML = '';
-        const title = document.createElement('tr');
-        title.innerHTML = `<th>昵称</th><th>账号</th><th>原始昵称</th>`;
-        rankList.appendChild(title);
-        if (json.data.userList.length === 0) {
-            rankListEmptyData.style.display = 'block';
-        } else {
-            rankListEmptyData.style.display = 'none';
-            json.data.userList.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${item.nickname}</td><td>${item.display_id}</td><td>${item.user_real_nickname}</td>`;
-                rankList.appendChild(tr);
-            });
-        }
-    }
+    // function updateRankListData() {
+    //     const json = JSON.parse(jsonData);
+    //     rankList.innerHTML = '';
+    //     const title = document.createElement('tr');
+    //     title.innerHTML = `<th>昵称</th><th>账号</th><th>原始昵称</th>`;
+    //     rankList.appendChild(title);
+    //     if (json.data.userList.length === 0) {
+    //         rankListEmptyData.style.display = 'block';
+    //     } else {
+    //         rankListEmptyData.style.display = 'none';
+    //         json.data.userList.forEach(item => {
+    //             const tr = document.createElement('tr');
+    //             tr.innerHTML = `<td>${item.nickname}</td><td>${item.display_id}</td><td>${item.user_real_nickname}</td>`;
+    //             rankList.appendChild(tr);
+    //         });
+    //     }
+    // }
 
     // 更新显示历史记录
     function updateHistoryDisplay() {
