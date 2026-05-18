@@ -255,6 +255,7 @@ public class DouYinApiProduct {
                         ArrayList<String> rankListDataSpecialLiat = new ArrayList<>();
                         rankListDataSpecialLiat.add(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1&nickname=神秘人&config=2&count=-1");
                         rankListDataSpecialLiat.add(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1&nickname=dou&config=2&count=-1");
+                        rankListDataSpecialLiat.add(host + "tools/DouYin/api/ranklist/audience?roomId=" + roomId + "&version=3&extra=1&nickname=神秘嘉宾&config=2&count=-1");
                         this.roomInfoData.getData().getData().get(0).setRankListDataSpecialLiat(rankListDataSpecialLiat);
                     }
                     if (!Objects.isNull(this.roomInfoData.getData().getData().get(0).getStreamUrl())) {

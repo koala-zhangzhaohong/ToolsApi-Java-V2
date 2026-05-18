@@ -22,11 +22,13 @@ import com.koala.factory.product.DouYinApiProduct;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.custom.http.annotation.MixedHttpRequest;
 import com.koala.service.data.redis.service.RedisService;
+import com.koala.service.threadPool.ThreadPoolUtil;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.collections4.IterableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -44,6 +46,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.koala.base.enums.DouYinResponseEnums.*;
@@ -385,7 +390,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "10") Integer count) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "200") Integer count) throws IOException, URISyntaxException, ExecutionException, InterruptedException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -406,38 +411,22 @@ public class DouYinToolsController {
                     TiktokLiveRankResponseDataModel responseData = new TiktokLiveRankResponseDataModel();
                     responseData.setRoomId(roomId);
                     ArrayList<TiktokLiveRankUserInfoModel> userInfoList = new ArrayList<>();
-                    originResponseData.getData().getRanks().forEach(item -> {
+                    IterableUtils.forEach(originResponseData.getData().getRanks(), item -> {
                         TiktokLiveRankUserInfoModel userInfoModel = new TiktokLiveRankUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
-                        if (extra.equals("1")) {
-                            if (count == -1 || index.get() < count) {
-                                if (nickname != null && !nickname.isEmpty()) {
-                                    if (userInfoModel.getNickname().contains(nickname)) {
-                                        try {
-                                            userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
-                                        } catch (Exception e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                } else {
-                                    try {
-                                        userInfoModel.setUserRealNickName(getRealNickName(userInfoModel.getSecUid()));
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            }
-                            index.addAndGet(1);
-                        }
                         userInfoList.add(userInfoModel);
                     });
+                    ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList = new ArrayList<>();
+                    if (extra.equals("1")) {
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count, nickname);
+                    }
                     switch (config) {
                         case "1" -> {
-                            responseData.setUserList(userInfoList);
+                            responseData.setUserList(userInfoDataList);
                         }
                         case "2" -> {
-                            responseData.setUserList(getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                            responseData.setUserList(getDataListByPrefix(userInfoDataList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
                         }
                         default -> {
                             return formatRespData(INVALID_CONFIG, null);
@@ -450,38 +439,22 @@ public class DouYinToolsController {
                     TiktokLiveRankSimpleResponseDataModel responseData = new TiktokLiveRankSimpleResponseDataModel();
                     responseData.setRoomId(roomId);
                     ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoList = new ArrayList<>();
-                    originResponseData.getData().getRanks().forEach(item -> {
+                    IterableUtils.forEach(originResponseData.getData().getRanks(), item -> {
                         TiktokLiveRankSimpleUserInfoModel simpleUserInfoModel = new TiktokLiveRankSimpleUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
-                        if (extra.equals("1")) {
-                            if (count == -1 || index.get() < count) {
-                                if (nickname != null && !nickname.isEmpty()) {
-                                    if (simpleUserInfoModel.getNickname().contains(nickname)) {
-                                        try {
-                                            simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
-                                        } catch (Exception e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                } else {
-                                    try {
-                                        simpleUserInfoModel.setUserRealNickName(getRealNickName(simpleUserInfoModel.getSecUid()));
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            }
-                            index.addAndGet(1);
-                        }
                         userInfoList.add(simpleUserInfoModel);
                     });
+                    ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList = new ArrayList<>();
+                    if (extra.equals("1")) {
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count, nickname);
+                    }
                     switch (config) {
                         case "1" -> {
-                            responseData.setUserList(userInfoList);
+                            responseData.setUserList(userInfoDataList);
                         }
                         case "2" -> {
-                            responseData.setUserList(getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                            responseData.setUserList(getSimpleDataListByPrefix(userInfoDataList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
                         }
                         default -> {
                             return formatRespData(INVALID_CONFIG, null);
@@ -562,17 +535,111 @@ public class DouYinToolsController {
     }
 
     private String getRealNickName(String secUserId) throws IOException, URISyntaxException {
+        String tmp = redisService.get(TIKTOK_PROFILE_INFO + secUserId);
+        if (StringUtils.hasLength(tmp)) {
+            TiktokUserProfileDataModel tmpData = GsonUtil.toBean(tmp, TiktokUserProfileDataModel.class);
+            return tmpData.getUser().getNickname();
+        }
         String url = TIKTOK_USER_PROFILE_OTHER + "?device_platform=webapp&aid=6383&channel=channel_pc_web&publish_video_strategy_type=2&source=channel_pc_web&sec_user_id=" + secUserId + "&version_code=160100&version_name=16.1.0&_signature=_02B4Z6wo00d01A8CVfgAAIDB2MR4gyyTjxgPAlFAAGMe23";
         AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
         if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
             return null;
         }
-        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
-        if (StringUtils.hasLength(response)) {
-            TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
-            return profileData.getUser().getNickname();
+        String response;
+        for (int retry = 0; retry < MAX_RETRY_TIMES; retry++) {
+            response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+            if (StringUtils.hasLength(response)) {
+                TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
+                String nickname = profileData.getUser().getNickname();
+                if (StringUtils.hasLength(nickname)) {
+                    redisService.set(TIKTOK_PROFILE_INFO + secUserId, response, 30 * 60L);
+                }
+                return nickname;
+            }
+            logger.info("[getRealNickName] secUserId: {}, retry: {}", secUserId, retry + 1);
         }
         return null;
+    }
+
+
+    private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer count, String nickname) throws ExecutionException, InterruptedException {
+        ArrayList<T> tmp = new ArrayList<>();
+        AtomicInteger index = new AtomicInteger();
+        IterableUtils.forEach(userInfoList, item -> {
+            if (count == -1 || index.get() < count) {
+                if (nickname != null && !nickname.isEmpty()) {
+                    if (item instanceof TiktokLiveRankUserInfoModel) {
+                        if (((TiktokLiveRankUserInfoModel) item).getNickname().contains(nickname)) {
+                            tmp.add(item);
+                        }
+                    }
+                    if (item instanceof TiktokLiveRankSimpleUserInfoModel) {
+                        if (((TiktokLiveRankSimpleUserInfoModel) item).getNickname().contains(nickname)) {
+                            tmp.add(item);
+                        }
+                    }
+                } else {
+                    tmp.add(item);
+                }
+            }
+            index.addAndGet(1);
+        });
+        ThreadPoolUtil<HashMap<String, String>> threadPoolUtil = ThreadPoolUtil.getInstance();
+        List<Future<HashMap<String, String>>> futureList = new ArrayList<>();
+        // int threadCount = Runtime.getRuntime().availableProcessors() / 2;
+        int threadCount = 1;
+        for (int i = 0; i < tmp.size(); i += threadCount) {
+            @SuppressWarnings("UnnecessaryLocalVariable") int start = i;
+            int end = Math.min(i + threadCount, tmp.size());
+            List<T> input = tmp.subList(start, end);
+            Callable<HashMap<String, String>> task = () -> execute(input);
+            Future<HashMap<String, String>> future = threadPoolUtil.submitTask(task);
+            futureList.add(future);
+        }
+        HashMap<String, String> nicknameInfoMap = new HashMap<>();
+        IterableUtils.forEach(futureList, future -> {
+            try {
+                nicknameInfoMap.putAll(future.get());
+            } catch (Exception e) {
+                logger.info("[doMultiThreadRealNickNameExecuter] on solved error: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+        IterableUtils.forEach(userInfoList, item -> {
+            if (item instanceof TiktokLiveRankUserInfoModel) {
+                ((TiktokLiveRankUserInfoModel) item).setUserRealNickName(nicknameInfoMap.get(((TiktokLiveRankUserInfoModel) item).getSecUid()));
+            }
+            if (item instanceof TiktokLiveRankSimpleUserInfoModel) {
+                ((TiktokLiveRankSimpleUserInfoModel) item).setUserRealNickName(nicknameInfoMap.get(((TiktokLiveRankSimpleUserInfoModel) item).getSecUid()));
+            }
+        });
+        return userInfoList;
+    }
+
+    private <T> HashMap<String, String> execute(List<T> userInfoList) {
+        HashMap<String, String> data = new HashMap<>();
+        for (Object userInfo : userInfoList) {
+            String nickname = null;
+            String secUserId = null;
+            try {
+                if (!Objects.isNull(userInfo)) {
+                    if (userInfo instanceof TiktokLiveRankUserInfoModel) {
+                        secUserId = (((TiktokLiveRankUserInfoModel) userInfo).getSecUid());
+                        nickname = getRealNickName(secUserId);
+                    }
+                    if (userInfo instanceof TiktokLiveRankSimpleUserInfoModel) {
+                        secUserId = ((TiktokLiveRankSimpleUserInfoModel) userInfo).getSecUid();
+                        nickname = getRealNickName(secUserId);
+                    }
+                }
+                data.put(secUserId, nickname);
+                // logger.info("[multiThreadRealNickNameExecuter] on solved: {}, thread: {}", userInfoList.size(), Thread.currentThread().getName());
+            } catch (Exception e) {
+                logger.info("[multiThreadRealNickNameExecuter] on solved error: {}, thread: {}", e.getMessage(), Thread.currentThread().getName());
+                e.printStackTrace();
+            }
+        }
+        return data;
     }
 
     private ArrayList<TiktokLiveRankUserInfoModel> getDataListByPrefix(ArrayList<TiktokLiveRankUserInfoModel> data, String prefix) {

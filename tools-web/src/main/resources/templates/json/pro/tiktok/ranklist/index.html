@@ -65,9 +65,18 @@
                         <th>账号</th>
                         <th>原始昵称</th>
                     </tr>
+                    <th:block th:each="item : ${userInfoList}">
+                        <tr>
+                            <td th:text="${item?.getNickname()}"></td>
+                            <td th:text="${item?.getDisplayId()}"></td>
+                            <td th:text="${item?.getUserRealNickName()}"></td>
+                        </tr>
+                    </th:block>
                     </thead>
                 </table>
-                <div id="ranklist-empty-data" class="empty-data">暂无数据</div>
+                <th:block th:if="${#lists.isEmpty(userInfoList)}">
+                    <div id="ranklist-empty-data" class="empty-data">暂无数据</div>
+                </th:block>
             </div>
         </div>
         <div class="explain-container">* 仅供学习使用，禁止用于商业用途</div>
@@ -75,9 +84,9 @@
 </div>
 <script type="text/javascript" src="../assets/js/tiktok-searcher.js"
         th:src="@{/assets/js/tiktok-searcher.js(v=1.0)}"></script>
-<script>
-    setCurrentHost("[[${host}]]");
-    setData(Util.htmlspecialchars_decode("[[${jsonData}]]").replaceAll("\n", "\\n"));
-</script>
+<!--<script>-->
+<!--    setCurrentHost("[[${host}]]");-->
+<!--    setData(Util.htmlspecialchars_decode("[[${jsonData}]]").replaceAll("\n", "\\n"));-->
+<!--</script>-->
 </body>
 </html>
