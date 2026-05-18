@@ -67,17 +67,16 @@
                     </tr>
                     <th:block th:each="item : ${userInfoList}">
                         <tr>
-                            <td th:text="${item.nickname}"></td>
-                            <td th:text="${item.display_id}"></td>
-                            <td th:text="${item.user_real_nickname}"></td>
+                            <td th:text="${item?.getNickname()}"></td>
+                            <td th:text="${item?.getDisplayId()}"></td>
+                            <td th:text="${item?.getUserRealNickName()}"></td>
                         </tr>
                     </th:block>
                     </thead>
                 </table>
-                <th:block th:if="${state == 'empty'}">
-                    <script src="../assets/js/hls.js" th:src="@{/assets/js/hls.js}"></script>
+                <th:block th:if="${#lists.isEmpty(userInfoList)}">
+                    <div id="ranklist-empty-data" class="empty-data">暂无数据</div>
                 </th:block>
-                <div id="ranklist-empty-data" class="empty-data">暂无数据</div>
             </div>
         </div>
         <div class="explain-container">* 仅供学习使用，禁止用于商业用途</div>

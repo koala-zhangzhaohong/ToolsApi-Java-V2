@@ -34,14 +34,12 @@ public class TiktokRanklistTemplateWeb implements BaseTemplate {
                 if (!userInfoList.isEmpty()) {
                     model.addAttribute("userInfoList", userInfoList);
                 }
-                model.addAttribute("state", "init");
             } else {
                 model.addAttribute("userInfoList", new ArrayList<>());
-                model.addAttribute("state", "empty");
             }
         } catch (Exception e) {
+            logger.error("[TemplateManager] error", e);
             model.addAttribute("userInfoList", new ArrayList<>());
-            model.addAttribute("state", "empty");
         }
         return TEMPLATE_TIKTOK_RANKLIST.getPath();
     }

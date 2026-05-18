@@ -65,13 +65,17 @@ public class ThreadPoolUtil<T> {
 
     // 带返回值 提交任务到线程池
     public Future<T> submitTask(Callable task) {
-        logger.info("[ThreadPoolUtil] 队列任务数量:{}", workQueue.size());
+        // logger.info("[ThreadPoolUtil] 队列任务数量:{}", workQueue.size());
         return executorService.submit(task);
     }
 
     // 不带返回值 提交任务到线程池
     public void submitTask(Runnable task) {
         executorService.submit(task);
+    }
+
+    public int getWorkQueueSize() {
+        return workQueue.size();
     }
 
     // 关闭线程池

@@ -389,7 +389,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "30") Integer count) throws IOException, URISyntaxException, ExecutionException, InterruptedException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "200") Integer count) throws IOException, URISyntaxException, ExecutionException, InterruptedException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -585,7 +585,8 @@ public class DouYinToolsController {
         });
         ThreadPoolUtil<HashMap<String, String>> threadPoolUtil = ThreadPoolUtil.getInstance();
         List<Future<HashMap<String, String>>> futureList = new ArrayList<>();
-        int threadCount = Runtime.getRuntime().availableProcessors() / 2;
+        // int threadCount = Runtime.getRuntime().availableProcessors() / 2;
+        int threadCount = 1;
         for (int i = 0; i < tmp.size(); i += threadCount) {
             @SuppressWarnings("UnnecessaryLocalVariable") int start = i;
             int end = Math.min(i + threadCount, tmp.size());
@@ -626,8 +627,9 @@ public class DouYinToolsController {
                     }
                 }
                 data.put(secUserId, nickname);
-                logger.info("[multiThreadRealNickNameExecuter] onDealNum: {}, thread: {}", userInfoList.size(), Thread.currentThread().getName());
+                // logger.info("[multiThreadRealNickNameExecuter] on solved: {}, thread: {}", userInfoList.size(), Thread.currentThread().getName());
             } catch (Exception e) {
+                logger.info("[multiThreadRealNickNameExecuter] on solved error: {}, thread: {}", e, Thread.currentThread().getName());
                 e.printStackTrace();
             }
         }
