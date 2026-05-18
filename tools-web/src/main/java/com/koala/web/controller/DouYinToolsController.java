@@ -28,6 +28,7 @@ import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.collections4.IterableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -410,7 +411,7 @@ public class DouYinToolsController {
                     TiktokLiveRankResponseDataModel responseData = new TiktokLiveRankResponseDataModel();
                     responseData.setRoomId(roomId);
                     ArrayList<TiktokLiveRankUserInfoModel> userInfoList = new ArrayList<>();
-                    originResponseData.getData().getRanks().forEach(item -> {
+                    IterableUtils.forEach(originResponseData.getData().getRanks(), item -> {
                         TiktokLiveRankUserInfoModel userInfoModel = new TiktokLiveRankUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
@@ -438,7 +439,7 @@ public class DouYinToolsController {
                     TiktokLiveRankSimpleResponseDataModel responseData = new TiktokLiveRankSimpleResponseDataModel();
                     responseData.setRoomId(roomId);
                     ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoList = new ArrayList<>();
-                    originResponseData.getData().getRanks().forEach(item -> {
+                    IterableUtils.forEach(originResponseData.getData().getRanks(), item -> {
                         TiktokLiveRankSimpleUserInfoModel simpleUserInfoModel = new TiktokLiveRankSimpleUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
@@ -564,7 +565,7 @@ public class DouYinToolsController {
     private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer count, String nickname) throws ExecutionException, InterruptedException {
         ArrayList<T> tmp = new ArrayList<>();
         AtomicInteger index = new AtomicInteger();
-        userInfoList.forEach(item -> {
+        IterableUtils.forEach(userInfoList, item -> {
             if (count == -1 || index.get() < count) {
                 if (nickname != null && !nickname.isEmpty()) {
                     if (item instanceof TiktokLiveRankUserInfoModel) {
@@ -596,10 +597,15 @@ public class DouYinToolsController {
             futureList.add(future);
         }
         HashMap<String, String> nicknameInfoMap = new HashMap<>();
-        for (Future<HashMap<String, String>> future : futureList) {
-            nicknameInfoMap.putAll(future.get());
-        }
-        userInfoList.forEach(item -> {
+        IterableUtils.forEach(futureList, future -> {
+            try {
+                nicknameInfoMap.putAll(future.get());
+            } catch (Exception e) {
+                logger.info("[doMultiThreadRealNickNameExecuter] on solved error: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+        IterableUtils.forEach(userInfoList, item -> {
             if (item instanceof TiktokLiveRankUserInfoModel) {
                 ((TiktokLiveRankUserInfoModel) item).setUserRealNickName(nicknameInfoMap.get(((TiktokLiveRankUserInfoModel) item).getSecUid()));
             }
@@ -629,7 +635,7 @@ public class DouYinToolsController {
                 data.put(secUserId, nickname);
                 // logger.info("[multiThreadRealNickNameExecuter] on solved: {}, thread: {}", userInfoList.size(), Thread.currentThread().getName());
             } catch (Exception e) {
-                logger.info("[multiThreadRealNickNameExecuter] on solved error: {}, thread: {}", e, Thread.currentThread().getName());
+                logger.info("[multiThreadRealNickNameExecuter] on solved error: {}, thread: {}", e.getMessage(), Thread.currentThread().getName());
                 e.printStackTrace();
             }
         }
