@@ -420,11 +420,11 @@ public class DouYinApiProduct {
             DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
             if (middlewareServerEnum != null) {
                 if (middlewareServerEnum.getIsGateWay() == true) {
-                    path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + (ObjectUtils.isEmpty(middlewareServerEnum.getServiceName()) ? "null" : middlewareServerEnum.getServiceName()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + (ObjectUtils.isEmpty(middlewareServerEnum.getServiceName()) ? "null" : middlewareServerEnum.getServiceName()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
                 } else if (ObjectUtils.isEmpty(middlewareServerEnum.getOrigin()) || middlewareServerEnum.getNeedOrigin() == false) {
-                    path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
                 } else {
-                    path = cdnHostPrefix + ":" + middlewareServerEnum.getPort() + "/" + cdnHostPrefix + ":" + middlewareServerEnum.getOrigin() + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getOrigin(), middlewareServerEnum.getIsHttps()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
                 }
                 return path;
             }
@@ -432,6 +432,16 @@ public class DouYinApiProduct {
             return null;
         }
         return null;
+    }
+
+    private String formatHost(String host, Integer port, Boolean isHttps) {
+        if (!ObjectUtils.isEmpty(port)) {
+            host = host + ":" + port;
+        }
+        if (isHttps) {
+            host = host.replaceFirst("http://", "https://");
+        }
+        return host;
     }
 
     private String doGetXbogusRequest(String inputUrl) throws IOException, URISyntaxException {
