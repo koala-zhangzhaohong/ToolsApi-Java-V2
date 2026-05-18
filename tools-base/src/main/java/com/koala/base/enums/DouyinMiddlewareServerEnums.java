@@ -19,7 +19,7 @@ public enum DouyinMiddlewareServerEnums {
     PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", 55082, null, false, false, null, false),
     PREFIX_4("https://www.douyin.com/", null, 55083, false, true, "douyin", true),
     PREFIX_5("https://v5-dy-o-abtest.zjcdn.com/", 55084, null, false, false, null, false),
-    PREFIX_6("https://v3-dy-o.zjcdn.com/", 55085, null, false, false, null, true);
+    PREFIX_6("https://v3-dy-o.zjcdn.com/", 55085, null, false, false, null, false);
 
     private final String prefix;
     private final Integer port;
