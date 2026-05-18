@@ -385,7 +385,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "10") Integer count) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "30") Integer count) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -562,15 +562,25 @@ public class DouYinToolsController {
     }
 
     private String getRealNickName(String secUserId) throws IOException, URISyntaxException {
+        String tmp = redisService.get(TIKTOK_PROFILE_INFO + secUserId);
+        if (StringUtils.hasLength(tmp)) {
+            TiktokUserProfileDataModel tmpData = GsonUtil.toBean(tmp, TiktokUserProfileDataModel.class);
+            return tmpData.getUser().getNickname();
+        }
         String url = TIKTOK_USER_PROFILE_OTHER + "?device_platform=webapp&aid=6383&channel=channel_pc_web&publish_video_strategy_type=2&source=channel_pc_web&sec_user_id=" + secUserId + "&version_code=160100&version_name=16.1.0&_signature=_02B4Z6wo00d01A8CVfgAAIDB2MR4gyyTjxgPAlFAAGMe23";
         AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
         if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
             return null;
         }
-        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
-        if (StringUtils.hasLength(response)) {
-            TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
-            return profileData.getUser().getNickname();
+        String response;
+        for (int retry = 0; retry < MAX_RETRY_TIMES; retry++) {
+            response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+            if (StringUtils.hasLength(response)) {
+                TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
+                redisService.set(TIKTOK_PROFILE_INFO + secUserId, response, 30 * 60L);
+                return profileData.getUser().getNickname();
+            }
+            logger.info("[getRealNickName] secUserId: {}, retry: {}", secUserId, retry + 1);
         }
         return null;
     }
