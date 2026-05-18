@@ -403,9 +403,9 @@ document.addEventListener('DOMContentLoaded', function () {
         updateHistoryDisplay();
     }
 
-    if (rankList !== undefined && rankList !== null && rankListEmptyData !== undefined && rankListEmptyData !== null) {
-        updateRankListData();
-    }
+    // if (rankList !== undefined && rankList !== null && rankListEmptyData !== undefined && rankListEmptyData !== null) {
+    //     updateRankListData();
+    // }
 
     if (apiData !== undefined && apiData !== null && apiEmptyData !== undefined && apiEmptyData !== null) {
         updateApiData();

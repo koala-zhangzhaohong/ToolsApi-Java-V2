@@ -1,12 +1,16 @@
 package com.koala.web.template.index.tiktokSearcherTemplate;
 
+import com.koala.data.models.douyin.rank.TiktokLiveRankSimpleUserInfoModel;
+import com.koala.service.utils.GsonUtil;
 import com.koala.web.template.BaseTemplate;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ui.Model;
 
-import static com.koala.base.enums.TemplateEnum.TEMPLATE_TIKTOK_API;
+import java.util.ArrayList;
+import java.util.Map;
+
 import static com.koala.base.enums.TemplateEnum.TEMPLATE_TIKTOK_RANKLIST;
 
 public class TiktokRanklistTemplateWeb implements BaseTemplate {
@@ -19,7 +23,26 @@ public class TiktokRanklistTemplateWeb implements BaseTemplate {
 
     @Override
     public String getTemplate(String data, Model model, HttpServletResponse response) {
-        model.addAttribute("jsonData", data);
+        try {
+            Map<String, Object> rankData = (Map<String, Object>) GsonUtil.toMaps(data).get("data");
+            if (rankData != null) {
+                ArrayList<?> ranklist = (ArrayList<?>) rankData.get("userList");
+                ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoList = new ArrayList<>();
+                ranklist.forEach(item -> {
+                    userInfoList.add(GsonUtil.toBean(GsonUtil.toString(item), TiktokLiveRankSimpleUserInfoModel.class));
+                });
+                if (!userInfoList.isEmpty()) {
+                    model.addAttribute("userInfoList", userInfoList);
+                }
+                model.addAttribute("state", "init");
+            } else {
+                model.addAttribute("userInfoList", new ArrayList<>());
+                model.addAttribute("state", "empty");
+            }
+        } catch (Exception e) {
+            model.addAttribute("userInfoList", new ArrayList<>());
+            model.addAttribute("state", "empty");
+        }
         return TEMPLATE_TIKTOK_RANKLIST.getPath();
     }
 }
