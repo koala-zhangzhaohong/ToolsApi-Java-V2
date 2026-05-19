@@ -187,7 +187,7 @@ public class NeteaseApiProduct {
             webPlayerInfo = new NeteaseWebPlayerInfoRespModel(
                     this.level,
                     url,
-                    host + "tools/Netease/download/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8))
+                    host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8))
             );
         }
         NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData, webPlayerInfo);
