@@ -70,8 +70,8 @@ public class ConcreteNeteaseApiBuilder extends NeteaseApiBuilder {
     }
 
     @Override
-    public NeteaseApiBuilder getItemLyricData() throws Exception {
-        product.getItemLyricData();
+    public NeteaseApiBuilder getItemLyricData(Boolean encodeLyric) throws Exception {
+        product.getItemLyricData(encodeLyric);
         return this;
     }
 }

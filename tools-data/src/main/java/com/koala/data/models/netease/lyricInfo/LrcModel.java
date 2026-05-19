@@ -14,4 +14,5 @@ import java.io.Serializable;
 public class LrcModel implements Serializable {
     private Integer version;
     private String lyric;
+    private Boolean encoded = false;
 }

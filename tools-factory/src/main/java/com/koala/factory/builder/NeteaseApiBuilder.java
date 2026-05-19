@@ -33,7 +33,7 @@ public abstract class NeteaseApiBuilder {
 
     public abstract NeteaseApiBuilder getItemDetailData() throws Exception;
 
-    public abstract NeteaseApiBuilder getItemLyricData() throws Exception;
+    public abstract NeteaseApiBuilder getItemLyricData(Boolean encodeLyric) throws Exception;
 
     public NeteaseApiProduct getProduct() {
         return product;

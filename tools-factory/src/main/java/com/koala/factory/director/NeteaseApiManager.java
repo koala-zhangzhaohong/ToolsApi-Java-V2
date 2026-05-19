@@ -17,17 +17,17 @@ public class NeteaseApiManager {
         this.builder = builder;
     }
 
-    public NeteaseApiProduct construct(RedisService redisService, String host, String cookie, String url, String level, Boolean lyric, Integer version) throws Exception {
+    public NeteaseApiProduct construct(RedisService redisService, String host, String cookie, String url, String level, Boolean lyric, Boolean encodeLyric, Integer version) throws Exception {
         builder.redis(redisService).host(host).cookie(cookie).url(url).level(level).getIdByUrl().initRequest().getItemInfoData().getItemDetailData();
         if (lyric) {
-            builder.getItemLyricData();
+            builder.getItemLyricData(encodeLyric);
         }
         builder.version(version);
         return builder.getProduct();
     }
 
-    public NeteaseApiProduct construct(RedisService redisService, String host, String cookie, String url, Integer version) throws Exception {
-        builder.redis(redisService).host(host).cookie(cookie).url(url).getIdByUrl().getItemLyricData();
+    public NeteaseApiProduct construct(RedisService redisService, String host, String cookie, String url, Boolean encodeLyric, Integer version) throws Exception {
+        builder.redis(redisService).host(host).cookie(cookie).url(url).getIdByUrl().getItemLyricData(encodeLyric);
         builder.version(version);
         return builder.getProduct();
     }

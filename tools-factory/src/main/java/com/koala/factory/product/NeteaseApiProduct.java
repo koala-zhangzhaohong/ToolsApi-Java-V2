@@ -140,12 +140,16 @@ public class NeteaseApiProduct {
         }
     }
 
-    public void getItemLyricData() throws IOException, URISyntaxException {
+    public void getItemLyricData(Boolean encodeLyric) throws IOException, URISyntaxException {
         if (StringUtils.hasLength(this.url)) {
             String key = NETEASE_LYRIC_DATA_KEY_PREFIX + ShortKeyGenerator.getKey(this.url);
             String tmp = redisService.get(key);
             if (StringUtils.hasLength(tmp)) {
                 this.itemLyricInfoData = GsonUtil.toBean(tmp, NeteaseMusicLyricInfoRespModel.class);
+                this.itemLyricInfoData.getLrc().setEncoded(encodeLyric);
+                if (encodeLyric) {
+                    this.itemLyricInfoData.getLrc().setLyric(Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8)));
+                }
                 logger.info("[NeteaseApiProject]({}) get lyric info from redis, info: {}", this.musicId, tmp);
                 if (!Objects.isNull(this.itemLyricInfoData)) {
                     return;
@@ -161,13 +165,16 @@ public class NeteaseApiProduct {
             logger.info("[NeteaseApiProject]({}) itemLyricInfoResponse: {}", this.musicId, itemLyricInfoResponse);
             try {
                 this.itemLyricInfoData = GsonUtil.toBean(itemLyricInfoResponse, NeteaseMusicLyricInfoRespModel.class);
-                this.itemLyricInfoData.getLrc().setLyric(Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8)));
+                this.itemLyricInfoData.getLrc().setEncoded(encodeLyric);
+                if (encodeLyric) {
+                    this.itemLyricInfoData.getLrc().setLyric(Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8)));
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 return;
             }
             if (StringUtils.hasLength(itemLyricInfoResponse)) {
-                redisService.set(key, GsonUtil.toString(this.itemLyricInfoData), LYRIC_EXPIRE_TIME);
+                redisService.set(key, itemLyricInfoResponse, LYRIC_EXPIRE_TIME);
             }
         }
     }
