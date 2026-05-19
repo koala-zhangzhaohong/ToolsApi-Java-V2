@@ -14,6 +14,8 @@ public class NeteaseWebPlayerInfoRespModel implements Serializable {
     private String id;
     private String quality;
     private String url;
+    @SerializedName("lyric_info")
+    private String lyricInfo;
     @SerializedName("player_url")
     private String playerUrl;
 }

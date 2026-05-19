@@ -183,9 +183,21 @@ public class NeteaseApiProduct {
         if (toWebPlayer) {
             toWebPlayerKey = ShortKeyGenerator.getKey(null);
             String url = null;
+            String lyricInfo = null;
             try {
                 if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemInfoData.getData()) && !this.itemInfoData.getData().isEmpty()) {
                     url = this.itemInfoData.getData().get(0).getUrl();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                if (!Objects.isNull(this.itemLyricInfoData) && !Objects.isNull(this.itemLyricInfoData.getLrc()) && !this.itemLyricInfoData.getLrc().getLyric().isEmpty()) {
+                    if (this.itemLyricInfoData.getLrc().getEncoded()) {
+                        lyricInfo = this.itemLyricInfoData.getLrc().getLyric();
+                    } else {
+                        lyricInfo = Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8));
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -194,6 +206,7 @@ public class NeteaseApiProduct {
                     this.musicId,
                     this.level,
                     url,
+                    lyricInfo,
                     host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8))
             );
         }
