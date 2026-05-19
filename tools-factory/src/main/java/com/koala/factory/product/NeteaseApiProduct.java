@@ -1,15 +1,19 @@
 package com.koala.factory.product;
 
+import com.google.common.collect.EnumMultiset;
 import com.koala.base.enums.NeteaseRequestQualityEnums;
 import com.koala.data.models.netease.NeteaseMusicDataRespModel;
+import com.koala.data.models.netease.NeteaseWebPlayerInfoRespModel;
 import com.koala.data.models.netease.detailInfo.NeteaseMusicItemDetailInfoRespModel;
 import com.koala.data.models.netease.itemInfo.NeteaseMusicItemInfoRespModel;
 import com.koala.data.models.netease.lyricInfo.NeteaseMusicLyricInfoRespModel;
 import com.koala.data.models.shortUrl.ShortNeteaseItemDataModel;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -37,9 +41,12 @@ public class NeteaseApiProduct {
     private static final String REQUEST_ID = String.valueOf(RANDOM.nextLong(20000000, 30000000));
     private static final String DEVICE_ID = UUID.randomUUID().toString().replace("-", "");
     private static final byte[] AES_KEY = "e82ckenh8dichen8".getBytes(StandardCharsets.UTF_8);
+    @Setter
     private String host;
+    @Setter
     private String cookie;
     private Integer version = 1;
+    @Setter
     private String url;
     private String musicId;
     private String servicePath;
@@ -50,18 +57,6 @@ public class NeteaseApiProduct {
     private NeteaseMusicItemDetailInfoRespModel itemDetailInfoData = null;
     private NeteaseMusicLyricInfoRespModel itemLyricInfoData = null;
     private RedisService redisService;
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public void setCookie(String cookie) {
-        this.cookie = cookie;
-    }
 
     public void setRedis(RedisService redisService) {
         this.redisService = redisService;
@@ -176,8 +171,26 @@ public class NeteaseApiProduct {
         }
     }
 
-    public NeteaseMusicDataRespModel generateItemInfoRespData() {
-        NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData);
+    public NeteaseMusicDataRespModel generateItemInfoRespData(Boolean toWebPlayer) {
+        NeteaseWebPlayerInfoRespModel webPlayerInfo = new NeteaseWebPlayerInfoRespModel();
+        String toWebPlayerKey = null;
+        if (toWebPlayer) {
+            toWebPlayerKey = ShortKeyGenerator.getKey(null);
+            String url = null;
+            try {
+                if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemInfoData.getData()) && !this.itemInfoData.getData().isEmpty()) {
+                    url = this.itemInfoData.getData().get(0).getUrl();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            webPlayerInfo = new NeteaseWebPlayerInfoRespModel(
+                    this.level,
+                    url,
+                    host + "tools/Netease/download/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8))
+            );
+        }
+        NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData, webPlayerInfo);
         try {
             if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemDetailInfoData) && !respData.getItemInfo().getData().isEmpty()) {
                 String artist = UNKNOWN_ARTIST;
@@ -208,6 +221,9 @@ public class NeteaseApiProduct {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        if (toWebPlayer) {
+            redisService.set(NETEASE_DATA_TO_WEB_PLAYER_KEY_PREFIX + toWebPlayerKey, GsonUtil.toString(respData), EXPIRE_TIME);
         }
         return respData;
     }

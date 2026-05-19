@@ -72,7 +72,7 @@ public class NeteaseToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getNeteaseMusic(@RequestParam(required = false) String link, @RequestParam(required = false) String id, @RequestParam(required = false, name = "type", defaultValue = "info") String type, @RequestParam(value = "quality", required = false, defaultValue = "") String quality, @RequestParam(required = false, defaultValue = "false") String lyric, @RequestParam(required = false, name = "version", defaultValue = "1") String version, HttpServletRequest request, HttpServletResponse response) {
+    public Object getNeteaseMusic(@RequestParam(required = false) String link, @RequestParam(required = false) String id, @RequestParam(required = false, name = "type", defaultValue = "info") String type, @RequestParam(value = "quality", required = false, defaultValue = "") String quality, @RequestParam(required = false, defaultValue = "false") String lyric, @RequestParam(required = false, name = "version", defaultValue = "1") String version, @RequestParam(required = false, name = "toWebPlayer", defaultValue = "true") Boolean toWebPlayer, HttpServletRequest request, HttpServletResponse response) {
         if (!StringUtils.hasLength(link) && !StringUtils.hasLength(id)) {
             return formatRespData(INVALID_LINK, null);
         }
@@ -101,7 +101,7 @@ public class NeteaseToolsController {
             e.printStackTrace();
             return formatRespData(FAILURE, null);
         }
-        NeteaseMusicDataRespModel publicData = product.generateItemInfoRespData();
+        NeteaseMusicDataRespModel publicData = product.generateItemInfoRespData(toWebPlayer);
         try {
             switch (Objects.requireNonNull(NeteaseRequestTypeEnums.getEnumsByType(type))) {
                 case INFO -> {
@@ -149,7 +149,7 @@ public class NeteaseToolsController {
         NeteaseApiProduct product = null;
         try {
             product = manager.construct(redisService, hostManager.getHost(), neteaseCookieUtil.getNeteaseCookie(), url, Integer.valueOf(version));
-            NeteaseMusicDataRespModel publicData = product.generateItemInfoRespData();
+            NeteaseMusicDataRespModel publicData = product.generateItemInfoRespData(false);
             if (!Objects.isNull(publicData)) {
                 return formatRespData(GET_DATA_SUCCESS, publicData);
             }
