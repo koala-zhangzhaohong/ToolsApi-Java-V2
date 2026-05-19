@@ -1,6 +1,5 @@
 package com.koala.factory.product;
 
-import com.google.common.collect.EnumMultiset;
 import com.koala.base.enums.NeteaseRequestQualityEnums;
 import com.koala.data.models.netease.NeteaseMusicDataRespModel;
 import com.koala.data.models.netease.NeteaseWebPlayerInfoRespModel;
@@ -13,7 +12,6 @@ import com.koala.service.utils.*;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
