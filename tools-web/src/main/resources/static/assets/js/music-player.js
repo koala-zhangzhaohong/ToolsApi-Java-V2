@@ -83,16 +83,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const closeLyrics = document.getElementById('closeLyrics');
     const showLyricsBtn = document.getElementById('showLyricsBtn');
     const coverArt = document.getElementById('coverArt');
-    const settingsBtn = document.getElementById('settingsBtn');
-    const settingsPanel = document.getElementById('settingsPanel');
-    const themeSelect = document.getElementById('themeSelect');
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const visualizationSelect = document.getElementById('visualizationSelect');
-    const autoplayToggle = document.getElementById('autoplayToggle');
-    const crossfadeSelect = document.getElementById('crossfadeSelect');
-    const cacheToggle = document.getElementById('cacheToggle');
-    const resetSettings = document.getElementById('resetSettings');
-    const clearCache = document.getElementById('clearCache');
     const notification = document.getElementById('notification');
     const refreshBackground = document.getElementById('refreshBackground');
     const dateTimeDisplay = document.getElementById('dateTime');
@@ -519,16 +509,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         showLyricsBtn.addEventListener('click', toggleLyricOverlay);
         closeLyrics.addEventListener('click', toggleLyricOverlay);
 
-        // 设置面板
-        settingsBtn.addEventListener('click', toggleSettingsPanel);
-        document.addEventListener('click', closeSettingsPanelOutside);
-        themeSelect.addEventListener('change', updateTheme);
-        darkModeToggle.addEventListener('change', toggleDarkMode);
-        visualizationSelect.addEventListener('change', changeVisualizationMode);
-        cacheToggle.addEventListener('change', toggleCache);
-        resetSettings.addEventListener('click', resetAllSettings);
-        clearCache.addEventListener('click', clearCacheData);
-
         // 背景刷新
         refreshBackground.addEventListener('click', updateRandomBackground);
 
@@ -794,49 +774,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             lyricsArray: track.lyricsArray || [],
             lyricsSections: track.lyricsSections || []
         });
-    }
-
-    // 清除缓存数据
-    function clearCacheData() {
-        if (!db) return;
-
-        if (confirm('确定要清除所有缓存的音乐和播放记录吗？这不会影响当前播放列表。')) {
-            // 清除所有缓存数据
-            const storeNames = ['audioFiles', 'coverImages', 'lyrics', 'playbackState', 'playlist'];
-
-            storeNames.forEach(storeName => {
-                const transaction = db.transaction([storeName], 'readwrite');
-                const store = transaction.objectStore(storeName);
-                const clearRequest = store.clear();
-
-                clearRequest.onsuccess = function () {
-                    console.log(`清除 ${storeName} 成功`);
-                };
-
-                clearRequest.onerror = function (event) {
-                    console.error(`清除 ${storeName} 失败:`, event);
-                };
-            });
-
-            showNotification('缓存数据已清除');
-        }
-    }
-
-    // 切换缓存功能
-    function toggleCache() {
-        isCacheEnabled = cacheToggle.checked;
-        localStorage.setItem('cacheEnabled', isCacheEnabled);
-
-        if (isCacheEnabled) {
-            showNotification('已启用缓存播放记录');
-
-            // 如果启用了缓存，保存当前播放列表到缓存
-            if (playlist.length > 0) {
-                savePlaylistToCache();
-            }
-        } else {
-            showNotification('已禁用缓存播放记录');
-        }
     }
 
     // 保存播放列表到缓存
@@ -2006,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             // 单曲循环
             audioPlayer.currentTime = 0;
             audioPlayer.play().catch(e => console.error("播放失败:", e));
-        } else if (currentRepeatMode === 'all' || autoplayToggle.checked) {
+        } else if (currentRepeatMode === 'all') {
             // 全部循环或自动播放下一首开启
             playNextTrack();
         } else {
@@ -2248,8 +2185,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         // 根据当前可视化模式选择不同的渲染方法
         if (visualizationMode === 'bars') {
             renderBarVisualization();
-        } else if (visualizationMode === 'circle') {
-            renderCircleVisualization();
         }
     }
 
@@ -2284,30 +2219,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         return new TextDecoder().decode(buffer);
     }
 
-    // 渲染环形可视化（使用Canvas API）
-    function renderCircleVisualization() {
-        // 这里先简单提示，后续可以实现更高级的可视化效果
-        showNotification('环形可视化效果尚未实现');
-        visualizationMode = 'bars';
-        visualizationSelect.value = 'bars';
-        renderBarVisualization();
-    }
-
-    // 改变可视化模式
-    function changeVisualizationMode() {
-        visualizationMode = visualizationSelect.value;
-
-        // 保存到本地存储
-        localStorage.setItem('visualizationMode', visualizationMode);
-
-        if (visualizationMode === 'none') {
-            cancelAnimationFrame(visualizationAnimationFrame);
-            createVisualizationBars();
-        } else {
-            updateVisualization();
-        }
-    }
-
     // 显示通知
     function showNotification(message) {
         notification.textContent = message;
@@ -2331,68 +2242,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    // ----------------------------------------
-    // 设置和配置功能
-    // ----------------------------------------
-
-    // 切换设置面板
-    function toggleSettingsPanel() {
-        settingsPanel.classList.toggle('active');
-    }
-
-    // 点击设置面板外部关闭
-    function closeSettingsPanelOutside(e) {
-        if (settingsPanel.classList.contains('active') && !settingsPanel.contains(e.target) && e.target !== settingsBtn) {
-            settingsPanel.classList.remove('active');
-        }
-    }
-
-    // 更新主题
-    function updateTheme() {
-        const theme = themeSelect.value;
-
-        // 更新CSS变量
-        switch (theme) {
-            case 'purple':
-                document.documentElement.style.setProperty('--primary', '#8A2BE2');
-                document.documentElement.style.setProperty('--secondary', '#BA55D3');
-                break;
-            case 'blue':
-                document.documentElement.style.setProperty('--primary', '#4169E1');
-                document.documentElement.style.setProperty('--secondary', '#00BFFF');
-                break;
-            case 'green':
-                document.documentElement.style.setProperty('--primary', '#2E8B57');
-                document.documentElement.style.setProperty('--secondary', '#3CB371');
-                break;
-            case 'pink':
-                document.documentElement.style.setProperty('--primary', '#FF69B4');
-                document.documentElement.style.setProperty('--secondary', '#FF1493');
-                break;
-        }
-
-        // 保存到本地存储
-        localStorage.setItem('theme', theme);
-    }
-
-    // 切换深色/浅色模式
-    function toggleDarkMode() {
-        const isDarkMode = darkModeToggle.checked;
-
-        if (isDarkMode) {
-            document.documentElement.style.setProperty('--dark', '#1A1A1A');
-            document.documentElement.style.setProperty('--light', '#F8F8FF');
-            document.body.style.color = '#F8F8FF';
-        } else {
-            document.documentElement.style.setProperty('--dark', '#F8F8FF');
-            document.documentElement.style.setProperty('--light', '#1A1A1A');
-            document.body.style.color = '#1A1A1A';
-        }
-
-        // 保存到本地存储
-        localStorage.setItem('darkMode', isDarkMode);
-    }
-
     // 加载存储的设置
     function loadSettings() {
         // 加载音量
@@ -2400,27 +2249,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (savedVolume !== null) {
             volumeControl.value = savedVolume;
             updateVolume();
-        }
-
-        // 加载主题
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            themeSelect.value = savedTheme;
-            updateTheme();
-        }
-
-        // 加载深色模式设置
-        const savedDarkMode = localStorage.getItem('darkMode');
-        if (savedDarkMode !== null) {
-            darkModeToggle.checked = savedDarkMode === 'true';
-            toggleDarkMode();
-        }
-
-        // 加载可视化模式
-        const savedVisualizationMode = localStorage.getItem('visualizationMode');
-        if (savedVisualizationMode) {
-            visualizationMode = savedVisualizationMode;
-            visualizationSelect.value = savedVisualizationMode;
         }
 
         // 加载重复模式
@@ -2433,12 +2261,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 repeatBtn.classList.add('active');
                 repeatBtn.classList.add('repeat-one');
             }
-        }
-
-        // 加载自动播放设置
-        const savedAutoplay = localStorage.getItem('autoplay');
-        if (savedAutoplay !== null) {
-            autoplayToggle.checked = savedAutoplay === 'true';
         }
 
         // 加载播放速度设置
@@ -2466,69 +2288,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 eqToggleBtn.textContent = '禁用均衡器';
                 eqToggleBtn.classList.add('active');
             }
-        }
-
-        // 加载缓存设置
-        const savedCacheEnabled = localStorage.getItem('cacheEnabled');
-        if (savedCacheEnabled !== null) {
-            isCacheEnabled = savedCacheEnabled === 'true';
-            cacheToggle.checked = isCacheEnabled;
-        }
-    }
-
-    // 重置所有设置
-    function resetAllSettings() {
-        if (confirm('确定要重置所有设置吗？这不会删除您的播放列表。')) {
-            localStorage.removeItem('volume');
-            localStorage.removeItem('theme');
-            localStorage.removeItem('darkMode');
-            localStorage.removeItem('visualizationMode');
-            localStorage.removeItem('repeatMode');
-            localStorage.removeItem('autoplay');
-            localStorage.removeItem('playbackSpeed');
-            localStorage.removeItem('equalizerEnabled');
-            localStorage.removeItem('cacheEnabled');
-
-            // 重置UI
-            volumeControl.value = 80;
-            volumeValue.textContent = '80%';
-            themeSelect.value = 'purple';
-            darkModeToggle.checked = true;
-            visualizationSelect.value = 'bars';
-            visualizationMode = 'bars';
-            currentRepeatMode = 'none';
-            repeatBtn.classList.remove('active');
-            repeatBtn.classList.remove('repeat-one');
-            autoplayToggle.checked = true;
-            cacheToggle.checked = true;
-            isCacheEnabled = true;
-
-            // 重置播放速度
-            currentPlaybackSpeed = 1.0;
-            audioPlayer.playbackRate = 1.0;
-            speedButtons.forEach(btn => {
-                btn.classList.remove('active');
-                if (parseFloat(btn.dataset.speed) === 1.0) {
-                    btn.classList.add('active');
-                }
-            });
-
-            // 重置均衡器
-            isEqualizerEnabled = false;
-            if (equalizer) {
-                audioSource.disconnect();
-                audioSource.connect(analyser);
-                equalizer = null;
-            }
-            eqToggleBtn.textContent = '启用均衡器';
-            eqToggleBtn.classList.remove('active');
-
-            // 应用重置的设置
-            updateVolume();
-            updateTheme();
-            toggleDarkMode();
-
-            showNotification('所有设置已重置');
         }
     }
 
@@ -2797,8 +2556,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                     toggleSleepTimerModal();
                 } else if (equalizerModal.style.display === 'flex') {
                     toggleEqualizerModal();
-                } else if (settingsPanel.classList.contains('active')) {
-                    settingsPanel.classList.remove('active');
                 }
                 break;
             // 新增播放速度快捷键
