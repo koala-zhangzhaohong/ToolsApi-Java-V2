@@ -72,7 +72,7 @@ public class NeteaseToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getNeteaseMusic(@RequestParam(required = false) String link, @RequestParam(required = false) String id, @RequestParam(required = false, name = "type", defaultValue = "info") String type, @RequestParam(value = "quality", required = false, defaultValue = "") String quality, @RequestParam(required = false, defaultValue = "false") String lyric, @RequestParam(required = false, defaultValue = "true") Boolean encodeLyric, @RequestParam(required = false, name = "version", defaultValue = "1") String version, @RequestParam(required = false, name = "toWebPlayer", defaultValue = "true") Boolean toWebPlayer, HttpServletRequest request, HttpServletResponse response) {
+    public Object getNeteaseMusic(@RequestParam(required = false) String link, @RequestParam(required = false) String id, @RequestParam(required = false, value = "type", defaultValue = "info") String type, @RequestParam(value = "quality", required = false, defaultValue = "") String quality, @RequestParam(required = false, defaultValue = "false") String lyric, @RequestParam(required = false, defaultValue = "true") Boolean encodeLyric, @RequestParam(required = false, value = "version", defaultValue = "1") String version, @RequestParam(required = false, value = "toWebPlayer", defaultValue = "true") Boolean toWebPlayer, HttpServletRequest request, HttpServletResponse response) {
         if (!StringUtils.hasLength(link) && !StringUtils.hasLength(id)) {
             return formatRespData(INVALID_LINK, null);
         }

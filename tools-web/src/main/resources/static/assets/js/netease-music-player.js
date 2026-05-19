@@ -2533,7 +2533,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response !== null && response !== undefined && response !== "") {
-                        setData(response);
+                        setData(response.data);
                     }
                 })    // 处理数据
                 .catch(error => {
