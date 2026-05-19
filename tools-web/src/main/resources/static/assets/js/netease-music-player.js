@@ -13,7 +13,7 @@ function setQuality(input) {
 
 function setData(input) {
     try {
-        musicInfo = JSON.parse(input).music_info;
+        musicInfo = JSON.parse(input);
     } catch (e) {
         console.log('数据异常，请重试', e);
     }
@@ -21,33 +21,22 @@ function setData(input) {
 
 const getHashWithAlbumId = (name) => {
     const params = new Map();
-    params.set("hash", "null");
-    params.set("albumId", "null");
+    params.set("quality", "null");
     switch (name) {
-        case 'lossyQuality':
-            params.set("hash", musicInfo.audio_info.play_info_list["128"].hash);
-            params.set("albumId", musicInfo.album_info.album_id);
-            params.set("timeLength", musicInfo.audio_info.play_info_list["128"].time_length);
-            break;
         case 'defaultQuality':
-            params.set("hash", musicInfo.audio_info.play_info_list["320"].hash);
-            params.set("albumId", musicInfo.album_info.album_id);
-            params.set("timeLength", musicInfo.audio_info.play_info_list["320"].time_length);
+            params.set("quality", "standard");
             break;
-        case 'highQuality':
-            params.set("hash", musicInfo.audio_info.play_info_list["high"].hash);
-            params.set("albumId", musicInfo.album_info.album_id);
-            params.set("timeLength", musicInfo.audio_info.play_info_list["high"].time_length);
+        case 'exhighQuality':
+            params.set("quality", "exhigh");
             break;
-        case 'flacQuality':
-            params.set("hash", musicInfo.audio_info.play_info_list["flac"].hash);
-            params.set("albumId", musicInfo.album_info.album_id);
-            params.set("timeLength", musicInfo.audio_info.play_info_list["flac"].time_length);
+        case 'losslessQuality':
+            params.set("quality", "lossless");
+            break;
+        case 'hiresQuality':
+            params.set("quality", "hires");
             break;
         default:
-            params.set("hash", "null");
-            params.set("albumId", "null");
-            params.set("timeLength", 0);
+            params.set("quality", "null");
             break;
     }
     return params;
@@ -364,18 +353,15 @@ document.addEventListener('DOMContentLoaded', async function () {
             loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
             loadingContainer.style.display = 'block';
             const urlList = [];
-            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(tabId).get("hash")}&albumId=${getHashWithAlbumId(tabId).get("albumId")}`)
+            await fetch(`${currentHost}tools/Netease/api?id=${musicInfo.web_player_info.id}&type=info&quality=${getHashWithAlbumId(tabId).get("quality")}&lyric=false&toWebPlayer=false`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
-                    if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
+                    if (response.data.item_info.data !== null && response.data.item_info.data !== undefined && response.data.item_info.data.length > 0) {
                         emptyContainer.style.display = 'none';
                         container.innerHTML = '';
-                        let index = 0;
-                        response.data.url.forEach((url) => {
-                            index = index + 1;
-                            container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
-                            urlList.push(url);
-                        });
+                        const url = response.data.item_info.data[0].url;
+                        container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="0" class="quality-radio"> 线路 - 1</label><br>`;
+                        urlList.push(url);
                         qualityInfo.set(`${tabId}`, urlList.join(","));
                         container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                     } else {
@@ -2542,33 +2528,33 @@ document.addEventListener('DOMContentLoaded', async function () {
     init();
 
     try {
-        if (musicInfo.album_info == null || musicInfo.audio_info == null || musicInfo.lyric_info == null) {
-            await fetch(`${currentHost}tools/Kugou/api?hash=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("hash")}&albumId=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("albumId")}&albumInfo=${(musicInfo.album_info == null)}&musicInfo=${(musicInfo.audio_info == null)}&lyricInfo=${(musicInfo.lyric_info == null)}`)
+        if (musicInfo.item_info == null && musicInfo.web_player_info.lyric_info == null) {
+            await fetch(`${currentHost}tools/Netease/api?id=${musicInfo.web_player_info.id}&type=info&quality=${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("quality")}&lyric=true&toWebPlayer=true`)
+                .then(response => response.json()) // 解析 JSON
+                .then(response => {
+                    if (response !== null && response !== undefined && response !== "") {
+                        setData(response);
+                    }
+                })    // 处理数据
+                .catch(error => {
+                    console.error(error);
+                }); // 处理错误
+        }
+    } catch (e) {
+        console.error('数据拉取失败', e);
+    }
+
+    try {
+        if (musicInfo.item_info != null && musicInfo.web_player_info.lyric_info == null) {
+            await fetch(`${currentHost}tools/Netease/api/lyric?id=${musicInfo.web_player_info.id}&encodeLyric=true`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     try {
-                        const albumInfo = response.data.album_info.data[0];
-                        if (albumInfo !== null && albumInfo !== undefined && albumInfo !== "") {
-                            musicInfo.album_info = albumInfo;
+                        if (response.data.lyric_info.lrc.lyric !== undefined && response.data.lyric_info.lrc.lyric !== null && response.data.lyric_info.lrc.lyric !== "") {
+                            musicInfo.web_player_info.lyric_info = response.data.lyric_info.lrc.lyric;
                         }
                     } catch (e) {
-                        // console.error(e);
-                    }
-                    try {
-                        const audioInfo = response.data.music_info_data.audio_info;
-                        if (audioInfo !== null && audioInfo !== undefined && audioInfo !== "") {
-                            musicInfo.audio_info = audioInfo;
-                        }
-                    } catch (e) {
-                        // console.error(e);
-                    }
-                    try {
-                        const lyric = response.data.lyric_info_data.decode_content;
-                        if (lyric !== null && lyric !== undefined && lyric !== "") {
-                            musicInfo.lyric_info = lyric;
-                        }
-                    } catch (e) {
-                        // console.error(e);
+                        console.error(e);
                     }
                 })    // 处理数据
                 .catch(error => {
@@ -2587,18 +2573,15 @@ document.addEventListener('DOMContentLoaded', async function () {
             const emptyContainer = document.querySelector('.quality-empty-container');
             const tabId = qualityInfo.get('currentQualityName');
             const urlList = [];
-            await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(tabId).get("hash")}&albumId=${getHashWithAlbumId(tabId).get("albumId")}`)
+            await fetch(`${currentHost}tools/Netease/api?id=${musicInfo.web_player_info.id}&type=info&quality=${getHashWithAlbumId(tabId).get("quality")}&lyric=false&toWebPlayer=false`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
-                    if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
+                    if (response.data.item_info.data !== null && response.data.item_info.data !== undefined && response.data.item_info.data.length > 0) {
                         emptyContainer.style.display = 'none';
                         container.innerHTML = '';
-                        let index = 0;
-                        response.data.url.forEach((url) => {
-                            index = index + 1;
-                            container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="${index - 1}" class="quality-radio"> 线路 - ${index}</label><br>`;
-                            urlList.push(url);
-                        });
+                        const url = response.data.item_info.data[0].url;
+                        container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="0" class="quality-radio"> 线路 - 1</label><br>`;
+                        urlList.push(url);
                         qualityInfo.set(`${tabId}`, urlList.join(","));
                         container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                         if (urlList.length > 0) {
@@ -2620,12 +2603,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
         const urlListContent = String(qualityInfo.get(qualityInfo.get('currentQualityName')));
         addToPlaylist(urlListContent.split(",")[qualityInfo.get('currentQualityIndex')], {
-            title: `${musicInfo.songname}`,
-            artist: `${musicInfo.author_name}` || '未知艺术家',
-            duration: `${getHashWithAlbumId(qualityInfo.get('currentQualityName')).get("timeLength")}` || 0,
-            id: `${musicInfo.audio_id}`,
-            lyrics: `${musicInfo.lyric_info}`,
-            cover: `${musicInfo.album_info.sizable_cover.replace("{size}", "1080")}`
+            title: `${musicInfo.detail_info.songs[0].name}`,
+            artist: `${musicInfo.detail_info.songs[0].ar[0].name}` || '未知艺术家',
+            duration: `${musicInfo.item_info.data[0].time}` || 0,
+            id: `${musicInfo.item_info.data[0].id}`,
+            lyrics: `${musicInfo.web_player_info.lyric_info}`,
+            cover: `${musicInfo.detail_info.songs[0].al.picUrl}`
         }, false); // 不保存到本地存储，避免重复
     } catch (e) {
         console.error('添加信息错误', e);

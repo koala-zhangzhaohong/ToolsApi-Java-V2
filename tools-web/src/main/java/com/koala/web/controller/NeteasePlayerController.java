@@ -54,7 +54,6 @@ public class NeteasePlayerController {
                     model.addAttribute("host", hostManager.getHost());
                     model.addAttribute("quality", quality);
                     model.addAttribute("jsonInfo", GsonUtil.toString(data));
-                    model.addAttribute("path", data.getWebPlayerInfo().getUrl());
                     return "music/h5/netease/index";
                 } else if ("1".equals(version)) {
                     ShortNeteaseItemDataModel tmp = GsonUtil.toBean(redisService.get(NETEASE_DATA_KEY_PREFIX + itemKey), ShortNeteaseItemDataModel.class);

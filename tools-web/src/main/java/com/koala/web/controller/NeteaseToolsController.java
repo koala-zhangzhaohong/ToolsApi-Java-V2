@@ -129,7 +129,7 @@ public class NeteaseToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/lyric", produces = {"application/json;charset=utf-8"})
-    public Object getNeteaseMusic(@RequestParam(required = false) String link, @RequestParam(required = false) String id, @RequestParam(required = false, defaultValue = "true") Boolean encodeLyric, @RequestParam(required = false, name = "version", defaultValue = "1") String version, HttpServletRequest request, HttpServletResponse response) {
+    public Object getNeteaseMusic(@RequestParam(required = false) String link, @RequestParam(required = false) String id, @RequestParam(required = false, defaultValue = "false") Boolean encodeLyric, @RequestParam(required = false, name = "version", defaultValue = "1") String version, HttpServletRequest request, HttpServletResponse response) {
         if (!StringUtils.hasLength(link) && !StringUtils.hasLength(id)) {
             return formatRespData(INVALID_LINK, null);
         }
