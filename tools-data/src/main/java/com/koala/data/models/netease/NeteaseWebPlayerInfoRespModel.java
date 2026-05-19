@@ -11,6 +11,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 public class NeteaseWebPlayerInfoRespModel implements Serializable {
+    private String id;
     private String quality;
     private String url;
     @SerializedName("player_url")

@@ -161,12 +161,13 @@ public class NeteaseApiProduct {
             logger.info("[NeteaseApiProject]({}) itemLyricInfoResponse: {}", this.musicId, itemLyricInfoResponse);
             try {
                 this.itemLyricInfoData = GsonUtil.toBean(itemLyricInfoResponse, NeteaseMusicLyricInfoRespModel.class);
+                this.itemLyricInfoData.getLrc().setLyric(Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8)));
             } catch (Exception e) {
                 e.printStackTrace();
                 return;
             }
             if (StringUtils.hasLength(itemLyricInfoResponse)) {
-                redisService.set(key, itemLyricInfoResponse, LYRIC_EXPIRE_TIME);
+                redisService.set(key, GsonUtil.toString(this.itemLyricInfoData), LYRIC_EXPIRE_TIME);
             }
         }
     }
@@ -185,6 +186,7 @@ public class NeteaseApiProduct {
                 e.printStackTrace();
             }
             webPlayerInfo = new NeteaseWebPlayerInfoRespModel(
+                    this.musicId,
                     this.level,
                     url,
                     host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8))
