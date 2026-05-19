@@ -1084,8 +1084,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 加载音频文件
         if (track.file) {
-            audioPlayer.src = track.file;
             audioPlayer.crossOrigin = 'anonymous';
+            audioPlayer.src = track.file;
 
             // 恢复播放速度设置
             audioPlayer.playbackRate = currentPlaybackSpeed;
