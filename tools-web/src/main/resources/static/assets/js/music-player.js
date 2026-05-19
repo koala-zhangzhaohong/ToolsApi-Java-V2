@@ -1344,12 +1344,14 @@ document.addEventListener('DOMContentLoaded', async function () {
                 e.stopPropagation();
                 loadTrack(index);
                 togglePlayPause(true);
+                togglePlaylistModal();
             });
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'playlist-btn';
             removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
             removeBtn.title = '从播放列表移除';
+            removeBtn.style.visibility = 'hidden';
             removeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 removeFromPlaylist(index);
