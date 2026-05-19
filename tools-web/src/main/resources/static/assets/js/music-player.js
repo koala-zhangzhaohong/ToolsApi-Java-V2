@@ -72,7 +72,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const visualization = document.getElementById('visualization');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
-    const repeatBtn = document.getElementById('repeatBtn');
     const audioFileInput = document.getElementById('audioFileInput');
     const coverFileInput = document.getElementById('coverFileInput');
     const lyricsFileInput = document.getElementById('lyricsFileInput');
@@ -86,7 +85,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const notification = document.getElementById('notification');
     const refreshBackground = document.getElementById('refreshBackground');
     const dateTimeDisplay = document.getElementById('dateTime');
-    const toggleMiniPlayer = document.getElementById('toggleMiniPlayer');
     const toggleFullscreen = document.getElementById('toggleFullscreen');
     const fullscreenMode = document.getElementById('fullscreenMode');
     const fullscreenCover = document.getElementById('fullscreenCover');
@@ -512,9 +510,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         // 背景刷新
         refreshBackground.addEventListener('click', updateRandomBackground);
 
-        // 切换迷你播放器
-        toggleMiniPlayer.addEventListener('click', toggleMiniPlayerMode);
-
         // 全屏控制
         toggleFullscreen.addEventListener('click', toggleFullscreenMode);
         fullscreenPlayPause.addEventListener('click', togglePlayPause);
@@ -537,9 +532,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         sleepOptions.forEach(option => {
             option.addEventListener('click', selectSleepOption);
         });
-
-        // 重复播放模式
-        repeatBtn.addEventListener('click', toggleRepeatMode);
 
         // 上一首/下一首
         prevBtn.addEventListener('click', playPreviousTrack);
@@ -1881,8 +1873,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 跳转到指定进度
     function seekTo() {
-        const seekTime = (progressBar.value / 100) * audioPlayer.duration;
-        audioPlayer.currentTime = seekTime;
+        audioPlayer.currentTime = (progressBar.value / 100) * audioPlayer.duration;
         if (isPlaying) {
             togglePlayPause();
             audioPlayer.play().catch(e => console.error("播放失败:", e));
@@ -1952,32 +1943,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             playPauseIcon.className = 'fas fa-play';
             fullscreenPlayIcon.className = 'fas fa-play';
         }
-    }
-
-    // 切换重复播放模式
-    function toggleRepeatMode() {
-        switch (currentRepeatMode) {
-            case 'none':
-                currentRepeatMode = 'all';
-                repeatBtn.classList.add('active');
-                repeatBtn.classList.remove('repeat-one');
-                showNotification('列表循环');
-                break;
-            case 'all':
-                currentRepeatMode = 'one';
-                repeatBtn.classList.add('repeat-one');
-                showNotification('单曲循环');
-                break;
-            case 'one':
-                currentRepeatMode = 'none';
-                repeatBtn.classList.remove('active');
-                repeatBtn.classList.remove('repeat-one');
-                showNotification('不循环');
-                break;
-        }
-
-        // 保存设置
-        localStorage.setItem('repeatMode', currentRepeatMode);
     }
 
     // 更新音量
@@ -2171,7 +2136,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 analyser.connect(audioContext.destination);
             } catch (e) {
                 console.error('无法创建音频上下文:', e);
-                return;
             }
         }
     }
@@ -2251,18 +2215,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             updateVolume();
         }
 
-        // 加载重复模式
-        const savedRepeatMode = localStorage.getItem('repeatMode');
-        if (savedRepeatMode) {
-            currentRepeatMode = savedRepeatMode;
-            if (currentRepeatMode === 'all') {
-                repeatBtn.classList.add('active');
-            } else if (currentRepeatMode === 'one') {
-                repeatBtn.classList.add('active');
-                repeatBtn.classList.add('repeat-one');
-            }
-        }
-
         // 加载播放速度设置
         const savedPlaybackSpeed = localStorage.getItem('playbackSpeed');
         if (savedPlaybackSpeed !== null) {
@@ -2321,21 +2273,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             hour: '2-digit', minute: '2-digit', hour12: false
         };
         dateTimeDisplay.textContent = now.toLocaleTimeString([], options);
-    }
-
-    // 切换迷你播放器模式
-    function toggleMiniPlayerMode() {
-        const playerContainer = document.querySelector('.player-container');
-        playerContainer.classList.toggle('mini-mode');
-
-        const icon = toggleMiniPlayer.querySelector('i');
-        if (playerContainer.classList.contains('mini-mode')) {
-            icon.className = 'fas fa-expand';
-            showNotification('迷你模式已启用');
-        } else {
-            icon.className = 'fas fa-compress';
-            showNotification('迷你模式已关闭');
-        }
     }
 
     // 切换全屏模式
@@ -2517,10 +2454,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 volumeControl.value = Math.max(parseInt(volumeControl.value) - 5, 0);
                 updateVolume();
                 break;
-            case 'r': // R键，切换重复模式
-            case 'R':
-                // toggleRepeatMode();
-                break;
             case 'f': // F键，切换全屏
             case 'F':
                 toggleFullscreenMode();
@@ -2540,10 +2473,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             case 'e': // E键，显示均衡器
             case 'E':
                 toggleEqualizerModal();
-                break;
-            case 'm': // M键，切换迷你播放器
-            case 'M':
-                toggleMiniPlayerMode();
                 break;
             case 'Escape': // ESC键，关闭所有面板
                 if (fullscreenMode.style.display === 'flex') {
