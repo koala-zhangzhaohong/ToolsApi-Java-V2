@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 
 @Data
 @AllArgsConstructor
@@ -16,6 +17,6 @@ public class NeteaseWebPlayerInfoRespModel implements Serializable {
     private String url;
     @SerializedName("lyric_info")
     private String lyricInfo;
-    @SerializedName("player_url")
-    private String playerUrl;
+    @SerializedName("player_url_list")
+    private ArrayList<String> playerUrlList;
 }

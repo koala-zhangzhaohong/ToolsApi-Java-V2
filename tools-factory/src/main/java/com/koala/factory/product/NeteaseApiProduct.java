@@ -10,6 +10,7 @@ import com.koala.data.models.shortUrl.ShortNeteaseItemDataModel;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import lombok.Setter;
+import org.apache.commons.collections4.IterableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -20,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.koala.base.enums.NeteaseRequestQualityEnums.DEFAULT;
 import static com.koala.factory.path.NeteaseWebPathCollector.*;
 import static com.koala.service.data.redis.RedisKeyPrefix.*;
 
@@ -48,7 +50,7 @@ public class NeteaseApiProduct {
     private String url;
     private String musicId;
     private String servicePath;
-    private String level = NeteaseRequestQualityEnums.DEFAULT.getType();
+    private String level = DEFAULT.getType();
     private String params;
     private String detailPayload;
     private NeteaseMusicItemInfoRespModel itemInfoData = null;
@@ -202,12 +204,22 @@ public class NeteaseApiProduct {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            ArrayList<String> playerUrlList = new ArrayList<>();
+            playerUrlList.add("&quality=default");
+            Arrays.stream(NeteaseRequestQualityEnums.values()).forEach(item -> {
+                if (item != DEFAULT) {
+                    playerUrlList.add("&quality=" + item.getType());
+                }
+            });
+            for (int i = 0; i < playerUrlList.size(); i++) {
+                playerUrlList.set(i, host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8)) + playerUrlList.get(i));
+            }
             webPlayerInfo = new NeteaseWebPlayerInfoRespModel(
                     this.musicId,
                     this.level,
                     url,
                     lyricInfo,
-                    host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8))
+                    playerUrlList
             );
         }
         NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData, webPlayerInfo);
