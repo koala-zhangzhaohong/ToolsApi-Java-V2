@@ -188,14 +188,14 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     if (currentQuality === 'default') {
         qualityInfo.set('currentQualityName', 'defaultQuality');
-    } else if (currentQuality === '128') {
-        qualityInfo.set('currentQualityName', 'lossyQuality');
-    } else if (currentQuality === '320') {
+    } else if (currentQuality === 'standard') {
         qualityInfo.set('currentQualityName', 'defaultQuality');
-    } else if (currentQuality === 'high') {
-        qualityInfo.set('currentQualityName', 'highQuality');
-    } else if (currentQuality === 'flac') {
-        qualityInfo.set('currentQualityName', 'flacQuality');
+    } else if (currentQuality === 'exhigh') {
+        qualityInfo.set('currentQualityName', 'exhighQuality');
+    } else if (currentQuality === 'lossless') {
+        qualityInfo.set('currentQualityName', 'losslessQuality');
+    } else if (currentQuality === 'hires') {
+        qualityInfo.set('currentQualityName', 'hiresQuality');
     } else {
         qualityInfo.set('currentQualityName', 'defaultQuality');
     }
