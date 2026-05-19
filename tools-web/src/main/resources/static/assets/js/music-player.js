@@ -2253,6 +2253,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 渲染柱状可视化
     function renderBarVisualization() {
+        visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
+
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
@@ -2272,8 +2274,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         visualizationChart.update();
-
-        visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
 
         // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
