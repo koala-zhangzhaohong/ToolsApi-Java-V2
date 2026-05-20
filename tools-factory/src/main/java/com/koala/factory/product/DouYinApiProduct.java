@@ -311,7 +311,7 @@ public class DouYinApiProduct {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.itemInfo.getAwemeDetailModel().getDesc();
                             String link = ShortKeyGenerator.generateShortUrl(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0), EXPIRE_TIME, host, redisService).getUrl();
-                            String proxyLink = ShortKeyGenerator.generateShortUrl(reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0)), EXPIRE_TIME, host, redisService).getUrl();
+                            String proxyLink = reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0));
                             PlayAddrInfoModel playAddr = null;
                             PlayAddrInfoModel playAddrH264 = null;
                             PlayAddrInfoModel playAddr265 = null;
@@ -339,40 +339,13 @@ public class DouYinApiProduct {
                                     if (i >= maxIndex) {
                                         break;
                                     }
-                                    String hd = Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i));
-                                    String sd = Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i));
+                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
+                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
                                     if (ObjectUtils.isEmpty(hd) && ObjectUtils.isEmpty(sd)) {
                                         continue;
                                     }
                                     proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
-                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
-                                            CdnServiceGenerator.getCdnService(
-                                                    hd,
-                                                    host,
-                                                    cdnHostPrefix.toString(),
-                                                    true,
-                                                    null,
-                                                    null,
-                                                    null,
-                                                    null,
-                                                    true,
-                                                    true,
-                                                    redisService
-                                            ),
-                                            CdnServiceGenerator.getCdnService(
-                                                    sd,
-                                                    host,
-                                                    cdnHostPrefix.toString(),
-                                                    true,
-                                                    null,
-                                                    null,
-                                                    null,
-                                                    null,
-                                                    true,
-                                                    true,
-                                                    redisService
-                                            )
-                                    ));
+                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
@@ -466,7 +439,7 @@ public class DouYinApiProduct {
                     null,
                     null,
                     true,
-                    false,
+                    true,
                     redisService
             );
         } catch (Exception e) {
