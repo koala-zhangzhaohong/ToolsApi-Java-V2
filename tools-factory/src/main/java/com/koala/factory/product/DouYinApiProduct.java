@@ -329,6 +329,9 @@ public class DouYinApiProduct {
                             }
                             ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList = new ArrayList<>();
                             ArrayList<MultiVideoQualityInfoModel> mockProxyMultiVideoDownloadInfoList = new ArrayList<>();
+                            // cdn Host 去除 /
+                            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+                            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                             // 取出三个里最多的那一个
                             Integer maxIndex = getVidMaxIndex(playAddr, playAddr265, playAddrH264);
                             for (int i = 0; i < DouyinMiddlewareServerEnums.values().length; i++) {
@@ -342,8 +345,6 @@ public class DouYinApiProduct {
                                         continue;
                                     }
                                     proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
-                                    StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
-                                    cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                                     mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
                                             CdnServiceGenerator.getCdnService(
                                                     hd,
