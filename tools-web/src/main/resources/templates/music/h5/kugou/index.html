@@ -22,11 +22,6 @@
 <div class="background"></div>
 
 <div class="player-container">
-    <!-- Settings Button -->
-    <button class="settings-btn" id="settingsBtn" style="visibility: hidden;">
-        <i class="fas fa-cog"></i>
-    </button>
-
     <!-- Action Buttons -->
     <div class="action-buttons">
         <button class="action-btn" id="playlistBtn" title="播放列表">
@@ -35,72 +30,6 @@
         <button class="action-btn" id="toggleFullscreen" title="全屏模式">
             <i class="fas fa-expand"></i>
         </button>
-    </div>
-
-    <!-- Settings Panel -->
-    <div class="settings-panel" id="settingsPanel">
-        <h3>设置</h3>
-
-        <div class="settings-option">
-            <label for="themeSelect">主题颜色</label>
-            <select id="themeSelect" class="settings-select">
-                <option value="purple">紫色主题</option>
-                <option value="blue">蓝色主题</option>
-                <option value="green">绿色主题</option>
-                <option value="pink">粉色主题</option>
-            </select>
-        </div>
-
-        <div class="settings-option">
-            <label for="darkModeToggle">深色/浅色模式</label>
-            <div class="toggle-switch">
-                <input type="checkbox" id="darkModeToggle" checked>
-                <label for="darkModeToggle"></label>
-            </div>
-        </div>
-
-        <div class="settings-option">
-            <label for="visualizationSelect">可视化效果</label>
-            <select id="visualizationSelect" class="settings-select">
-                <option value="bars">频谱柱状图</option>
-                <option value="circle">环形可视化</option>
-                <option value="none">关闭可视化</option>
-            </select>
-        </div>
-
-        <div class="settings-option">
-            <label for="autoplayToggle">自动播放下一首</label>
-            <div class="toggle-switch">
-                <input type="checkbox" id="autoplayToggle" checked>
-                <label for="autoplayToggle"></label>
-            </div>
-        </div>
-
-        <div class="settings-option">
-            <label for="crossfadeSelect">淡入淡出效果</label>
-            <select id="crossfadeSelect" class="settings-select">
-                <option value="0">关闭</option>
-                <option value="1">1 秒</option>
-                <option value="2">2 秒</option>
-                <option value="3">3 秒</option>
-            </select>
-        </div>
-
-        <div class="settings-option">
-            <label for="cacheToggle">缓存播放记录</label>
-            <div class="toggle-switch">
-                <input type="checkbox" id="cacheToggle" checked>
-                <label for="cacheToggle"></label>
-            </div>
-        </div>
-
-        <div class="settings-option">
-            <button id="resetSettings" class="settings-button">重置所有设置</button>
-        </div>
-
-        <div class="settings-option">
-            <button id="clearCache" class="settings-button">清除缓存数据</button>
-        </div>
     </div>
 
     <!-- Album Cover -->
@@ -170,10 +99,6 @@
         </button>
         <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
             <i class="fas fa-align-left"></i>
-        </button>
-        <button class="feature-btn" id="toggleMiniPlayer" title="迷你播放器" style="visibility: hidden; display: none;"
-                disabled>
-            <i class="fas fa-compress"></i>
         </button>
     </div>
 
@@ -460,8 +385,8 @@
 
 <!-- Notification -->
 <div class="notification" id="notification">通知内容</div>
-<script type="text/javascript" src="../assets/js/music-player.js"
-        th:src="@{/assets/js/music-player.js(v=1.0)}"></script>
+<script type="text/javascript" src="../assets/js/kugou-music-player.js"
+        th:src="@{/assets/js/kugou-music-player.js(v=1.0)}"></script>
 <script>
     setCurrentHost("[[${host}]]");
     setQuality("[[${quality}]]");

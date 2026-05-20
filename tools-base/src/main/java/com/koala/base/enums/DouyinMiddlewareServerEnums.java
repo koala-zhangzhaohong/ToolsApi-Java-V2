@@ -14,12 +14,12 @@ import java.util.Optional;
 @Getter
 public enum DouyinMiddlewareServerEnums {
     // PREFIX_1采用集群形式
-    PREFIX_1("https://v26-web.douyinvod.com/", null, 55080, false, true, "v26-web", true),
-    PREFIX_2("https://v11-weba.douyinvod.com/", null, 55081, false, true, "v11-weba", true),
-    PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", 55082, null, false, false, null, false),
-    PREFIX_4("https://www.douyin.com/", null, 55083, false, true, "douyin", true),
-    PREFIX_5("https://v5-dy-o-abtest.zjcdn.com/", 55084, null, false, false, null, false),
-    PREFIX_6("https://v3-dy-o.zjcdn.com/", 55085, null, false, false, null, false);
+    PREFIX_1("https://v26-web.douyinvod.com/", null, 55080, false, true, "proxy", true),
+    PREFIX_2("https://v11-weba.douyinvod.com/", null, 55081, false, true, "proxy", true),
+    PREFIX_3("https://v5-dy-o-detect.zjcdn.com/", null, 55082, false, true, "proxy", true),
+    PREFIX_4("https://www.douyin.com/", null, 55083, false, true, "proxy", true),
+    PREFIX_5("https://v5-dy-o-abtest.zjcdn.com/", null, 55084, false, true, "proxy", true),
+    PREFIX_6("https://v3-dy-o.zjcdn.com/", null, 55085, false, true, "proxy", true);
 
     private final String prefix;
     private final Integer port;

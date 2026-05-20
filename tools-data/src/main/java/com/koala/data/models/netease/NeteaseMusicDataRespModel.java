@@ -24,4 +24,6 @@ public class NeteaseMusicDataRespModel implements Serializable {
     private NeteaseMusicItemDetailInfoRespModel detailInfo;
     @SerializedName("lyric_info")
     private NeteaseMusicLyricInfoRespModel lyricInfo;
+    @SerializedName("web_player_info")
+    private NeteaseWebPlayerInfoRespModel webPlayerInfo;
 }

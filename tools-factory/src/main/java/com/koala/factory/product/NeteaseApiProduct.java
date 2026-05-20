@@ -2,12 +2,15 @@ package com.koala.factory.product;
 
 import com.koala.base.enums.NeteaseRequestQualityEnums;
 import com.koala.data.models.netease.NeteaseMusicDataRespModel;
+import com.koala.data.models.netease.NeteaseWebPlayerInfoRespModel;
 import com.koala.data.models.netease.detailInfo.NeteaseMusicItemDetailInfoRespModel;
 import com.koala.data.models.netease.itemInfo.NeteaseMusicItemInfoRespModel;
 import com.koala.data.models.netease.lyricInfo.NeteaseMusicLyricInfoRespModel;
 import com.koala.data.models.shortUrl.ShortNeteaseItemDataModel;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
+import lombok.Setter;
+import org.apache.commons.collections4.IterableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -18,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.koala.base.enums.NeteaseRequestQualityEnums.DEFAULT;
 import static com.koala.factory.path.NeteaseWebPathCollector.*;
 import static com.koala.service.data.redis.RedisKeyPrefix.*;
 
@@ -37,31 +41,24 @@ public class NeteaseApiProduct {
     private static final String REQUEST_ID = String.valueOf(RANDOM.nextLong(20000000, 30000000));
     private static final String DEVICE_ID = UUID.randomUUID().toString().replace("-", "");
     private static final byte[] AES_KEY = "e82ckenh8dichen8".getBytes(StandardCharsets.UTF_8);
+    @Setter
     private String host;
+    @Setter
+    private String cdnHost;
+    @Setter
     private String cookie;
     private Integer version = 1;
+    @Setter
     private String url;
     private String musicId;
     private String servicePath;
-    private String level = NeteaseRequestQualityEnums.DEFAULT.getType();
+    private String level = DEFAULT.getType();
     private String params;
     private String detailPayload;
     private NeteaseMusicItemInfoRespModel itemInfoData = null;
     private NeteaseMusicItemDetailInfoRespModel itemDetailInfoData = null;
     private NeteaseMusicLyricInfoRespModel itemLyricInfoData = null;
     private RedisService redisService;
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public void setCookie(String cookie) {
-        this.cookie = cookie;
-    }
 
     public void setRedis(RedisService redisService) {
         this.redisService = redisService;
@@ -112,6 +109,21 @@ public class NeteaseApiProduct {
             logger.info("[NeteaseApiProject]({}) itemInfoResponse: {}", this.musicId, itemInfoResponse);
             try {
                 this.itemInfoData = GsonUtil.toBean(itemInfoResponse, NeteaseMusicItemInfoRespModel.class);
+                this.itemInfoData.getData().get(0).setCdnUrl(
+                        CdnServiceGenerator.getCdnService(
+                                this.itemInfoData.getData().get(0).getUrl(),
+                                host,
+                                cdnHost,
+                                false,
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                true,
+                                redisService
+                        )
+                );
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -145,12 +157,16 @@ public class NeteaseApiProduct {
         }
     }
 
-    public void getItemLyricData() throws IOException, URISyntaxException {
+    public void getItemLyricData(Boolean encodeLyric) throws IOException, URISyntaxException {
         if (StringUtils.hasLength(this.url)) {
             String key = NETEASE_LYRIC_DATA_KEY_PREFIX + ShortKeyGenerator.getKey(this.url);
             String tmp = redisService.get(key);
             if (StringUtils.hasLength(tmp)) {
                 this.itemLyricInfoData = GsonUtil.toBean(tmp, NeteaseMusicLyricInfoRespModel.class);
+                this.itemLyricInfoData.getLrc().setEncoded(encodeLyric);
+                if (encodeLyric) {
+                    this.itemLyricInfoData.getLrc().setLyric(Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8)));
+                }
                 logger.info("[NeteaseApiProject]({}) get lyric info from redis, info: {}", this.musicId, tmp);
                 if (!Objects.isNull(this.itemLyricInfoData)) {
                     return;
@@ -166,6 +182,10 @@ public class NeteaseApiProduct {
             logger.info("[NeteaseApiProject]({}) itemLyricInfoResponse: {}", this.musicId, itemLyricInfoResponse);
             try {
                 this.itemLyricInfoData = GsonUtil.toBean(itemLyricInfoResponse, NeteaseMusicLyricInfoRespModel.class);
+                this.itemLyricInfoData.getLrc().setEncoded(encodeLyric);
+                if (encodeLyric) {
+                    this.itemLyricInfoData.getLrc().setLyric(Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8)));
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 return;
@@ -176,8 +196,50 @@ public class NeteaseApiProduct {
         }
     }
 
-    public NeteaseMusicDataRespModel generateItemInfoRespData() {
-        NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData);
+    public NeteaseMusicDataRespModel generateItemInfoRespData(Boolean toWebPlayer) {
+        NeteaseWebPlayerInfoRespModel webPlayerInfo = new NeteaseWebPlayerInfoRespModel();
+        String toWebPlayerKey = null;
+        if (toWebPlayer) {
+            toWebPlayerKey = ShortKeyGenerator.getKey(null);
+            String url = null;
+            String lyricInfo = null;
+            try {
+                if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemInfoData.getData()) && !this.itemInfoData.getData().isEmpty()) {
+                    url = this.itemInfoData.getData().get(0).getCdnUrl();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                if (!Objects.isNull(this.itemLyricInfoData) && !Objects.isNull(this.itemLyricInfoData.getLrc()) && !this.itemLyricInfoData.getLrc().getLyric().isEmpty()) {
+                    if (this.itemLyricInfoData.getLrc().getEncoded()) {
+                        lyricInfo = this.itemLyricInfoData.getLrc().getLyric();
+                    } else {
+                        lyricInfo = Base64Utils.encode(this.itemLyricInfoData.getLrc().getLyric().getBytes(StandardCharsets.UTF_8));
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            HashMap<String, String> playerUrlList = new LinkedHashMap<>();
+            playerUrlList.put("default", "&quality=default");
+            Arrays.stream(NeteaseRequestQualityEnums.values()).forEach(item -> {
+                if (item != DEFAULT) {
+                    playerUrlList.put(item.getType(), "&quality=" + item.getType());
+                }
+            });
+            for (Map.Entry<String, String> entry : playerUrlList.entrySet()) {
+                playerUrlList.put(entry.getKey(), host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8)) + entry.getValue());
+            }
+            webPlayerInfo = new NeteaseWebPlayerInfoRespModel(
+                    this.musicId,
+                    this.level,
+                    url,
+                    lyricInfo,
+                    playerUrlList
+            );
+        }
+        NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData, webPlayerInfo);
         try {
             if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemDetailInfoData) && !respData.getItemInfo().getData().isEmpty()) {
                 String artist = UNKNOWN_ARTIST;
@@ -202,12 +264,15 @@ public class NeteaseApiProduct {
                         }
                     }
                     redisService.set(NETEASE_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortNeteaseItemDataModel(title, link, origin, type, artist)), EXPIRE_TIME);
-                    respData.getItemInfo().getData().get(0).setMockPreviewPath(host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)));
+                    respData.getItemInfo().getData().get(0).setMockPreviewPath(host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&version=1");
                     respData.getItemInfo().getData().get(0).setMockDownloadPath(host + "tools/Netease/download/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)));
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        if (toWebPlayer) {
+            redisService.set(NETEASE_DATA_TO_WEB_PLAYER_KEY_PREFIX + toWebPlayerKey, GsonUtil.toString(respData), EXPIRE_TIME);
         }
         return respData;
     }

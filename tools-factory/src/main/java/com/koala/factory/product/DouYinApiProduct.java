@@ -418,21 +418,33 @@ public class DouYinApiProduct {
         try {
             StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
             cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
-            DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
-            if (middlewareServerEnum != null) {
-                if (middlewareServerEnum.getIsGateWay() == true) {
-                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + (ObjectUtils.isEmpty(middlewareServerEnum.getServiceName()) ? "null" : middlewareServerEnum.getServiceName()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
-                } else if (ObjectUtils.isEmpty(middlewareServerEnum.getOrigin()) || middlewareServerEnum.getNeedOrigin() == false) {
-                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
-                } else {
-                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getOrigin(), middlewareServerEnum.getIsHttps()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
-                }
-                return path;
-            }
+//            DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
+//            if (middlewareServerEnum != null) {
+//                if (middlewareServerEnum.getIsGateWay() == true) {
+//                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + (ObjectUtils.isEmpty(middlewareServerEnum.getServiceName()) ? "null" : middlewareServerEnum.getServiceName()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+//                } else if (ObjectUtils.isEmpty(middlewareServerEnum.getOrigin()) || middlewareServerEnum.getNeedOrigin() == false) {
+//                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+//                } else {
+//                    path = formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getPort(), middlewareServerEnum.getIsHttps()) + "/" + formatHost(cdnHostPrefix.toString(), middlewareServerEnum.getOrigin(), middlewareServerEnum.getIsHttps()) + "/" + path.replaceFirst(middlewareServerEnum.getPrefix(), "");
+//                }
+//                return path;
+//            }
+            return CdnServiceGenerator.getCdnService(
+                    path,
+                    host,
+                    cdnHostPrefix.toString(),
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    true,
+                    false,
+                    redisService
+            );
         } catch (Exception e) {
             return null;
         }
-        return null;
     }
 
     private String formatHost(String host, Integer port, Boolean isHttps) {

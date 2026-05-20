@@ -28,6 +28,12 @@ public class ConcreteNeteaseApiBuilder extends NeteaseApiBuilder {
     }
 
     @Override
+    public NeteaseApiBuilder cdnHost(String cdnHost) {
+        product.setCdnHost(cdnHost);
+        return this;
+    }
+
+    @Override
     public NeteaseApiBuilder cookie(String cookie) {
         product.setCookie(cookie);
         return this;
@@ -70,8 +76,8 @@ public class ConcreteNeteaseApiBuilder extends NeteaseApiBuilder {
     }
 
     @Override
-    public NeteaseApiBuilder getItemLyricData() throws Exception {
-        product.getItemLyricData();
+    public NeteaseApiBuilder getItemLyricData(Boolean encodeLyric) throws Exception {
+        product.getItemLyricData(encodeLyric);
         return this;
     }
 }

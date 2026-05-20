@@ -19,6 +19,8 @@ public abstract class NeteaseApiBuilder {
 
     public abstract NeteaseApiBuilder host(String host);
 
+    public abstract NeteaseApiBuilder cdnHost(String cdnHost);
+
     public abstract NeteaseApiBuilder cookie(String cookie);
 
     public abstract NeteaseApiBuilder version(Integer version);
@@ -33,7 +35,7 @@ public abstract class NeteaseApiBuilder {
 
     public abstract NeteaseApiBuilder getItemDetailData() throws Exception;
 
-    public abstract NeteaseApiBuilder getItemLyricData() throws Exception;
+    public abstract NeteaseApiBuilder getItemLyricData(Boolean encodeLyric) throws Exception;
 
     public NeteaseApiProduct getProduct() {
         return product;

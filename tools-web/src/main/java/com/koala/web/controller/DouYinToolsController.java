@@ -601,7 +601,7 @@ public class DouYinToolsController {
             try {
                 nicknameInfoMap.putAll(future.get());
             } catch (Exception e) {
-                logger.info("[doMultiThreadRealNickNameExecuter] on solved error: " + e.getMessage());
+                logger.error("[doMultiThreadRealNickNameExecuter] on solved error: {}", e.getMessage());
                 e.printStackTrace();
             }
         });

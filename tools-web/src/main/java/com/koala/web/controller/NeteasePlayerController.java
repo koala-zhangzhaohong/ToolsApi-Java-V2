@@ -1,11 +1,13 @@
 package com.koala.web.controller;
 
+import com.koala.data.models.netease.NeteaseMusicDataRespModel;
 import com.koala.data.models.shortUrl.ShortNeteaseItemDataModel;
 import com.koala.data.models.shortUrl.ShortNeteaseMvItemDataModel;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.GsonUtil;
+import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,8 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import static com.koala.service.data.redis.RedisKeyPrefix.NETEASE_DATA_KEY_PREFIX;
-import static com.koala.service.data.redis.RedisKeyPrefix.NETEASE_MV_DATA_KEY_PREFIX;
+import static com.koala.service.data.redis.RedisKeyPrefix.*;
 
 /**
  * @author koala
@@ -37,19 +38,29 @@ public class NeteasePlayerController {
     @Resource(name = "RedisService")
     private RedisService redisService;
 
+    @Resource
+    private HostManager hostManager;
+
     @HttpRequestRecorder
     @GetMapping("/music/short")
-    public String musicWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "1") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String musicWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "quality", required = false, defaultValue = "default") String quality, @RequestParam(value = "version", required = false, defaultValue = "2") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[musicPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
             if (StringUtils.hasLength(itemKey)) {
-                ShortNeteaseItemDataModel tmp = GsonUtil.toBean(redisService.get(NETEASE_DATA_KEY_PREFIX + itemKey), ShortNeteaseItemDataModel.class);
-                String artist = StringUtils.hasLength(tmp.getArtist()) ? " - " + tmp.getArtist() : "";
-                model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : "MusicPlayer");
-                model.addAttribute("path", tmp.getPath());
-                model.addAttribute("type", "audio/" + tmp.getType());
-                if ("1".equals(version)) {
+                if ("2".equals(version)) {
+                    NeteaseMusicDataRespModel data = GsonUtil.toBean(redisService.get(NETEASE_DATA_TO_WEB_PLAYER_KEY_PREFIX + itemKey), NeteaseMusicDataRespModel.class);
+                    model.addAttribute("title", "MusicPlayer");
+                    model.addAttribute("host", hostManager.getHost());
+                    model.addAttribute("quality", quality);
+                    model.addAttribute("jsonInfo", GsonUtil.toString(data));
+                    return "music/h5/netease/index";
+                } else if ("1".equals(version)) {
+                    ShortNeteaseItemDataModel tmp = GsonUtil.toBean(redisService.get(NETEASE_DATA_KEY_PREFIX + itemKey), ShortNeteaseItemDataModel.class);
+                    String artist = StringUtils.hasLength(tmp.getArtist()) ? " - " + tmp.getArtist() : "";
+                    model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : "MusicPlayer");
+                    model.addAttribute("path", tmp.getPath());
+                    model.addAttribute("type", "audio/" + tmp.getType());
                     return "music/plyr/netease/index";
                 }
             }
