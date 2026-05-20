@@ -336,15 +336,41 @@ public class DouYinApiProduct {
                                     if (i >= maxIndex) {
                                         break;
                                     }
-                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
-                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
+                                    String hd = Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i));
+                                    String sd = Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i));
                                     if (ObjectUtils.isEmpty(hd) && ObjectUtils.isEmpty(sd)) {
                                         continue;
                                     }
                                     proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
+                                    StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+                                    cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                                     mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(hd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(sd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
+                                            CdnServiceGenerator.getCdnService(
+                                                    hd,
+                                                    host,
+                                                    cdnHostPrefix.toString(),
+                                                    true,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    true,
+                                                    true,
+                                                    redisService
+                                            ),
+                                            CdnServiceGenerator.getCdnService(
+                                                    sd,
+                                                    host,
+                                                    cdnHostPrefix.toString(),
+                                                    true,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    true,
+                                                    true,
+                                                    redisService
+                                            )
                                     ));
                                 } catch (Exception e) {
                                     e.printStackTrace();
