@@ -204,15 +204,15 @@ public class NeteaseApiProduct {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            ArrayList<String> playerUrlList = new ArrayList<>();
-            playerUrlList.add("&quality=default");
+            HashMap<String, String> playerUrlList = new LinkedHashMap<>();
+            playerUrlList.put("default", "&quality=default");
             Arrays.stream(NeteaseRequestQualityEnums.values()).forEach(item -> {
                 if (item != DEFAULT) {
-                    playerUrlList.add("&quality=" + item.getType());
+                    playerUrlList.put(item.getType(), "&quality=" + item.getType());
                 }
             });
-            for (int i = 0; i < playerUrlList.size(); i++) {
-                playerUrlList.set(i, host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8)) + playerUrlList.get(i));
+            for (Map.Entry<String, String> entry : playerUrlList.entrySet()) {
+                playerUrlList.put(entry.getKey(), host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(toWebPlayerKey.getBytes(StandardCharsets.UTF_8)) + entry.getValue());
             }
             webPlayerInfo = new NeteaseWebPlayerInfoRespModel(
                     this.musicId,
