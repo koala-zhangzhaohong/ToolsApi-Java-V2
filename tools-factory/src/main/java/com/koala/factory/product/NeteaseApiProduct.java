@@ -267,7 +267,24 @@ public class NeteaseApiProduct {
                     }
                     redisService.set(NETEASE_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortNeteaseItemDataModel(title, link, origin, type, artist)), EXPIRE_TIME);
                     respData.getItemInfo().getData().get(0).setMockPreviewPath(host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&version=1");
-                    respData.getItemInfo().getData().get(0).setMockDownloadPath(host + "tools/Netease/download/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)));
+                    // cdn Host 去除 /
+                    StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+                    cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
+                    respData.getItemInfo().getData().get(0).setMockDownloadPath(
+                            CdnServiceGenerator.getCdnService(
+                                    respData.getItemInfo().getData().get(0).getUrl(),
+                                    host,
+                                    cdnHostPrefix.toString(),
+                                    false,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    true,
+                                    true,
+                                    redisService
+                            )
+                    );
                 }
             }
         } catch (Exception e) {

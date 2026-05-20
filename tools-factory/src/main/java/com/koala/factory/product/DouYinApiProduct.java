@@ -311,7 +311,7 @@ public class DouYinApiProduct {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.itemInfo.getAwemeDetailModel().getDesc();
                             String link = ShortKeyGenerator.generateShortUrl(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0), EXPIRE_TIME, host, redisService).getUrl();
-                            String proxyLink = ShortKeyGenerator.generateShortUrl(reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0)), EXPIRE_TIME, host, redisService).getUrl();
+                            String proxyLink = reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0));
                             PlayAddrInfoModel playAddr = null;
                             PlayAddrInfoModel playAddrH264 = null;
                             PlayAddrInfoModel playAddr265 = null;
@@ -329,6 +329,9 @@ public class DouYinApiProduct {
                             }
                             ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList = new ArrayList<>();
                             ArrayList<MultiVideoQualityInfoModel> mockProxyMultiVideoDownloadInfoList = new ArrayList<>();
+                            // cdn Host 去除 /
+                            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+                            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                             // 取出三个里最多的那一个
                             Integer maxIndex = getVidMaxIndex(playAddr, playAddr265, playAddrH264);
                             for (int i = 0; i < DouyinMiddlewareServerEnums.values().length; i++) {
@@ -342,10 +345,7 @@ public class DouYinApiProduct {
                                         continue;
                                     }
                                     proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
-                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(hd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl(),
-                                            ShortKeyGenerator.generateShortUrl(host + "tools/DouYin/preview/video?path=" + getBase64(sd) + "&isDownload=true", EXPIRE_TIME, host, redisService).getUrl()
-                                    ));
+                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
@@ -439,7 +439,7 @@ public class DouYinApiProduct {
                     null,
                     null,
                     true,
-                    false,
+                    true,
                     redisService
             );
         } catch (Exception e) {
