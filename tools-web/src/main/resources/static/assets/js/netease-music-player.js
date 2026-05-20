@@ -359,7 +359,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     if (response.data.item_info.data !== null && response.data.item_info.data !== undefined && response.data.item_info.data.length > 0) {
                         emptyContainer.style.display = 'none';
                         container.innerHTML = '';
-                        const url = response.data.item_info.data[0].url;
+                        const url = response.data.item_info.data[0].cdn_url;
                         container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="0" class="quality-radio"> 线路 - 1</label><br>`;
                         urlList.push(url);
                         qualityInfo.set(`${tabId}`, urlList.join(","));
@@ -2579,7 +2579,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     if (response.data.item_info.data !== null && response.data.item_info.data !== undefined && response.data.item_info.data.length > 0) {
                         emptyContainer.style.display = 'none';
                         container.innerHTML = '';
-                        const url = response.data.item_info.data[0].url;
+                        const url = response.data.item_info.data[0].cdn_url;
                         container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="0" class="quality-radio"> 线路 - 1</label><br>`;
                         urlList.push(url);
                         qualityInfo.set(`${tabId}`, urlList.join(","));

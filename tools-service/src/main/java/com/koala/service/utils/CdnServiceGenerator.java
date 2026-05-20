@@ -16,17 +16,17 @@ public class CdnServiceGenerator {
 
     private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
 
-    public static String getCdnService(String url, String host, Boolean addReferer, String referer, String fileName, String extension, Integer port, Boolean isHttps, RedisService redisService) {
+    public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
         String inputHost = getRegHost(url);
         String inputPath = url.replaceFirst(inputHost, "");
         StringBuilder cdnPath = new StringBuilder();
         if (isHttps) {
-            cdnPath.append(host.replaceFirst("http", "https"));
+            cdnPath.append(cdnHost.replaceFirst("http", "https"));
         } else {
             if (port != null) {
-                cdnPath.append(host).append(":").append(port);
+                cdnPath.append(cdnHost).append(":").append(port);
             } else {
-                cdnPath.append(host);
+                cdnPath.append(cdnHost);
             }
         }
         cdnPath.append("/");
@@ -86,7 +86,11 @@ public class CdnServiceGenerator {
             return null;
         }
         logger.info("[cdnService] generate success: {}", cdnPath);
-        return null;
+        if (toShortUrl) {
+            return ShortKeyGenerator.generateShortUrl(cdnPath.toString(), EXPIRE_TIME, host, redisService).getUrl();
+        } else {
+            return cdnPath.toString();
+        }
     }
 
     public static String getRegHost(String url) {

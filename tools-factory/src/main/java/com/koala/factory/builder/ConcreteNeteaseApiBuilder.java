@@ -28,6 +28,12 @@ public class ConcreteNeteaseApiBuilder extends NeteaseApiBuilder {
     }
 
     @Override
+    public NeteaseApiBuilder cdnHost(String cdnHost) {
+        product.setCdnHost(cdnHost);
+        return this;
+    }
+
+    @Override
     public NeteaseApiBuilder cookie(String cookie) {
         product.setCookie(cookie);
         return this;

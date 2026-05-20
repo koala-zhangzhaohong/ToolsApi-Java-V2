@@ -93,9 +93,9 @@ public class NeteaseToolsController {
         try {
             NeteaseRequestQualityEnums qualityEnums = NeteaseRequestQualityEnums.getEnumsByType(quality);
             if (!Objects.isNull(qualityEnums)) {
-                product = manager.construct(redisService, hostManager.getHost(), neteaseCookieUtil.getNeteaseCookie(), url, qualityEnums.getType(), "true".equals(lyric), encodeLyric, Integer.valueOf(version));
+                product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), neteaseCookieUtil.getNeteaseCookie(), url, qualityEnums.getType(), "true".equals(lyric), encodeLyric, Integer.valueOf(version));
             } else {
-                product = manager.construct(redisService, hostManager.getHost(), neteaseCookieUtil.getNeteaseCookie(), url, null, "true".equals(lyric), encodeLyric, Integer.valueOf(version));
+                product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), neteaseCookieUtil.getNeteaseCookie(), url, null, "true".equals(lyric), encodeLyric, Integer.valueOf(version));
             }
         } catch (Exception e) {
             e.printStackTrace();

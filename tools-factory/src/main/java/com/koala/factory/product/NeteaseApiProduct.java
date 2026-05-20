@@ -44,6 +44,8 @@ public class NeteaseApiProduct {
     @Setter
     private String host;
     @Setter
+    private String cdnHost;
+    @Setter
     private String cookie;
     private Integer version = 1;
     @Setter
@@ -107,6 +109,21 @@ public class NeteaseApiProduct {
             logger.info("[NeteaseApiProject]({}) itemInfoResponse: {}", this.musicId, itemInfoResponse);
             try {
                 this.itemInfoData = GsonUtil.toBean(itemInfoResponse, NeteaseMusicItemInfoRespModel.class);
+                this.itemInfoData.getData().get(0).setCdnUrl(
+                        CdnServiceGenerator.getCdnService(
+                                this.itemInfoData.getData().get(0).getUrl(),
+                                host,
+                                cdnHost,
+                                false,
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                true,
+                                redisService
+                        )
+                );
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -188,7 +205,7 @@ public class NeteaseApiProduct {
             String lyricInfo = null;
             try {
                 if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemInfoData.getData()) && !this.itemInfoData.getData().isEmpty()) {
-                    url = this.itemInfoData.getData().get(0).getUrl();
+                    url = this.itemInfoData.getData().get(0).getCdnUrl();
                 }
             } catch (Exception e) {
                 e.printStackTrace();

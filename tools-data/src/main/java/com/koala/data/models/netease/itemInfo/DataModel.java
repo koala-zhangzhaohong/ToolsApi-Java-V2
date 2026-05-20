@@ -15,6 +15,8 @@ import java.io.Serializable;
 public class DataModel<Object extends Serializable> implements Serializable {
     private Long id;
     private String url;
+    @SerializedName("cdn_url")
+    private String cdnUrl;
     private Long br;
     private Long size;
     private String md5;
