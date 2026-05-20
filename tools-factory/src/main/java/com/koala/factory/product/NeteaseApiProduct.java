@@ -107,13 +107,15 @@ public class NeteaseApiProduct {
             data.put("params", this.params);
             String itemInfoResponse = HttpClientUtil.doPost(NETEASE_SERVER_URL, HeaderUtil.getNeteaseHeader(cookie), data);
             logger.info("[NeteaseApiProject]({}) itemInfoResponse: {}", this.musicId, itemInfoResponse);
+            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
+            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
             try {
                 this.itemInfoData = GsonUtil.toBean(itemInfoResponse, NeteaseMusicItemInfoRespModel.class);
                 this.itemInfoData.getData().get(0).setCdnUrl(
                         CdnServiceGenerator.getCdnService(
                                 this.itemInfoData.getData().get(0).getUrl(),
                                 host,
-                                cdnHost,
+                                cdnHostPrefix.toString(),
                                 false,
                                 null,
                                 null,
