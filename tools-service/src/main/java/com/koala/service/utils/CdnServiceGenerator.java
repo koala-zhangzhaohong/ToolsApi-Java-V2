@@ -37,7 +37,7 @@ public class CdnServiceGenerator {
                 cdnPath.append("proxy/");
             }
         } else {
-            cdnPath.append("http://localhost:3000").append("/");
+            cdnPath.append("http://127.0.0.1:3000").append("/");
         }
         boolean hasParam = false;
         cdnPath.append("doProxy").append("?");
