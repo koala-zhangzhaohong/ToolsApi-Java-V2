@@ -203,6 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     a.className = 'info-button';
                     a.href = item.hd;
                     a.textContent = '线路 - ' + (index + 1) + ' [高清]';
+                    a.download = getQueryVariable(item.hd, 'key');
                     infoDownloadWrapper.appendChild(a);
                 }
                 if (checkIsNotEmptyContent(item.sd)) {
@@ -210,6 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     a.className = 'info-button';
                     a.href = item.sd;
                     a.textContent = '线路 - ' + (index + 1) + ' [标清]';
+                    a.download = getQueryVariable(item.sd, 'key');
                     infoDownloadWrapper.appendChild(a);
                 }
             });
@@ -218,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 a.className = 'info-button';
                 a.href = json.media_data.download_path;
                 a.textContent = '回源 [无代理]';
+                a.download = getQueryVariable(json.media_data.download_path, 'key');
                 infoDownloadWrapper.appendChild(a);
             }
             apiDownloadInfoData.style.display = 'block';
