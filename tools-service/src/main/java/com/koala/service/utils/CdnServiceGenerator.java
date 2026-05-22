@@ -16,7 +16,7 @@ public class CdnServiceGenerator {
 
     private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
 
-    private final static String env = "test";
+    private final static String env = "prod";
 
     public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
         String inputHost = getRegHost(url);
