@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,6 +37,7 @@ public class ToolsWebApplication {
         String ip = env.getProperty("server.real.address");
         String port = env.getProperty("server.port");
         String realPort = env.getProperty("server.real.port");
+        boolean enableHttps = Boolean.parseBoolean(env.getProperty("server.real.enableHttps"));
         String cdnHost = env.getProperty("backend.server.cdn.address");
         String property = env.getProperty("server.servlet.context-path");
         String rocketmqAdminServerUrl = env.getProperty("rocketmq.admin-server");
@@ -54,7 +56,7 @@ public class ToolsWebApplication {
                         "Version: \t\t" + version + "\n\t" +
                         "BuildTime: \t\t" + buildTime + "\n\t" +
                         "Local: \t\t\thttp://localhost:" + port + path + "/\n\t" +
-                        "External: \t\thttp://" + ip + ":" + Optional.ofNullable(realPort).orElse(port) + path + "/\n\t" +
+                        "External: \t\t" + (enableHttps ? "https://" : "http://") + ip + (StringUtils.hasLength(port) ? ":" + port : "") + path + "/\n\t" +
                         "CdnHost: \t\thttp://" + cdnHost + "/\n\t" +
                         "ServiceData: \t" + folderDir + "\n\t" +
                         "------------------------------------------------------------\n\t" +
