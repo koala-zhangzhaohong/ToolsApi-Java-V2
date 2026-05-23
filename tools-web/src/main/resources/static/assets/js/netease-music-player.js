@@ -370,16 +370,18 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         async function initQualityRadioData(container, tabId) {
             const emptyContainer = container.querySelector('.quality-empty-container');
-            emptyContainer.style.display = 'none';
+            if (emptyContainer) emptyContainer.style.display = 'none';
             const loadingContainer = container.querySelector('.quality-loading-container');
-            loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
-            loadingContainer.style.display = 'block';
+            if (loadingContainer) {
+                loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
+                loadingContainer.style.display = 'block';
+            }
             const urlList = [];
             await fetch(`${currentHost}tools/Netease/api?id=${musicInfo.web_player_info.id}&type=info&quality=${getHashWithAlbumId(tabId).get("quality")}&lyric=false&toWebPlayer=false`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response.data.item_info.data !== null && response.data.item_info.data !== undefined && response.data.item_info.data.length > 0) {
-                        emptyContainer.style.display = 'none';
+                        if (emptyContainer) emptyContainer.style.display = 'none';
                         container.innerHTML = '';
                         const url = response.data.item_info.data[0].cdn_url;
                         container.innerHTML = container.innerHTML + `<label><input type="radio" name="${tabId}" value="${url}" tabindex="0" class="quality-radio"> 线路 - 1</label><br>`;
@@ -387,9 +389,11 @@ document.addEventListener('DOMContentLoaded', async function () {
                         qualityInfo.set(`${tabId}`, urlList.join(","));
                         container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                     } else {
-                        loadingContainer.innerHTML = '';
-                        loadingContainer.style.display = 'none';
-                        emptyContainer.style.display = 'block';
+                        if (loadingContainer) {
+                            loadingContainer.innerHTML = '';
+                            loadingContainer.style.display = 'none';
+                        }
+                        if (emptyContainer) emptyContainer.style.display = 'block';
                     }
                 })    // 处理数据
                 .catch(error => {
@@ -1174,6 +1178,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         const urlList = urlListContent.split(",");
         if (urlList.length > 0) {
             // 移除所有活动标签
+            qualityModal.querySelectorAll(`input[checked="true"]`).forEach(radio => {
+                radio.checked = false;
+            });
             qualityTabs.forEach(t => {
                 t.classList.remove('active');
                 if (t.id === tabId) {
