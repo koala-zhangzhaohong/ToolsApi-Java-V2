@@ -1178,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const urlList = urlListContent.split(",");
         if (urlList.length > 0) {
             // 移除所有活动标签
-            qualityModal.querySelectorAll(`input[checked="true"]`).forEach(radio => {
+            document.querySelectorAll(`input`).forEach(radio => {
                 radio.checked = false;
             });
             qualityTabs.forEach(t => {
