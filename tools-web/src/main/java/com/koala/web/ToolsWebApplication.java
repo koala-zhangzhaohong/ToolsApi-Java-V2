@@ -56,7 +56,7 @@ public class ToolsWebApplication {
                         "Version: \t\t" + version + "\n\t" +
                         "BuildTime: \t\t" + buildTime + "\n\t" +
                         "Local: \t\t\thttp://localhost:" + port + path + "/\n\t" +
-                        "External: \t\t" + (enableHttps ? "https://" : "http://") + ip + (StringUtils.hasLength(port) ? ":" + port : "") + path + "/\n\t" +
+                        "External: \t\t" + (enableHttps ? "https://" : "http://") + ip + (StringUtils.hasLength(realPort) ? ":" + realPort : "") + path + "/\n\t" +
                         "CdnHost: \t\thttp://" + cdnHost + "/\n\t" +
                         "ServiceData: \t" + folderDir + "\n\t" +
                         "------------------------------------------------------------\n\t" +
