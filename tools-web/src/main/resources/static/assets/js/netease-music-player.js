@@ -163,10 +163,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     let visualizationChart;
     let lastVisualizationData;
 
+    const nowTime = new Date();
     const timeOptions = {
         hour: '2-digit', minute: '2-digit', hour12: false
     };
-    let currentTime = now.toLocaleTimeString([], timeOptions);
+    let currentTime = nowTime.toLocaleTimeString([], timeOptions);
 
     qualityInfo.set('currentQualityIndex', 0);
 
@@ -2141,14 +2142,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 根据当前可视化模式选择不同的渲染方法
         if (visualizationMode === 'bars') {
-            renderBarVisualization();
+            visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
         }
     }
 
     // 渲染柱状可视化
     function renderBarVisualization() {
-        visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
@@ -2168,6 +2167,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         visualizationChart.update();
+
+        setInterval(() => {
+            visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
+        }, 1000);
 
         // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
@@ -2263,7 +2266,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     function updateDateTime() {
         const now = new Date();
         const current = now.toLocaleTimeString([], timeOptions);
-        if (current !== currentTime) {
+        if (current !== currentTime || dateTimeDisplay.textContent === "") {
             dateTimeDisplay.textContent = now.toLocaleTimeString([], timeOptions);
             currentTime = current;
         } else {
