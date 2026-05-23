@@ -1715,7 +1715,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        lyrics.forEach(lyric => {
+        for (const lyric of lyrics) {
             const line = document.createElement('div');
             line.className = 'lyric-line';
             line.textContent = lyric.text;
@@ -1727,7 +1727,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             });
 
             lyricLines.appendChild(line);
-        });
+        }
     }
 
     // 更新歌词高亮
