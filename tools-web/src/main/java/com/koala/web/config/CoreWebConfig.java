@@ -151,9 +151,10 @@ public class CoreWebConfig implements WebMvcConfigurer {
         String active = env.getProperty("spring.profiles.active");
         String ip = env.getProperty("server.real.address");
         String port = Objects.equals("docker", active) ? env.getProperty("server.real.port") : env.getProperty("server.port");
+        boolean enableHttps = Boolean.parseBoolean(env.getProperty("server.real.enableHttps"));
         String property = env.getProperty("server.servlet.context-path");
         String path = property == null ? "" : property;
-        return "http://" + ip + (StringUtils.hasLength(port) ? ":" + port : "") + path + "/";
+        return (enableHttps ? "https://" : "http://") + ip + (StringUtils.hasLength(port) ? ":" + port : "") + path + "/";
     }
 
     @Bean

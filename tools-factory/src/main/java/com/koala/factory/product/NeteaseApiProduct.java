@@ -116,7 +116,7 @@ public class NeteaseApiProduct {
                                 this.itemInfoData.getData().get(0).getUrl(),
                                 host,
                                 cdnHostPrefix.toString(),
-                                false,
+                                true,
                                 null,
                                 null,
                                 null,
@@ -272,10 +272,10 @@ public class NeteaseApiProduct {
                     cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                     respData.getItemInfo().getData().get(0).setMockDownloadPath(
                             CdnServiceGenerator.getCdnService(
-                                    respData.getItemInfo().getData().get(0).getUrl(),
+                                    respData.getItemInfo().getData().get(0).getUrl().split("\\?")[0],
                                     host,
                                     cdnHostPrefix.toString(),
-                                    false,
+                                    true,
                                     null,
                                     null,
                                     null,

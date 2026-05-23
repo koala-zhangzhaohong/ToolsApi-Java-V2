@@ -21,7 +21,7 @@
             </DockerPortBindingImpl>
           </list>
         </option>
-        <option name="commandLineOptions" value="--restart=always --cpus 8 -m 14GB" />
+        <option name="commandLineOptions" value="--restart=always --cpus 14 -m 22GB" />
         <option name="sourceFilePath" value="ServerDockerFile" />
       </settings>
     </deployment>

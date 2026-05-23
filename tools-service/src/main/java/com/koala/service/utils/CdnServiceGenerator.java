@@ -16,22 +16,28 @@ public class CdnServiceGenerator {
 
     private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
 
+    private final static String env = "prod";
+
     public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
         String inputHost = getRegHost(url);
         String inputPath = url.replaceFirst(inputHost, "");
         StringBuilder cdnPath = new StringBuilder();
-        if (isHttps) {
-            cdnPath.append(cdnHost.replaceFirst("http", "https"));
-        } else {
-            if (port != null) {
-                cdnPath.append(cdnHost).append(":").append(port);
+        if (!env.equals("test")) {
+            if (isHttps) {
+                cdnPath.append(cdnHost.replaceFirst("http", "https"));
             } else {
-                cdnPath.append(cdnHost);
+                if (port != null) {
+                    cdnPath.append(cdnHost).append(":").append(port);
+                } else {
+                    cdnPath.append(cdnHost);
+                }
             }
-        }
-        cdnPath.append("/");
-        if (isHttps) {
-            cdnPath.append("proxy/");
+            cdnPath.append("/");
+            if (isHttps) {
+                cdnPath.append("proxy/");
+            }
+        } else {
+            cdnPath.append("http://127.0.0.1:3000").append("/");
         }
         boolean hasParam = false;
         cdnPath.append("doProxy").append("?");
