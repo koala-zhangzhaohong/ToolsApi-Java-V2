@@ -235,6 +235,30 @@ document.addEventListener('DOMContentLoaded', async function () {
         toggleQualityModal();
     }
 
+    const styleObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                checkDisplayChange(mutation.target);
+            }
+        });
+    });
+
+    styleObserver.observe(qualityModal, { attributes: true });
+
+    function checkDisplayChange(element) {
+        const currentDisplay = window.getComputedStyle(element).display;
+        if (currentDisplay === 'flex') {
+            qualityModal.querySelectorAll(`input`).forEach(radio => {
+                radio.checked = false;
+                if (!radio.classList.contains('inited')) {
+                    radio.addEventListener('click', onSelectQuality);
+                    radio.classList.add('inited');
+                }
+                changeQualityUI();
+            });
+        }
+    }
+
     // ----------------------------------------
     // 初始化函数
     // ----------------------------------------
@@ -2613,10 +2637,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                             urlList.push(url);
                         });
                         qualityInfo.set(`${tabId}`, urlList.join(","));
-                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => {
-                            radio.addEventListener('click', onSelectQuality);
-                            radio.classList.add('inited');
-                        });
                         if (urlList.length > 0) {
                             document.querySelector(`input[name="${tabId}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
                         }
