@@ -174,6 +174,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     let visualizationChart;
     let lastVisualizationData;
 
+    const timeOptions = {
+        hour: '2-digit', minute: '2-digit', hour12: false
+    };
+    let currentTime = now.toLocaleTimeString([], timeOptions);
+
     qualityInfo.set('currentQualityIndex', 0);
 
     // 预设均衡器参数
@@ -225,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         createVisualizationBars();
         loadSettings();
         updateDateTime();
-        setInterval(updateDateTime, 1000);
+        // setInterval(updateDateTime, 1000);
 
         // 初始背景更新
         updateRandomBackground();
@@ -2269,10 +2274,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 更新日期时间显示
     function updateDateTime() {
         const now = new Date();
-        const options = {
-            hour: '2-digit', minute: '2-digit', hour12: false
-        };
-        dateTimeDisplay.textContent = now.toLocaleTimeString([], options);
+        const current = now.toLocaleTimeString([], timeOptions);
+        if (current !== currentTime) {
+            dateTimeDisplay.textContent = now.toLocaleTimeString([], timeOptions);
+            currentTime = current;
+        } else {
+            setInterval(() => {}, 1000);
+        }
+        requestAnimationFrame(updateDateTime);
     }
 
     // 切换全屏模式
