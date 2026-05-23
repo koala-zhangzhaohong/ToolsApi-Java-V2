@@ -2613,7 +2613,10 @@ document.addEventListener('DOMContentLoaded', async function () {
                             urlList.push(url);
                         });
                         qualityInfo.set(`${tabId}`, urlList.join(","));
-                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
+                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => {
+                            radio.addEventListener('click', onSelectQuality);
+                            radio.classList.add('inited');
+                        });
                         if (urlList.length > 0) {
                             document.querySelector(`input[name="${tabId}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
                         }
