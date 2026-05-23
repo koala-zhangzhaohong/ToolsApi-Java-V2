@@ -42,6 +42,20 @@ const getHashWithAlbumId = (name) => {
     return params;
 }
 
+function encodeUTF8Base64(str) {
+    const utf8Bytes = new TextEncoder().encode(str);
+    // 将字节数组转换为字符串以便 btoa 处理
+    const latin1String = String.fromCharCode.apply(null, utf8Bytes);
+    return btoa(latin1String);
+}
+
+// 中文解码
+function decodeUTF8Base64(base64) {
+    const latin1String = atob(base64);
+    const utf8Bytes = Uint8Array.from(latin1String, c => c.charCodeAt(0));
+    return new TextDecoder().decode(utf8Bytes);
+}
+
 document.addEventListener('DOMContentLoaded', async function () {
     // DOM元素
     const audioPlayer = new Audio();
@@ -2170,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         setInterval(() => {
             visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-        }, 1000);
+        }, 5000);
 
         // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
@@ -2270,7 +2284,8 @@ document.addEventListener('DOMContentLoaded', async function () {
             dateTimeDisplay.textContent = now.toLocaleTimeString([], timeOptions);
             currentTime = current;
         } else {
-            setInterval(() => {}, 1000);
+            setInterval(() => {
+            }, 1000);
         }
         requestAnimationFrame(updateDateTime);
     }
@@ -2621,7 +2636,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             artist: `${musicInfo.detail_info.songs[0].ar[0].name}` || '未知艺术家',
             duration: `${musicInfo.item_info.data[0].time}` || 0,
             id: `${musicInfo.item_info.data[0].id}`,
-            lyrics: `${musicInfo.web_player_info.lyric_info}`,
+            lyrics: `${decodeUTF8Base64(musicInfo.web_player_info.lyric_info)}`,
             cover: `${musicInfo.detail_info.songs[0].al.picUrl}`
         }, false); // 不保存到本地存储，避免重复
     } catch (e) {

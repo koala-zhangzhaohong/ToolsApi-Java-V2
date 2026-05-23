@@ -2182,7 +2182,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         setInterval(() => {
             visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-        }, 1000);
+        }, 5000);
 
         // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
