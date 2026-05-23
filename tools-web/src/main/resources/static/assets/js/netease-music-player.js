@@ -2284,8 +2284,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             dateTimeDisplay.textContent = now.toLocaleTimeString([], timeOptions);
             currentTime = current;
         } else {
-            setInterval(() => {
-            }, 1000);
+            setInterval(() => {}, 1000);
         }
         requestAnimationFrame(updateDateTime);
     }
