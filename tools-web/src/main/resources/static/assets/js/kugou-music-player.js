@@ -223,6 +223,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    const onSelectQuality = (event) => {
+        const radio = event.target;
+        qualityInfo.set('currentQualityName', `${radio.name}`);
+        qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
+        if (playlist.length === 0) return;
+        playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
+        if (loadTrack(0)) {
+            togglePlayPause(true);
+        }
+        toggleQualityModal();
+    }
+
     // ----------------------------------------
     // 初始化函数
     // ----------------------------------------
@@ -365,16 +377,18 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         async function initQualityRadioData(container, tabId) {
             const emptyContainer = container.querySelector('.quality-empty-container');
-            emptyContainer.style.display = 'none';
+            if (emptyContainer) emptyContainer.style.display = 'none';
             const loadingContainer = container.querySelector('.quality-loading-container');
-            loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
-            loadingContainer.style.display = 'block';
+            if (loadingContainer) {
+                loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
+                loadingContainer.style.display = 'block';
+            }
             const urlList = [];
             await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(tabId).get("hash")}&albumId=${getHashWithAlbumId(tabId).get("albumId")}`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
-                        emptyContainer.style.display = 'none';
+                        if (emptyContainer) emptyContainer.style.display = 'none';
                         container.innerHTML = '';
                         let index = 0;
                         response.data.url.forEach((url) => {
@@ -383,11 +397,16 @@ document.addEventListener('DOMContentLoaded', async function () {
                             urlList.push(url);
                         });
                         qualityInfo.set(`${tabId}`, urlList.join(","));
-                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
+                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => {
+                            radio.addEventListener('click', onSelectQuality);
+                            radio.classList.add('inited');
+                        });
                     } else {
-                        loadingContainer.innerHTML = '';
-                        loadingContainer.style.display = 'none';
-                        emptyContainer.style.display = 'block';
+                        if (loadingContainer) {
+                            loadingContainer.innerHTML = '';
+                            loadingContainer.style.display = 'none';
+                        }
+                        if (emptyContainer) emptyContainer.style.display = 'block';
                     }
                 })    // 处理数据
                 .catch(error => {
@@ -396,18 +415,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                     loadingContainer.style.display = 'none';
                     emptyContainer.style.display = 'block';
                 }); // 处理错误
-        }
-
-        const onSelectQuality = (event) => {
-            const radio = event.target;
-            qualityInfo.set('currentQualityName', `${radio.name}`);
-            qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
-            if (playlist.length === 0) return;
-            playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
-            if (loadTrack(0)) {
-                togglePlayPause(true);
-            }
-            toggleQualityModal();
         }
 
         // 播放列表标签切换
@@ -1172,6 +1179,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         const urlList = urlListContent.split(",");
         if (urlList.length > 0) {
             // 移除所有活动标签
+            qualityModal.querySelectorAll(`input`).forEach(radio => {
+                radio.checked = false;
+                if (!radio.classList.contains('inited')) {
+                    radio.addEventListener('click', onSelectQuality);
+                    radio.classList.add('inited');
+                }
+            });
             qualityTabs.forEach(t => {
                 t.classList.remove('active');
                 if (t.id === tabId) {
@@ -2525,19 +2539,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 });
                 break;
         }
-    }
-
-    // 下面一个逻辑相同
-    const onSelectQuality = (event) => {
-        const radio = event.target;
-        qualityInfo.set('currentQualityName', `${radio.name}`);
-        qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
-        if (playlist.length === 0) return;
-        playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
-        if (loadTrack(0)) {
-            togglePlayPause(true);
-        }
-        toggleQualityModal();
     }
 
     function removeLoadingView() {
