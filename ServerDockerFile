@@ -1,4 +1,4 @@
-FROM openjdk:17.0.2-jdk
+FROM openjdk:21-rc-jdk
 MAINTAINER owen000814@outlook.com
 WORKDIR /
 ADD ./tools-web/target/*.jar app.jar
