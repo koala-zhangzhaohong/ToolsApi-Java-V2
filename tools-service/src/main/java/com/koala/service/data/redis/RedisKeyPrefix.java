@@ -31,4 +31,6 @@ public class RedisKeyPrefix {
     public static final String TIKTOK_COOKIE_LOCK = "TIKTOK:COOKIE:LOCK";
     public static final String TIKTOK_COOKIE_DATA = "TIKTOK:COOKIE:DATA";
     public static final String TIKTOK_PROFILE_INFO = "TIKTOK:PROFILE:INFO:";
+    public static final String BING_IMG_DATA = "BING:IMAGE:DATA:";
+    public static final String BING_IMG_LOCKED = "BING:IMAGE:LOCKED";
 }

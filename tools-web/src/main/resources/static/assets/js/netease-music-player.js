@@ -2302,7 +2302,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             .then(response => response.json()) // 解析 JSON
             .then(response => {
                 if (response.data !== null && response.data !== undefined) {
-                    const  bgUrl = response.data.origin;
+                    const bgUrl = response.data.url;
                     const background = document.querySelector('.background');
                     // 创建一个新图片对象预加载
                     const img = new Image();

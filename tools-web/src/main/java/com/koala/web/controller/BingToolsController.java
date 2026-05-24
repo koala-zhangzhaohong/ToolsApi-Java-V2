@@ -39,7 +39,7 @@ public class BingToolsController {
     @GetMapping("get/img")
     public String getImg(@RequestParam(required = false, defaultValue = "false") Boolean isDirect, @RequestParam(required = false) String type, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         BingImageDataInfoModel info = new BingImageDataInfoModel();
-        String url = BingUtils.getImage(null);
+        String url = new BingUtils().getImage(null, redisService);
         if (ObjectUtils.isEmpty(url)) {
             return formatRespData(GET_INFO_ERROR, null);
         }
