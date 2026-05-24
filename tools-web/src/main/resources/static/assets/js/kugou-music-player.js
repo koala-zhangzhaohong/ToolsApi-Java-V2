@@ -174,6 +174,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     let visualizationChart;
     let lastVisualizationData;
 
+    const nowTime = new Date();
+    const timeOptions = {
+        hour: '2-digit', minute: '2-digit', hour12: false
+    };
+    let currentTime = nowTime.toLocaleTimeString([], timeOptions);
+
     qualityInfo.set('currentQualityIndex', 0);
 
     // 预设均衡器参数
@@ -217,6 +223,42 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    const onSelectQuality = (event) => {
+        const radio = event.target;
+        qualityInfo.set('currentQualityName', `${radio.name}`);
+        qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
+        if (playlist.length === 0) return;
+        playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
+        if (loadTrack(0)) {
+            togglePlayPause(true);
+        }
+        toggleQualityModal();
+    }
+
+    const styleObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                checkDisplayChange(mutation.target);
+            }
+        });
+    });
+
+    styleObserver.observe(qualityModal, {attributes: true});
+
+    function checkDisplayChange(element) {
+        const currentDisplay = window.getComputedStyle(element).display;
+        if (currentDisplay === 'flex') {
+            qualityModal.querySelectorAll(`input`).forEach(radio => {
+                radio.checked = false;
+                if (!radio.classList.contains('inited')) {
+                    radio.addEventListener('click', onSelectQuality);
+                    radio.classList.add('inited');
+                }
+                changeQualityUI();
+            });
+        }
+    }
+
     // ----------------------------------------
     // 初始化函数
     // ----------------------------------------
@@ -225,7 +267,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         createVisualizationBars();
         loadSettings();
         updateDateTime();
-        setInterval(updateDateTime, 1000);
+        // setInterval(updateDateTime, 1000);
 
         // 初始背景更新
         updateRandomBackground();
@@ -359,16 +401,18 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         async function initQualityRadioData(container, tabId) {
             const emptyContainer = container.querySelector('.quality-empty-container');
-            emptyContainer.style.display = 'none';
+            if (emptyContainer) emptyContainer.style.display = 'none';
             const loadingContainer = container.querySelector('.quality-loading-container');
-            loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
-            loadingContainer.style.display = 'block';
+            if (loadingContainer) {
+                loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
+                loadingContainer.style.display = 'block';
+            }
             const urlList = [];
             await fetch(`${currentHost}tools/Kugou/api/playInfo?hash=${getHashWithAlbumId(tabId).get("hash")}&albumId=${getHashWithAlbumId(tabId).get("albumId")}`)
                 .then(response => response.json()) // 解析 JSON
                 .then(response => {
                     if (response.data.url !== null && response.data.url !== undefined && response.data.url.length > 0) {
-                        emptyContainer.style.display = 'none';
+                        if (emptyContainer) emptyContainer.style.display = 'none';
                         container.innerHTML = '';
                         let index = 0;
                         response.data.url.forEach((url) => {
@@ -377,11 +421,16 @@ document.addEventListener('DOMContentLoaded', async function () {
                             urlList.push(url);
                         });
                         qualityInfo.set(`${tabId}`, urlList.join(","));
-                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
+                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => {
+                            radio.addEventListener('click', onSelectQuality);
+                            radio.classList.add('inited');
+                        });
                     } else {
-                        loadingContainer.innerHTML = '';
-                        loadingContainer.style.display = 'none';
-                        emptyContainer.style.display = 'block';
+                        if (loadingContainer) {
+                            loadingContainer.innerHTML = '';
+                            loadingContainer.style.display = 'none';
+                        }
+                        if (emptyContainer) emptyContainer.style.display = 'block';
                     }
                 })    // 处理数据
                 .catch(error => {
@@ -390,18 +439,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                     loadingContainer.style.display = 'none';
                     emptyContainer.style.display = 'block';
                 }); // 处理错误
-        }
-
-        const onSelectQuality = (event) => {
-            const radio = event.target;
-            qualityInfo.set('currentQualityName', `${radio.name}`);
-            qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
-            if (playlist.length === 0) return;
-            playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
-            if (loadTrack(0)) {
-                togglePlayPause(true);
-            }
-            toggleQualityModal();
         }
 
         // 播放列表标签切换
@@ -1166,6 +1203,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         const urlList = urlListContent.split(",");
         if (urlList.length > 0) {
             // 移除所有活动标签
+            qualityModal.querySelectorAll(`input`).forEach(radio => {
+                radio.checked = false;
+                if (!radio.classList.contains('inited')) {
+                    radio.addEventListener('click', onSelectQuality);
+                    radio.classList.add('inited');
+                }
+            });
             qualityTabs.forEach(t => {
                 t.classList.remove('active');
                 if (t.id === tabId) {
@@ -1709,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        lyrics.forEach(lyric => {
+        for (const lyric of lyrics) {
             const line = document.createElement('div');
             line.className = 'lyric-line';
             line.textContent = lyric.text;
@@ -1721,7 +1765,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             });
 
             lyricLines.appendChild(line);
-        });
+        }
     }
 
     // 更新歌词高亮
@@ -2148,14 +2192,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 根据当前可视化模式选择不同的渲染方法
         if (visualizationMode === 'bars') {
-            renderBarVisualization();
+            visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
         }
     }
 
     // 渲染柱状可视化
     function renderBarVisualization() {
-        visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
 
@@ -2175,6 +2217,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         visualizationChart.update();
+
+        setInterval(() => {
+            visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
+        }, 5000);
 
         // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
     }
@@ -2248,31 +2294,41 @@ document.addEventListener('DOMContentLoaded', async function () {
     // ----------------------------------------
 
     // 更新随机背景
-    function updateRandomBackground() {
-        // 添加时间戳参数避免缓存
+    async function updateRandomBackground() {
         const timestamp = new Date().getTime();
-        const bgUrl = `https://api.dujin.org/bing/1920.php?t=${timestamp}`;
-
-        const background = document.querySelector('.background');
-
-        // 创建一个新图片对象预加载
-        const img = new Image();
-        img.onload = function () {
-            background.style.backgroundImage = `url(${bgUrl})`;
-        };
-        img.onerror = function () {
-            console.error('背景图片加载失败');
-        };
-        img.src = bgUrl;
+        await fetch(`${currentHost}tools/Bing/get/img?t=${timestamp}`)
+            .then(response => response.json()) // 解析 JSON
+            .then(response => {
+                if (response.data !== null && response.data !== undefined) {
+                    const bgUrl = response.data.url;
+                    const background = document.querySelector('.background');
+                    // 创建一个新图片对象预加载
+                    const img = new Image();
+                    img.onload = function () {
+                        background.style.backgroundImage = `url(${bgUrl})`;
+                    };
+                    img.onerror = function () {
+                        console.error('背景图片加载失败');
+                    };
+                    img.src = bgUrl;
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
     }
 
     // 更新日期时间显示
     function updateDateTime() {
         const now = new Date();
-        const options = {
-            hour: '2-digit', minute: '2-digit', hour12: false
-        };
-        dateTimeDisplay.textContent = now.toLocaleTimeString([], options);
+        const current = now.toLocaleTimeString([], timeOptions);
+        if (current !== currentTime || dateTimeDisplay.textContent === "") {
+            dateTimeDisplay.textContent = now.toLocaleTimeString([], timeOptions);
+            currentTime = current;
+        } else {
+            setInterval(() => {}, 1000);
+        }
+        requestAnimationFrame(updateDateTime);
     }
 
     // 切换全屏模式
@@ -2515,19 +2571,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    // 下面一个逻辑相同
-    const onSelectQuality = (event) => {
-        const radio = event.target;
-        qualityInfo.set('currentQualityName', `${radio.name}`);
-        qualityInfo.set('currentQualityIndex', `${radio.tabIndex}`);
-        if (playlist.length === 0) return;
-        playlist[0].file = qualityInfo.get(`${radio.name}`).split(",")[`${radio.tabIndex}`];
-        if (loadTrack(0)) {
-            togglePlayPause(true);
-        }
-        toggleQualityModal();
-    }
-
     function removeLoadingView() {
         const overlay = document.getElementById('loading-overlay');
         // 渐隐效果
@@ -2600,7 +2643,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                             urlList.push(url);
                         });
                         qualityInfo.set(`${tabId}`, urlList.join(","));
-                        container.querySelectorAll(`input[name="${tabId}"]`).forEach(radio => radio.addEventListener('click', onSelectQuality));
                         if (urlList.length > 0) {
                             document.querySelector(`input[name="${tabId}"][value="${urlList[qualityInfo.get('currentQualityIndex')]}"]`).checked = true;
                         }
