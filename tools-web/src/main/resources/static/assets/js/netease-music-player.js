@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-    styleObserver.observe(qualityModal, { attributes: true });
+    styleObserver.observe(qualityModal, {attributes: true});
 
     function checkDisplayChange(element) {
         const currentDisplay = window.getComputedStyle(element).display;
@@ -2296,22 +2296,28 @@ document.addEventListener('DOMContentLoaded', async function () {
     // ----------------------------------------
 
     // 更新随机背景
-    function updateRandomBackground() {
-        // 添加时间戳参数避免缓存
+    async function updateRandomBackground() {
         const timestamp = new Date().getTime();
-        const bgUrl = `https://api.dujin.org/bing/1920.php?t=${timestamp}`;
-
-        const background = document.querySelector('.background');
-
-        // 创建一个新图片对象预加载
-        const img = new Image();
-        img.onload = function () {
-            background.style.backgroundImage = `url(${bgUrl})`;
-        };
-        img.onerror = function () {
-            console.error('背景图片加载失败');
-        };
-        img.src = bgUrl;
+        await fetch(`${currentHost}tools/Bing/get/img?t=${timestamp}`)
+            .then(response => response.json()) // 解析 JSON
+            .then(response => {
+                if (response.data !== null && response.data !== undefined) {
+                    const  bgUrl = response.data.origin;
+                    const background = document.querySelector('.background');
+                    // 创建一个新图片对象预加载
+                    const img = new Image();
+                    img.onload = function () {
+                        background.style.backgroundImage = `url(${bgUrl})`;
+                    };
+                    img.onerror = function () {
+                        console.error('背景图片加载失败');
+                    };
+                    img.src = bgUrl;
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
     }
 
     // 更新日期时间显示

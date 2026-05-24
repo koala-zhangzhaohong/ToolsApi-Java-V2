@@ -16,6 +16,14 @@ public class RespUtil {
     private RespUtil() {
     }
 
+    public static String formatRespData(BingResponseEnums enums, Object data) {
+        if (!Objects.isNull(enums)) {
+            return GsonUtil.toString(new RespModel(enums.getCode(), enums.getMessage(), data));
+        }
+        return GsonUtil.toString(new RespModel(BingResponseEnums.FAILURE.getCode(), BingResponseEnums.FAILURE.getMessage(), data));
+    }
+
+
     public static String formatRespData(PublicResponseEnums enums, Object data) {
         if (!Objects.isNull(enums)) {
             return GsonUtil.toString(new RespModel(enums.getCode(), enums.getMessage(), data));
