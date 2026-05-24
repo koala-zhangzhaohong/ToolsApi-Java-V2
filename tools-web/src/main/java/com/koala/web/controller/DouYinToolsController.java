@@ -400,7 +400,6 @@ public class DouYinToolsController {
             return formatRespData(ENCRYPT_URL_ERROR, null);
         }
         String response = HttpClientUtil.doGet(xbogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(xbogusDataModel.getMstoken(), xbogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
-        AtomicInteger index = new AtomicInteger();
         if (StringUtils.hasLength(response)) {
             switch (version) {
                 case "1" -> {
@@ -417,9 +416,11 @@ public class DouYinToolsController {
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
                         userInfoList.add(userInfoModel);
                     });
-                    ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList = new ArrayList<>();
+                    ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList;
                     if (extra.equals("1")) {
                         userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count, nickname);
+                    } else {
+                        userInfoDataList = new ArrayList<>(userInfoList);
                     }
                     switch (config) {
                         case "1" -> {
@@ -445,9 +446,11 @@ public class DouYinToolsController {
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
                         userInfoList.add(simpleUserInfoModel);
                     });
-                    ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList = new ArrayList<>();
+                    ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList;
                     if (extra.equals("1")) {
                         userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count, nickname);
+                    } else {
+                        userInfoDataList = new ArrayList<>(userInfoList);
                     }
                     switch (config) {
                         case "1" -> {
