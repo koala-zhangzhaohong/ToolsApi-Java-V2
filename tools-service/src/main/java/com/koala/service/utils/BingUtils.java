@@ -22,7 +22,7 @@ public class BingUtils {
         if (flag == null) {
             flag = false;
         }
-        String key = BING_IMG_DATA + ":" + (flag ? "TRUE" : "FALSE") + ":INFO";
+        String key = BING_IMG_DATA + (flag ? "TRUE" : "FALSE") + ":INFO";
         String data = redisService.get(key);
         if (!ObjectUtils.isEmpty(data)) {
             return data;
@@ -39,7 +39,7 @@ public class BingUtils {
         }
         // 上锁，防止间歇性不返回，且如果有数据五分钟返回一次
         if (!ObjectUtils.isEmpty(respData) && data != respData) {
-            redisService.set(key, data, 6 * 60 * 60L);
+            redisService.set(key, respData, 6 * 60 * 60L);
             redisService.set(BING_IMG_LOCKED, "true", 5 * 60L);
         }
         return !ObjectUtils.isEmpty(respData) ? respData : data;
