@@ -311,7 +311,7 @@ public class DouYinApiProduct {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.itemInfo.getAwemeDetailModel().getDesc();
                             String link = ShortKeyGenerator.generateShortUrl(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0), EXPIRE_TIME, host, redisService).getUrl();
-                            String proxyLink = reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0));
+                            String proxyLink = reformatPath(this.itemInfo.getAwemeDetailModel().getVideo().getPlayAddr().getUrlList().get(0), false);
                             PlayAddrInfoModel playAddr = null;
                             PlayAddrInfoModel playAddrH264 = null;
                             PlayAddrInfoModel playAddr265 = null;
@@ -339,13 +339,13 @@ public class DouYinApiProduct {
                                     if (i >= maxIndex) {
                                         break;
                                     }
-                                    String hd = getVideoUrl(Objects.isNull(playAddrH264) ? reformatPath(playAddr.getUrlList().get(i)) : reformatPath(playAddrH264.getUrlList().get(i)));
-                                    String sd = getVideoUrl(Objects.isNull(playAddr265) ? null : reformatPath(playAddr265.getUrlList().get(i)));
+                                    String hd = Objects.isNull(playAddrH264) ? playAddr.getUrlList().get(i) : playAddrH264.getUrlList().get(i);
+                                    String sd = Objects.isNull(playAddr265) ? null : playAddr265.getUrlList().get(i);
                                     if (ObjectUtils.isEmpty(hd) && ObjectUtils.isEmpty(sd)) {
                                         continue;
                                     }
-                                    proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
-                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(hd, sd));
+                                    proxyMultiVideoQualityInfoList.add(new MultiVideoQualityInfoModel(reformatPath(hd, false), reformatPath(sd, false)));
+                                    mockProxyMultiVideoDownloadInfoList.add(new MultiVideoQualityInfoModel(reformatPath(hd, true), reformatPath(sd, true)));
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
@@ -414,7 +414,7 @@ public class DouYinApiProduct {
         return tmp;
     }
 
-    private String reformatPath(String path) {
+    private String reformatPath(String path, Boolean isDownload) {
         try {
             StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
             cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
@@ -437,6 +437,7 @@ public class DouYinApiProduct {
                     null,
                     null,
                     null,
+                    isDownload,
                     null,
                     true,
                     true,

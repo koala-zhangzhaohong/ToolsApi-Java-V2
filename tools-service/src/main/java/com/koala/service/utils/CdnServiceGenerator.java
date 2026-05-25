@@ -18,7 +18,7 @@ public class CdnServiceGenerator {
 
     private final static String env = "prod";
 
-    public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
+    public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Boolean isDownload, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
         String inputHost = getRegHost(url);
         String inputPath = url.replaceFirst(inputHost, "");
         StringBuilder cdnPath = new StringBuilder();
@@ -68,6 +68,14 @@ public class CdnServiceGenerator {
                 hasParam = true;
             }
             cdnPath.append("extension=").append(URLEncoder.encode(extension, StandardCharsets.UTF_8));
+        }
+        if (isDownload != null) {
+            if (hasParam) {
+                cdnPath.append("&");
+            } else {
+                hasParam = true;
+            }
+            cdnPath.append("isDownload=").append(isDownload);
         }
         if (inputHost != null) {
             if (hasParam) {
