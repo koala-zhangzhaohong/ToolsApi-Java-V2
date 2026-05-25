@@ -54,7 +54,6 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>rocketmq-spring-boot</module>
         <module>tools-base</module>
         <module>tools-data</module>
         <module>tools-service</module>
@@ -89,11 +88,6 @@
                 <artifactId>tools-service</artifactId>
                 <version>${revision}</version>
             </dependency>
-            <dependency>
-                <groupId>com.koala</groupId>
-                <artifactId>rocketmq-spring-boot</artifactId>
-                <version>${revision}</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -108,7 +102,6 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <modules>
-                <module>rocketmq-spring-boot</module>
                 <module>tools-base</module>
                 <module>tools-data</module>
                 <module>tools-service</module>
@@ -122,7 +115,6 @@
                 <mvn.profile.active>prod</mvn.profile.active>
             </properties>
             <modules>
-                <module>rocketmq-spring-boot</module>
                 <module>tools-base</module>
                 <module>tools-data</module>
                 <module>tools-service</module>
@@ -136,7 +128,6 @@
                 <mvn.profile.active>docker</mvn.profile.active>
             </properties>
             <modules>
-                <module>rocketmq-spring-boot</module>
                 <module>tools-base</module>
                 <module>tools-data</module>
                 <module>tools-service</module>
