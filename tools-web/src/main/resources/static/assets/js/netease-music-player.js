@@ -110,8 +110,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const tabContents = document.querySelectorAll('.playlist-tab-content');
     const closePlaylist = document.getElementById('closePlaylist');
     const playlistItems = document.getElementById('playlistItems');
-    const clearPlaylistBtn = document.getElementById('clearPlaylistBtn');
-    const shufflePlaylistBtn = document.getElementById('shufflePlaylist');
     const importPlaylistBtn = document.getElementById('importPlaylistBtn');
     const exportPlaylistBtn = document.getElementById('exportPlaylistBtn');
     const playlistCount = document.getElementById('playlistCount');
@@ -378,8 +376,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         // 播放列表控制
         playlistBtn.addEventListener('click', togglePlaylistModal);
         closePlaylist.addEventListener('click', togglePlaylistModal);
-        clearPlaylistBtn.addEventListener('click', clearPlaylist);
-        shufflePlaylistBtn.addEventListener('click', shufflePlaylist);
         importPlaylistBtn.addEventListener('click', importPlaylist);
         exportPlaylistBtn.addEventListener('click', exportPlaylist);
 
@@ -933,57 +929,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    // 清空播放列表
-    function clearPlaylist() {
-        if (confirm('确定要清空播放列表吗？')) {
-            playlist = [];
-            resetPlayer();
-            updatePlaylistUI();
-            savePlaylistToLocalStorage();
-
-            // 如果启用了缓存，清除缓存中的播放列表
-            if (isCacheEnabled && db) {
-                const transaction = db.transaction(['playlist'], 'readwrite');
-                const store = transaction.objectStore('playlist');
-                store.clear();
-            }
-
-            showNotification('播放列表已清空');
-        }
-    }
-
-    // 随机播放列表
-    function shufflePlaylist() {
-        if (playlist.length <= 1) {
-            showNotification('播放列表中至少需要两首歌曲才能随机播放');
-            return;
-        }
-
-        // 记住当前播放的歌曲
-        const currentTrack = playlist[currentTrackIndex];
-
-        // Fisher-Yates 洗牌算法
-        for (let i = playlist.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
-        }
-
-        // 更新当前播放歌曲的索引
-        currentTrackIndex = playlist.findIndex(track => track === currentTrack);
-
-        // 更新UI
-        updatePlaylistUI();
-        showNotification('已随机播放列表顺序');
-
-        // 保存到本地存储
-        savePlaylistToLocalStorage();
-
-        // 如果启用了缓存，更新缓存
-        if (isCacheEnabled && db) {
-            savePlaylistToCache();
-        }
-    }
-
     // 导入播放列表
     function importPlaylist() {
         // 创建一个隐藏的文件输入元素
@@ -1256,6 +1201,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             const li = document.createElement('li');
             li.className = 'playlist-item';
             li.dataset.index = index;
+            li.style = 'pointer-events: none;';
             if (index === currentTrackIndex) {
                 li.classList.add('active');
             }
