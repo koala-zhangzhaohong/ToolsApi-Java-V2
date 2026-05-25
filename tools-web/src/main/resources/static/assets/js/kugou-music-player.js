@@ -1300,43 +1300,8 @@ document.addEventListener('DOMContentLoaded', async function () {
             details.appendChild(artist);
             itemInfo.appendChild(details);
 
-            // 显示歌曲时长
-            const duration = document.createElement('div');
-            duration.className = 'playlist-item-duration';
-            duration.textContent = formatTime(track.duration);
-
-            // 创建控制按钮
-            const controls = document.createElement('div');
-            controls.className = 'playlist-controls';
-
-            const playBtn = document.createElement('button');
-            playBtn.className = 'playlist-btn';
-            playBtn.innerHTML = '<i class="fas fa-play"></i>';
-            playBtn.title = '播放';
-            playBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                loadTrack(index);
-                togglePlayPause(true);
-                togglePlaylistModal();
-            });
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'playlist-btn';
-            removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            removeBtn.title = '从播放列表移除';
-            removeBtn.style.visibility = 'hidden';
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                removeFromPlaylist(index);
-            });
-
-            controls.appendChild(playBtn);
-            controls.appendChild(removeBtn);
-
             // 将元素添加到列表项
             li.appendChild(itemInfo);
-            li.appendChild(duration);
-            li.appendChild(controls);
 
             // 点击列表项播放该歌曲
             li.addEventListener('click', () => {
