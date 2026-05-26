@@ -8,6 +8,8 @@
     <link href="../assets/css/tiktok-searcher.css" th:href="@{/assets/css/tiktok-searcher.css}" rel="stylesheet">
     <link href="../assets/css/font-awesome.all.min.css" th:href="@{/assets/css/font-awesome.all.min.css}"
           rel="stylesheet">
+    <link href="../assets/css/loading.css" th:href="@{/assets/css/loading.css}" rel="stylesheet">
+    <link href="../assets/css/loading-download.css" th:href="@{/assets/css/loading-download.css}" rel="stylesheet">
     <script type="text/javascript" src="../assets/js/Util.js"
             th:src="@{/assets/js/Util.js(v=1.0)}"></script>
 </head>
@@ -81,6 +83,11 @@
         white-space: nowrap;
         text-align: center;
         margin: 6px;
+        -webkit-user-select: none; /* Safari */
+        -moz-user-select: none;    /* Firefox */
+        -ms-user-select: none;     /* IE 10+ */
+        user-select: none;         /* 标准语法 */
+        -webkit-touch-callout: none; /* 禁用 iOS 长按弹出菜单 */
     }
 
     .info-button {
@@ -118,14 +125,12 @@
         text-decoration: none;   /* 去除下划线 */
         transition: all 0.3s;    /* 添加平滑过渡效果 */
     }
-
-    /* 鼠标悬停在链接上时的样式 */
-    .info-link:hover {
-        color: #ffffff;          /* 悬停时的文字颜色 */
-        text-decoration: underline; /* 悬停时显示下划线 */
-    }
 </style>
 <body>
+<div id="loading-overlay">
+    <div class="arc"></div>
+    <h1 class="loading-h1"><span>LOADING</span></h1>
+</div>
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-search"></i> 智能解析</h1>

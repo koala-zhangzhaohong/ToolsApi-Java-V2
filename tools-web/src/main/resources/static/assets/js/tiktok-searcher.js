@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const apiRanklistInfoData = document.getElementById('info-ranklist-container');
     const apiPreviewInfoData = document.getElementById('info-preview-container');
     const apiDownloadInfoData = document.getElementById('info-download-container');
+    const loading = document.getElementById('loading-overlay');
 
     // 从localStorage加载搜索历史
     let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
@@ -203,7 +204,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [高清]';
                     div.onclick = function () {
-                        doDownload(item.hd);
+                        doDownload(item.hd).catch(err => {
+                            console.error('下载出错:', err);
+                            loading.style.display = 'none';
+                        });
                     }
                     infoDownloadWrapper.appendChild(div);
                 }
@@ -212,7 +216,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [标清]';
                     div.onclick = function () {
-                        doDownload(item.sd);
+                        doDownload(item.sd).catch(err => {
+                            console.error('下载出错:', err);
+                            loading.style.display = 'none';
+                        });
                     }
                     infoDownloadWrapper.appendChild(div);
                 }
@@ -222,7 +229,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 div.className = 'info-button info-link';
                 div.textContent = '回源 [无代理]';
                 div.onclick = function () {
-                    doDownload(json.media_data.download_path);
+                    doDownload(json.media_data.download_path).catch(err => {
+                        console.error('下载出错:', err);
+                        loading.style.display = 'none';
+                    });
                 }
                 infoDownloadWrapper.appendChild(div);
             }
@@ -232,33 +242,55 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function doDownload(url) {
+    async function doDownload(url) {
+        loading.style.display = 'block';
         if (!isMobileDevice()) {
-            window.open(url, '_blank');
+            loading.style.display = 'none';
+            window.location.href = url;
         } else {
             fetch(url, {
                 method: 'GET',
                 headers: {}
             })
-                .then(res => {
+                .then(async res => {
                     if (!res.ok) throw new Error('下载失败');
                     const disposition = res.headers.get('Content-Disposition'.toLocaleLowerCase());
                     const regex = /filename=(\S*);/;
                     const filename = disposition ? disposition.replaceAll("\"", "").match(regex)[1] : 'download.bin';
-                    return res.blob().then(blob => ({blob, filename}));
+                    const reader = res.body.getReader();
+                    const chunks = [];
+                    while (true) {
+                        const {done, value} = await reader.read();
+                        if (done) {
+                            break;
+                        }
+                        chunks.push(value);
+                    }
+                    return {chunks: chunks, filename: filename};
                 })
-                .then(({blob, filename}) => {
-                    const url = URL.createObjectURL(blob);
+                .then(data => {
+                    const blobParts = [];
+                    for (const chunk of data.chunks) {
+                        blobParts.push(chunk);
+                    }
+                    return {blob: new Blob(blobParts), filename: data.filename};
+                })
+                .then(data => {
+                    const url = URL.createObjectURL(data.blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = filename;
+                    a.download = data.filename;
                     a.style.display = 'none';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
+                    loading.style.display = 'none';
                 })
-                .catch(err => console.error('下载出错:', err));
+                .catch(err => {
+                    console.error('下载出错:', err);
+                    loading.style.display = 'none';
+                });
         }
     }
 
@@ -452,4 +484,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (apiData !== undefined && apiData !== null && apiEmptyData !== undefined && apiEmptyData !== null) {
         updateApiData();
     }
+
+    loading.style.display = 'none';
 });
