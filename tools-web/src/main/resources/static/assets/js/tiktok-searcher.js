@@ -233,29 +233,33 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function doDownload(url) {
-        fetch(url, {
-            method: 'GET',
-            headers: {}
-        })
-            .then(res => {
-                if (!res.ok) throw new Error('下载失败');
-                const disposition = res.headers.get('Content-Disposition'.toLocaleLowerCase());
-                const regex = /filename=(\S*);/;
-                const filename = disposition ? disposition.replaceAll("\"", "").match(regex)[1] : 'download.bin';
-                return res.blob().then(blob => ({blob, filename}));
+        if (!isMobileDevice()) {
+            window.open(url, '_blank');
+        } else {
+            fetch(url, {
+                method: 'GET',
+                headers: {}
             })
-            .then(({blob, filename}) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            })
-            .catch(err => console.error('下载出错:', err));
+                .then(res => {
+                    if (!res.ok) throw new Error('下载失败');
+                    const disposition = res.headers.get('Content-Disposition'.toLocaleLowerCase());
+                    const regex = /filename=(\S*);/;
+                    const filename = disposition ? disposition.replaceAll("\"", "").match(regex)[1] : 'download.bin';
+                    return res.blob().then(blob => ({blob, filename}));
+                })
+                .then(({blob, filename}) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                })
+                .catch(err => console.error('下载出错:', err));
+        }
     }
 
     function getTextContent(text) {
@@ -277,6 +281,12 @@ document.addEventListener('DOMContentLoaded', function () {
             return false;
         }
         return text.length > 0;
+    }
+
+    function isMobileDevice() {
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        const mobileRegex = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|windows phone|phone|webos|kindle|tablet/i;
+        return mobileRegex.test(ua.toLowerCase());
     }
 
     function getClient() {
