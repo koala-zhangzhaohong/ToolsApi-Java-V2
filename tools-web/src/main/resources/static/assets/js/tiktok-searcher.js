@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const apiRanklistInfoData = document.getElementById('info-ranklist-container');
     const apiPreviewInfoData = document.getElementById('info-preview-container');
     const apiDownloadInfoData = document.getElementById('info-download-container');
+    const loading = document.getElementById('loading-overlay');
 
     // 从localStorage加载搜索历史
     let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
@@ -203,7 +204,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [高清]';
                     div.onclick = function () {
-                        doDownload(item.hd).catch(err => console.error('下载出错:', err));
+                        doDownload(item.hd).catch(err => {
+                            console.error('下载出错:', err);
+                            loading.style.display = 'none';
+                        });
                     }
                     infoDownloadWrapper.appendChild(div);
                 }
@@ -212,7 +216,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [标清]';
                     div.onclick = function () {
-                        doDownload(item.sd).catch(err => console.error('下载出错:', err));
+                        doDownload(item.sd).catch(err => {
+                            console.error('下载出错:', err);
+                            loading.style.display = 'none';
+                        });
                     }
                     infoDownloadWrapper.appendChild(div);
                 }
@@ -222,7 +229,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 div.className = 'info-button info-link';
                 div.textContent = '回源 [无代理]';
                 div.onclick = function () {
-                    doDownload(json.media_data.download_path).catch(err => console.error('下载出错:', err));
+                    doDownload(json.media_data.download_path).catch(err => {
+                        console.error('下载出错:', err);
+                        loading.style.display = 'none';
+                    });
                 }
                 infoDownloadWrapper.appendChild(div);
             }
@@ -233,8 +243,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function doDownload(url) {
-        document.activeElement?.blur();
+        loading.style.display = 'block';
         if (!isMobileDevice()) {
+            loading.style.display = 'none';
             window.location.href = url;
         } else {
             fetch(url, {
@@ -274,8 +285,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
+                    loading.style.display = 'none';
                 })
-                .catch(err => console.error('下载出错:', err));
+                .catch(err => {
+                    console.error('下载出错:', err);
+                    loading.style.display = 'none';
+                });
         }
     }
 
@@ -469,4 +484,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (apiData !== undefined && apiData !== null && apiEmptyData !== undefined && apiEmptyData !== null) {
         updateApiData();
     }
+
+    loading.style.display = 'none';
 });
