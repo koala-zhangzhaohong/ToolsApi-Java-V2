@@ -81,6 +81,11 @@
         white-space: nowrap;
         text-align: center;
         margin: 6px;
+        -webkit-user-select: none; /* Safari */
+        -moz-user-select: none;    /* Firefox */
+        -ms-user-select: none;     /* IE 10+ */
+        user-select: none;         /* 标准语法 */
+        -webkit-touch-callout: none; /* 禁用 iOS 长按弹出菜单 */
     }
 
     .info-button {

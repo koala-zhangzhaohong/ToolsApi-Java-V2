@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [高清]';
                     div.onclick = function () {
-                        doDownload(item.hd);
+                        doDownload(item.hd).catch(err => console.error('下载出错:', err));
                     }
                     infoDownloadWrapper.appendChild(div);
                 }
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [标清]';
                     div.onclick = function () {
-                        doDownload(item.sd);
+                        doDownload(item.sd).catch(err => console.error('下载出错:', err));
                     }
                     infoDownloadWrapper.appendChild(div);
                 }
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 div.className = 'info-button info-link';
                 div.textContent = '回源 [无代理]';
                 div.onclick = function () {
-                    doDownload(json.media_data.download_path);
+                    doDownload(json.media_data.download_path).catch(err => console.error('下载出错:', err));
                 }
                 infoDownloadWrapper.appendChild(div);
             }
