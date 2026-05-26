@@ -99,14 +99,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (checkIsNotEmptyContent(json.rank_data.rank_list_url) || checkIsNotEmptyContent(json.rank_data.rank_list_url_backup)) {
             if (checkIsNotEmptyContent(json.rank_data.rank_list_url)) {
                 const a = document.createElement('a');
-                a.className = 'info-button';
+                a.className = 'info-button info-link';
                 a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url))}`;
                 a.textContent = '用户查询[简略]';
                 infoRanklistWrapper.appendChild(a);
             }
             if (checkIsNotEmptyContent(json.rank_data.rank_list_url_backup)) {
                 const a = document.createElement('a');
-                a.className = 'info-button';
+                a.className = 'info-button info-link';
                 a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url_backup))}`;
                 a.textContent = '用户反查[Pro]';
                 infoRanklistWrapper.appendChild(a);
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
                     const a = document.createElement('a');
-                    a.className = 'info-button';
+                    a.className = 'info-button info-link';
                     a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(item))}`;
                     a.textContent = prefix + " - 用户反查";
                     infoRanklistWrapper.appendChild(a);
@@ -139,14 +139,14 @@ document.addEventListener('DOMContentLoaded', function () {
             apiPreviewStateLock = true;
             json.media_data.proxy_preview_path.forEach((item, index) => {
                 const a = document.createElement('a');
-                a.className = 'info-button';
+                a.className = 'info-button info-link';
                 a.href = item;
                 a.textContent = '线路 - ' + (index + 1);
                 infoPreviewWrapper.appendChild(a);
             });
             if (checkIsNotEmptyContent(json.media_data.preview_path)) {
                 const a = document.createElement('a');
-                a.className = 'info-button';
+                a.className = 'info-button info-link';
                 a.href = json.media_data.preview_path;
                 a.textContent = '回源 [无代理]';
                 infoPreviewWrapper.appendChild(a);
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (checkIsNotEmptyContent(json.media_data.preview_path_flv)) {
                 state = true;
                 const flv = document.createElement('a');
-                flv.className = 'info-button';
+                flv.className = 'info-button info-link';
                 flv.href = json.media_data.preview_path_flv;
                 flv.textContent = '线路 - flv';
                 infoPreviewWrapper.appendChild(flv);
@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (checkIsNotEmptyContent(json.media_data.preview_path_hls)) {
                 state = true;
                 const hls = document.createElement('a');
-                hls.className = 'info-button';
+                hls.className = 'info-button info-link';
                 hls.href = json.media_data.preview_path_hls;
                 hls.textContent = '线路 - hls';
                 infoPreviewWrapper.appendChild(hls);
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (checkIsNotEmptyContent(json.media_data.preview_path) && !apiPreviewStateLock) {
             if (json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/picture/short") || json.media_data.preview_path.startsWith(currentHost + "tools/DouYin/pro/player/music/short")) {
                 const a = document.createElement('a');
-                a.className = 'info-button';
+                a.className = 'info-button info-link';
                 a.href = json.media_data.preview_path;
                 a.textContent = '线路 - 1';
                 infoPreviewWrapper.appendChild(a);
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
             json.media_data.proxy_download_path.forEach((item, index) => {
                 if (checkIsNotEmptyContent(item.hd)) {
                     const div = document.createElement('div');
-                    div.className = 'info-button';
+                    div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [高清]';
                     div.onclick = function () {
                         doDownload(item.hd);
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 if (checkIsNotEmptyContent(item.sd)) {
                     const div = document.createElement('div');
-                    div.className = 'info-button';
+                    div.className = 'info-button info-link';
                     div.textContent = '线路 - ' + (index + 1) + ' [标清]';
                     div.onclick = function () {
                         doDownload(item.sd);
@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             if (checkIsNotEmptyContent(json.media_data.download_path)) {
                 const div = document.createElement('div');
-                div.className = 'info-button';
+                div.className = 'info-button info-link';
                 div.textContent = '回源 [无代理]';
                 div.onclick = function () {
                     doDownload(json.media_data.download_path);
