@@ -232,26 +232,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function doDownload(url) {
+    async function doDownload(url) {
         if (!isMobileDevice()) {
-            window.open(url, '_blank');
+            window.location.href = url;
         } else {
             fetch(url, {
                 method: 'GET',
                 headers: {}
             })
-                .then(res => {
+                .then(async res => {
                     if (!res.ok) throw new Error('下载失败');
                     const disposition = res.headers.get('Content-Disposition'.toLocaleLowerCase());
                     const regex = /filename=(\S*);/;
                     const filename = disposition ? disposition.replaceAll("\"", "").match(regex)[1] : 'download.bin';
-                    return res.blob().then(blob => ({blob, filename}));
+                    const reader = res.body.getReader();
+                    const chunks = [];
+                    while (true) {
+                        const {done, value} = await reader.read();
+                        if (done) {
+                            break;
+                        }
+                        chunks.push(value);
+                    }
+                    return {chunks: chunks, filename: filename};
                 })
-                .then(({blob, filename}) => {
-                    const url = URL.createObjectURL(blob);
+                .then(data => {
+                    const blobParts = [];
+                    for (const chunk of data.chunks) {
+                        blobParts.push(chunk);
+                    }
+                    return {blob: new Blob(blobParts), filename: data.filename};
+                })
+                .then(data => {
+                    const url = URL.createObjectURL(data.blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = filename;
+                    a.download = data.filename;
                     a.style.display = 'none';
                     document.body.appendChild(a);
                     a.click();
