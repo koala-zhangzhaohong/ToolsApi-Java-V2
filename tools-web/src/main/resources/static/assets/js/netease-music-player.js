@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (emptyContainer) emptyContainer.style.display = 'none';
             const loadingContainer = container.querySelector('.quality-loading-container');
             if (loadingContainer) {
-                loadingContainer.innerHTML = `<div class="arc"></div><h1><span>LOADING</span></h1>`;
+                loadingContainer.innerHTML = `<div class="arc"></div><h1 class="loading-h1"><span>LOADING</span></h1>`;
                 loadingContainer.style.display = 'block';
             }
             const urlList = [];

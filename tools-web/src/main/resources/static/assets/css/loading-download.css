@@ -1,4 +1,4 @@
-@keyframes download-txt {
+@keyframes txt {
     0% {
         content: "下载将于数秒内开始.";
     }
@@ -8,9 +8,4 @@
     100% {
         content: "下载将于数秒内开始...";
     }
-}
-
-h1::after {
-    animation: download-txt 5s infinite !important;
-    content: "";
 }
