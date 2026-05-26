@@ -233,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function doDownload(url) {
+        document.activeElement?.blur();
         if (!isMobileDevice()) {
             window.location.href = url;
         } else {
