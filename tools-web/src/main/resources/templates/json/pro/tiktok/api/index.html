@@ -111,6 +111,19 @@
     .info-desc, .info-nickname, .info-user-id, .info-unique-id {
         word-break: break-all;
     }
+
+    /* 指定 div 下的所有 a 标签 */
+    .info-link {
+        color: #0066cc;          /* 设置链接文字颜色 */
+        text-decoration: none;   /* 去除下划线 */
+        transition: all 0.3s;    /* 添加平滑过渡效果 */
+    }
+
+    /* 鼠标悬停在链接上时的样式 */
+    .info-link:hover {
+        color: #ffffff;          /* 悬停时的文字颜色 */
+        text-decoration: underline; /* 悬停时显示下划线 */
+    }
 </style>
 <body>
 <div class="container">
