@@ -199,34 +199,63 @@ document.addEventListener('DOMContentLoaded', function () {
         if (checkIsNotEmptyArr(json.media_data.proxy_download_path)) {
             json.media_data.proxy_download_path.forEach((item, index) => {
                 if (checkIsNotEmptyContent(item.hd)) {
-                    const a = document.createElement('a');
-                    a.className = 'info-button';
-                    a.href = item.hd;
-                    a.textContent = '线路 - ' + (index + 1) + ' [高清]';
-                    a.download = getQueryVariable(item.hd, 'key');
-                    infoDownloadWrapper.appendChild(a);
+                    const div = document.createElement('div');
+                    div.className = 'info-button';
+                    div.textContent = '线路 - ' + (index + 1) + ' [高清]';
+                    div.onclick = function () {
+                        doDownload(item.hd);
+                    }
+                    infoDownloadWrapper.appendChild(div);
                 }
                 if (checkIsNotEmptyContent(item.sd)) {
-                    const a = document.createElement('a');
-                    a.className = 'info-button';
-                    a.href = item.sd;
-                    a.textContent = '线路 - ' + (index + 1) + ' [标清]';
-                    a.download = getQueryVariable(item.sd, 'key');
-                    infoDownloadWrapper.appendChild(a);
+                    const div = document.createElement('div');
+                    div.className = 'info-button';
+                    div.textContent = '线路 - ' + (index + 1) + ' [标清]';
+                    div.onclick = function () {
+                        doDownload(item.sd);
+                    }
+                    infoDownloadWrapper.appendChild(div);
                 }
             });
             if (checkIsNotEmptyContent(json.media_data.download_path)) {
-                const a = document.createElement('a');
-                a.className = 'info-button';
-                a.href = json.media_data.download_path;
-                a.textContent = '回源 [无代理]';
-                a.download = getQueryVariable(json.media_data.download_path, 'key');
-                infoDownloadWrapper.appendChild(a);
+                const div = document.createElement('div');
+                div.className = 'info-button';
+                div.textContent = '回源 [无代理]';
+                div.onclick = function () {
+                    doDownload(json.media_data.download_path);
+                }
+                infoDownloadWrapper.appendChild(div);
             }
             apiDownloadInfoData.style.display = 'block';
         } else {
             apiDownloadInfoData.style.display = 'none';
         }
+    }
+
+    function doDownload(url) {
+        fetch(url, {
+            method: 'GET',
+            headers: {}
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('下载失败');
+                const disposition = res.headers.get('Content-Disposition'.toLocaleLowerCase());
+                const regex = /filename=(\S*);/;
+                const filename = disposition ? disposition.replaceAll("\"", "").match(regex)[1] : 'download.bin';
+                return res.blob().then(blob => ({blob, filename}));
+            })
+            .then(({blob, filename}) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            })
+            .catch(err => console.error('下载出错:', err));
     }
 
     function getTextContent(text) {
