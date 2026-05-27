@@ -506,7 +506,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    styleObserver.observe(loading, {attributes: true});
-
-    loading.style.display = 'none';
+    if (loading !== undefined && loading !== null) {
+        styleObserver.observe(loading, {attributes: true});
+        loading.style.display = 'none';
+    }
 });
