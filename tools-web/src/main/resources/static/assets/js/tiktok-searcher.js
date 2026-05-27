@@ -485,5 +485,28 @@ document.addEventListener('DOMContentLoaded', function () {
         updateApiData();
     }
 
+    const styleObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                const currentDisplay = window.getComputedStyle(mutation.target).display;
+                if (currentDisplay === 'block') {
+                    document.querySelectorAll('.info-button').forEach(element => {
+                        if (!element.classList.contains('disable-hover')) {
+                            element.classList.add('disable-hover');
+                        }
+                    })
+                } else {
+                    document.querySelectorAll('.info-button').forEach(element => {
+                        if (element.classList.contains('disable-hover')) {
+                            element.classList.remove('disable-hover');
+                        }
+                    })
+                }
+            }
+        });
+    });
+
+    styleObserver.observe(loading, {attributes: true});
+
     loading.style.display = 'none';
 });
