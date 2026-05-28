@@ -291,7 +291,23 @@ public class KugouToolsController {
                 if (Objects.isNull(respData) || respData.getUrl().isEmpty()) {
                     return;
                 }
-                HttpClientUtil.doRelay(respData.getUrl().get(0), HeaderUtil.getKugouMediaDownloadHeader(), null, 206, HeaderUtil.getMockDownloadKugouFileHeader(fileName, respData.getExtName()), request, response);
+                StringBuilder cdnHostPrefix = new StringBuilder(hostManager.getCdnHost());
+                cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
+                String url = CdnServiceGenerator.getCdnService(
+                        respData.getUrl().getFirst(),
+                        hostManager.getHost(),
+                        cdnHostPrefix.toString(),
+                        true,
+                        null,
+                        null,
+                        respData.getExtName(),
+                        true,
+                        null,
+                        true,
+                        true,
+                        redisService
+                );
+                redirectStrategy.sendRedirect(request, response, url);
             }
         } catch (Exception e) {
             e.printStackTrace();
