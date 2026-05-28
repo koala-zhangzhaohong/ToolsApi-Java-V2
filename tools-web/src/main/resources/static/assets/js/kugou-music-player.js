@@ -1711,7 +1711,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 currentLine.classList.add('active');
 
                 // 滚动到当前行
-                if (lyricOverlay.style.display === 'flex') {
+                if (lyricOverlay.style.display === 'grid') {
                     currentLine.scrollIntoView({
                         behavior: 'smooth', block: 'center'
                     });
@@ -1722,12 +1722,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 切换歌词显示
     function toggleLyricOverlay() {
-        const isVisible = lyricOverlay.style.display === 'flex';
-        lyricOverlay.style.display = isVisible ? 'none' : 'flex';
+        const isVisible = lyricOverlay.style.display === 'grid';
+        lyricOverlay.style.display = isVisible ? 'none' : 'grid';
         if (isVisible) {
-            document.querySelector('.player-container').classList.remove('player-container-custom');
+            document.querySelector('.player-container-wrapper').classList.remove('player-container-multi-wrapper');
         } else {
-            document.querySelector('.player-container').classList.add('player-container-custom');
+            document.querySelector('.player-container-wrapper').classList.add('player-container-multi-wrapper');
         }
 
         if (!isVisible) {
@@ -2444,7 +2444,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             case 'Escape': // ESC键，关闭所有面板
                 if (fullscreenMode.style.display === 'flex') {
                     toggleFullscreenMode();
-                } else if (lyricOverlay.style.display === 'flex') {
+                } else if (lyricOverlay.style.display === 'grid') {
                     toggleLyricOverlay();
                 } else if (playlistModal.style.display === 'flex') {
                     togglePlaylistModal();
