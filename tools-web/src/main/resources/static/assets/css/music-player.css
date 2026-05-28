@@ -1632,6 +1632,10 @@ body {
     .player-container-multi-wrapper {
         height: 80vh;
     }
+
+    .lyric-overlay {
+        height: unset;
+    }
 }
 
 .enable-gpu {
