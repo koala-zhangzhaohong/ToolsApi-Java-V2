@@ -21,125 +21,129 @@
 </div>
 <div class="background"></div>
 
-<div class="player-container">
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-        <button class="action-btn" id="playlistBtn" title="播放列表">
-            <i class="fas fa-list"></i>
-        </button>
-        <button class="action-btn" id="toggleFullscreen" title="全屏模式">
-            <i class="fas fa-expand"></i>
-        </button>
-    </div>
-
-    <!-- Album Cover -->
-    <div class="cover" id="coverArt">
-        <div class="cover-background" id="coverBackground"></div>
-        <div id="coverPlaceholder">暂无封面</div>
-        <img src="" alt="专辑封面" id="coverImage" style="display: none;">
-    </div>
-
-    <!-- Visualization -->
-    <div class="visualization" id="visualization">
-        <!-- 音频可视化条将通过JS动态创建 -->
-    </div>
-
-    <!-- Now Playing Info -->
-    <div class="now-playing">
-        <div class="song-title" id="songTitle">未加载音乐</div>
-        <div class="song-artist" id="songArtist">未知艺术家</div>
-    </div>
-
-    <!-- Progress Bar -->
-    <div class="progress-container">
-        <input type="range" id="progressBar" min="0" max="100" value="0"
-               style="writing-mode: horizontal-tb; direction: ltr;">
-        <div class="progress-info">
-            <span id="currentTime">00:00</span>
-            <span id="totalTime">00:00</span>
-        </div>
-    </div>
-
-    <!-- Volume Control -->
-    <div class="volume-control-container">
-        <div class="volume-wrapper">
-            <div class="volume-icon" id="volumeIcon">
-                <i class="fas fa-volume-up"></i>
+<div class="player-wrapper">
+    <div class="player-container-wrapper">
+        <div class="player-container">
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="action-btn" id="playlistBtn" title="播放列表">
+                    <i class="fas fa-list"></i>
+                </button>
+                <button class="action-btn" id="toggleFullscreen" title="全屏模式">
+                    <i class="fas fa-expand"></i>
+                </button>
             </div>
-            <div class="volume-slider">
-                <input type="range" id="volumeControl" min="0" max="100" value="80"
+
+            <!-- Album Cover -->
+            <div class="cover" id="coverArt">
+                <div class="cover-background" id="coverBackground"></div>
+                <div id="coverPlaceholder">暂无封面</div>
+                <img src="" alt="专辑封面" id="coverImage" style="display: none;">
+            </div>
+
+            <!-- Visualization -->
+            <div class="visualization" id="visualization">
+                <!-- 音频可视化条将通过JS动态创建 -->
+            </div>
+
+            <!-- Now Playing Info -->
+            <div class="now-playing">
+                <div class="song-title" id="songTitle">未加载音乐</div>
+                <div class="song-artist" id="songArtist">未知艺术家</div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <input type="range" id="progressBar" min="0" max="100" value="0"
                        style="writing-mode: horizontal-tb; direction: ltr;">
+                <div class="progress-info">
+                    <span id="currentTime">00:00</span>
+                    <span id="totalTime">00:00</span>
+                </div>
             </div>
-            <div class="volume-value" id="volumeValue">80%</div>
+
+            <!-- Volume Control -->
+            <div class="volume-control-container">
+                <div class="volume-wrapper">
+                    <div class="volume-icon" id="volumeIcon">
+                        <i class="fas fa-volume-up"></i>
+                    </div>
+                    <div class="volume-slider">
+                        <input type="range" id="volumeControl" min="0" max="100" value="80"
+                               style="writing-mode: horizontal-tb; direction: ltr;">
+                    </div>
+                    <div class="volume-value" id="volumeValue">80%</div>
+                </div>
+            </div>
+
+            <!-- Playback Speed Control -->
+            <div class="speed-container">
+                <div class="speed-wrapper">
+                    <button class="speed-btn" data-speed="0.5">0.5x</button>
+                    <button class="speed-btn" data-speed="0.75">0.75x</button>
+                    <button class="speed-btn active" data-speed="1.0">1.0x</button>
+                    <button class="speed-btn" data-speed="1.25">1.25x</button>
+                    <button class="speed-btn" data-speed="1.5">1.5x</button>
+                    <button class="speed-btn" data-speed="2.0">2.0x</button>
+                </div>
+            </div>
+
+            <!-- Extra Controls for Mobile -->
+            <div class="extra-controls">
+                <button class="feature-btn" id="changeQualityBtn" title="线路切换">
+                    <i class="fas fa-retweet"></i>
+                </button>
+                <button class="feature-btn" id="equalizerBtn" title="音效均衡器">
+                    <i class="fas fa-sliders-h"></i>
+                </button>
+                <button class="feature-btn" id="sleepTimerBtn" title="睡眠定时器">
+                    <i class="fas fa-clock"></i>
+                </button>
+                <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
+                    <i class="fas fa-align-left"></i>
+                </button>
+            </div>
+
+            <!-- Main Controls -->
+            <div class="controls">
+                <div class="repeat-btn" id="repeatBtn" title="切换重复模式" style="visibility: hidden; display: none;"
+                     disabled>
+                    <i class="fas fa-redo-alt"></i>
+                </div>
+
+                <div class="playback-controls">
+                    <button class="control-btn control-btn-small" id="prevBtn">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+
+                    <button class="control-btn" id="playPauseBtn">
+                        <i class="fas fa-play" id="playPauseIcon"></i>
+                    </button>
+
+                    <button class="control-btn control-btn-small" id="nextBtn">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                </div>
+
+                <button class="refresh-background" id="refreshBackground" style="visibility: hidden; display: none;"
+                        title="刷新背景">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <div class="date-time" id="dateTime"></div>
         </div>
     </div>
-
-    <!-- Playback Speed Control -->
-    <div class="speed-container">
-        <div class="speed-wrapper">
-            <button class="speed-btn" data-speed="0.5">0.5x</button>
-            <button class="speed-btn" data-speed="0.75">0.75x</button>
-            <button class="speed-btn active" data-speed="1.0">1.0x</button>
-            <button class="speed-btn" data-speed="1.25">1.25x</button>
-            <button class="speed-btn" data-speed="1.5">1.5x</button>
-            <button class="speed-btn" data-speed="2.0">2.0x</button>
-        </div>
-    </div>
-
-    <!-- Extra Controls for Mobile -->
-    <div class="extra-controls">
-        <button class="feature-btn" id="changeQualityBtn" title="线路切换">
-            <i class="fas fa-retweet"></i>
-        </button>
-        <button class="feature-btn" id="equalizerBtn" title="音效均衡器">
-            <i class="fas fa-sliders-h"></i>
-        </button>
-        <button class="feature-btn" id="sleepTimerBtn" title="睡眠定时器">
-            <i class="fas fa-clock"></i>
-        </button>
-        <button class="feature-btn" id="showLyricsBtn" title="显示歌词">
-            <i class="fas fa-align-left"></i>
-        </button>
-    </div>
-
-    <!-- Main Controls -->
-    <div class="controls">
-        <div class="repeat-btn" id="repeatBtn" title="切换重复模式" style="visibility: hidden; display: none;" disabled>
-            <i class="fas fa-redo-alt"></i>
-        </div>
-
-        <div class="playback-controls">
-            <button class="control-btn control-btn-small" id="prevBtn">
-                <i class="fas fa-step-backward"></i>
-            </button>
-
-            <button class="control-btn" id="playPauseBtn">
-                <i class="fas fa-play" id="playPauseIcon"></i>
-            </button>
-
-            <button class="control-btn control-btn-small" id="nextBtn">
-                <i class="fas fa-step-forward"></i>
-            </button>
-        </div>
-
-        <button class="refresh-background" id="refreshBackground" style="visibility: hidden; display: none;"
-                title="刷新背景">
-            <i class="fas fa-sync-alt"></i>
-        </button>
-    </div>
-
-    <div class="date-time" id="dateTime"></div>
-</div>
-
-<!-- Lyric Overlay -->
-<div class="lyric-overlay" id="lyricOverlay">
-    <div class="lyric-content" id="lyricContent">
-        <div class="lyric-header">
-            <div class="lyric-title" id="lyricTitle">歌词</div>
-            <button class="close-lyrics" id="closeLyrics">&times;</button>
-        </div>
-        <div id="lyricLines">
-            <!-- 歌词将通过JS动态添加 -->
+    <!-- Lyric Overlay -->
+    <div class="lyric-overlay" id="lyricOverlay">
+        <div class="lyric-content" id="lyricContent">
+            <div class="lyric-header">
+                <div class="lyric-title" id="lyricTitle">歌词</div>
+                <button class="close-lyrics" id="closeLyrics">&times;</button>
+            </div>
+            <div id="lyricLines">
+                <!-- 歌词将通过JS动态添加 -->
+            </div>
         </div>
     </div>
 </div>

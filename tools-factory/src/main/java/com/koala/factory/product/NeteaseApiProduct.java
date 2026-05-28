@@ -113,7 +113,7 @@ public class NeteaseApiProduct {
                 this.itemInfoData = GsonUtil.toBean(itemInfoResponse, NeteaseMusicItemInfoRespModel.class);
                 this.itemInfoData.getData().get(0).setCdnUrl(
                         CdnServiceGenerator.getCdnService(
-                                this.itemInfoData.getData().get(0).getUrl(),
+                                this.itemInfoData.getData().get(0).getUrl().split("\\?")[0],
                                 host,
                                 cdnHostPrefix.toString(),
                                 true,
