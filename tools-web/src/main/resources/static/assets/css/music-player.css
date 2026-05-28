@@ -471,7 +471,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: 100vh;
     display: none;
     z-index: 1000;
     overflow: hidden;
@@ -1623,6 +1623,14 @@ body {
 @media only screen and (max-width: 960px) {
     body {
         flex-direction: column;
+    }
+
+    .player-wrapper {
+        grid-template-columns: unset;
+    }
+
+    .player-container-multi-wrapper {
+        height: 80vh;
     }
 }
 
