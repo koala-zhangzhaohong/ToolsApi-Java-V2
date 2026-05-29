@@ -1,0 +1,146 @@
+version: '3'
+services:
+#  traefik-prometheus:
+#    image: prom/prometheus:latest
+#    container_name: traefik-prometheus
+#    ports: [ "56003:9090" ]
+#    volumes:
+#      - /www/docker/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml
+#    networks:
+#      - traefik-gateway-v1
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 14G
+#          cpus: "10.00"
+
+  traefik-otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: traefik-otel-lgtm
+    ports:
+      - "56003:3000" # Grafana UI
+#      - "4317:4317" # OTLP gRPC
+#      - "4318:4318" # OTLP HTTP
+    networks:
+      - traefik-gateway-v1
+    environment:
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
+      - GF_PLUGINS_ENABLE_ALPHA=true
+      - GF_ALLOW_EMBEDDING=true
+      - GF_grafanaconThemes=true
+      # - ENABLE_LOGS_GRAFANA=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_FEATURE_TOGGLES_ENABLE=provisioning,kubernetesDashboards
+      - TZ=Asia/Shanghai
+      - LOKI_ARGS=--pattern-ingester.enabled=true
+    volumes:
+      - /www/docker/otel-lgtm/data:/data
+      - /www/docker/otel-lgtm/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards
+      - /www/docker/otel-lgtm/loki/config/loki-config.yaml:/otel-lgtm/loki-config.yaml
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 14G
+          cpus: "10.00"
+
+  traefik:
+    image: traefik:v3.7.1  # 使用 Traefik 的最新版本
+    container_name: traefik-gateway-v1
+    restart: always
+    labels:
+      - "--accessLog.otlp.grpc.endpoint=traefik-otel-lgtm:4317"
+      - "--metrics.otlp.grpc.endpoint=traefik-otel-lgtm:4317"
+      - "--tracing.otlp.grpc.endpoint=traefik-otel-lgtm:4317"
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - 56000:80
+      - "56443:443/tcp"
+      - "56443:443/udp"
+      - 56001:8080
+      - 56002:8082
+    environment:
+      - TZ=Asia/Shanghai
+      - DUCKDNS_TOKEN=1483f595-788e-4e57-965c-7aab30f57509
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /www/docker/traefik/v1/traefik.yml:/traefik.yml:ro
+      - /www/docker/traefik/v1/logs:/etc/traefik/logs
+      - /www/docker/traefik/v1/config:/etc/traefik/config
+      - /www/docker/traefik/v1/certs:/etc/traefik/certs
+      - /etc/localtime:/etc/localtime
+    depends_on:
+      - traefik-otel-lgtm
+    networks:
+      - traefik-gateway-v1
+    deploy:
+      resources:
+        limits:
+          memory: 14G
+          cpus: "10.00"
+
+  traefik-middleware-multiple-1:
+    image: tools-api-package:2.1.0.4-docker
+    container_name: traefik-middleware-multiple-1
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
+      - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
+      - "traefik.http.middlewares.gzip.compress=true"
+      - "traefik.http.services.traefik-middleware-service-https.loadbalancer.server.port=8080"
+    networks:
+      - traefik-gateway-v1
+    depends_on:
+      - traefik
+    deploy:
+      resources:
+        limits:
+          memory: 22G
+          cpus: "14.00"
+
+  traefik-middleware-multiple-2:
+    image: tools-api-package:2.1.0.4-docker
+    container_name: traefik-middleware-multiple-2
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
+      - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
+      - "traefik.http.middlewares.gzip.compress=true"
+      - "traefik.http.services.traefik-middleware-service-https.loadbalancer.server.port=8080"
+    networks:
+      - traefik-gateway-v1
+    depends_on:
+      - traefik
+    deploy:
+      resources:
+        limits:
+          memory: 22G
+          cpus: "14.00"
+
+  traefik-middleware-multiple-3:
+    image: tools-api-package:2.1.0.4-docker
+    container_name: traefik-middleware-multiple-3
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
+      - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
+      - "traefik.http.middlewares.gzip.compress=true"
+      - "traefik.http.services.traefik-middleware-service-https.loadbalancer.server.port=8080"
+    networks:
+      - traefik-gateway-v1
+    depends_on:
+      - traefik
+    deploy:
+      resources:
+        limits:
+          memory: 22G
+          cpus: "14.00"
+
+networks:
+  traefik-gateway-v1:
+    external: true  # 如果不存在，Traefik 将创建它
+    driver: bridge
