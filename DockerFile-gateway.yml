@@ -88,7 +88,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
       - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip, strip-prefix"
-      - "traefik.http.routers.traefik-middleware-service-https.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.traefik-middleware-service-http.rule=PathPrefix(`/`)"
       - "traefik.http.middlewares.gzip.compress=true"
       - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
     networks:
@@ -109,7 +109,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
       - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip, strip-prefix"
-      - "traefik.http.routers.traefik-middleware-service-https.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.traefik-middleware-service-http.rule=PathPrefix(`/`)"
       - "traefik.http.middlewares.gzip.compress=true"
       - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
     networks:
@@ -130,7 +130,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
       - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip, strip-prefix"
-      - "traefik.http.routers.traefik-middleware-service-https.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.traefik-middleware-service-http.rule=PathPrefix(`/`)"
       - "traefik.http.middlewares.gzip.compress=true"
       - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
     networks:
