@@ -89,7 +89,7 @@ services:
       - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
       - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
       - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.services.traefik-middleware-service-https.loadbalancer.server.port=8080"
+      - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
     networks:
       - traefik-gateway-v1
     depends_on:
@@ -109,7 +109,7 @@ services:
       - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
       - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
       - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.services.traefik-middleware-service-https.loadbalancer.server.port=8080"
+      - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
     networks:
       - traefik-gateway-v1
     depends_on:
@@ -129,7 +129,7 @@ services:
       - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
       - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
       - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.services.traefik-middleware-service-https.loadbalancer.server.port=8080"
+      - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
     networks:
       - traefik-gateway-v1
     depends_on:
