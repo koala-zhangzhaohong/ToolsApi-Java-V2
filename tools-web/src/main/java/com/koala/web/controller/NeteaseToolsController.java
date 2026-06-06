@@ -380,16 +380,16 @@ public class NeteaseToolsController {
 
     @HttpRequestRecorder
     @GetMapping("reset/cookie")
-    public String resetCookie(@RequestParam(required = false) String lock) {
+    public String resetCookie(@RequestParam(required = false) String lock, @RequestParam(required = false) String cookie) {
         redisService.set(NETEASE_COOKIE_LOCK, lock, 14 * 24 * 60 * 60L);
-        neteaseCookieUtil.doRefreshNeteaseCookieTask();
+        neteaseCookieUtil.doRefreshNeteaseCookieTask(cookie);
         return redisService.get(NETEASE_COOKIE_DATA);
     }
 
     @HttpRequestRecorder
     @GetMapping("refresh/cookie")
     public String refreshCookie() {
-        neteaseCookieUtil.doRefreshNeteaseCookieTask();
+        neteaseCookieUtil.doRefreshNeteaseCookieTask(null);
         return redisService.get(NETEASE_COOKIE_DATA);
     }
 
@@ -412,7 +412,7 @@ public class NeteaseToolsController {
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshToken() {
-        neteaseCookieUtil.doRefreshNeteaseCookieTask();
+        neteaseCookieUtil.doRefreshNeteaseCookieTask(null);
     }
 
 }
