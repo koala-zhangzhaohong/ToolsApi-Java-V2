@@ -33,7 +33,7 @@ message Message {
   string wrdsSubKey = 8;
 }
 
-message LiveResponse {
+message LiveInfoResponse {
   repeated Message messagesList = 1;
   string cursor = 2;
   uint64 fetchInterval = 3;
@@ -48,15 +48,18 @@ message LiveResponse {
   bool historyNoMore = 12;
   string proxyServer = 13;
 }
+
 message Image {
   Content content = 8;
 }
+
 message Content {
   string name = 1;
   string font_color = 2;
   int64 level = 3;
   string alternative_text = 4;
 }
+
 message User {
   int64 id = 1;
   int64 short_id = 2;
