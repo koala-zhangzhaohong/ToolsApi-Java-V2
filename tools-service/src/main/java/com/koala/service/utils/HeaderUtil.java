@@ -316,6 +316,27 @@ public class HeaderUtil {
         return header;
     }
 
+    public static HashMap<String, String> getTiktokLiveGuestHeader() {
+        HashMap<String, String> header = new HashMap<>(0);
+        header.put("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7");
+        header.put("accept-language", "zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.7,ja;q=0.6");
+        header.put("cache-control", "no-cache");
+        header.put("pragma", "no-cache");
+        header.put("priority", "u=0, i");
+        header.put("referer", "https://live.douyin.com/?from_nav=1");
+        header.put("sec-ch-ua", "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"");
+        header.put("sec-ch-ua-mobile", "?0");
+        header.put("sec-ch-ua-platform", "\"Windows\"");
+        header.put("sec-fetch-dest", "empty");
+        header.put("sec-fetch-mode", "navigate");
+        header.put("sec-fetch-site", "same-origin");
+        header.put("upgrade-insecure-requests", "1");
+        header.put("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
+        header.put("X-FORWARDED-FOR", getRandomIpAddress());
+        header.put("CLIENT-IP", getRandomIpAddress());
+        return header;
+    }
+
     public static List<String> setCookies(Map<String, String> cookies) {
         List<String> list = new ArrayList<>();
         if (cookies != null) {
