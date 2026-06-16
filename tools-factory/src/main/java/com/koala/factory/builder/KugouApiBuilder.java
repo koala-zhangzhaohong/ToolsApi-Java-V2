@@ -1,7 +1,6 @@
 package com.koala.factory.builder;
 
 import com.koala.factory.extra.kugou.KugouCustomParamsUtil;
-import com.koala.factory.product.DouYinApiProduct;
 import com.koala.factory.product.KugouApiProduct;
 import com.koala.service.data.redis.service.RedisService;
 
