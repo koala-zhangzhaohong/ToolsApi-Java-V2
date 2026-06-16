@@ -11,6 +11,7 @@ import org.apache.hc.client5.http.cookie.Cookie;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
@@ -51,8 +52,12 @@ public class NeteaseCookieUtil {
     @Resource
     private RestTemplate restTemplate;
 
-    public void doRefreshNeteaseCookieTask() {
-        refreshNeteaseCookie(redisService.get(NETEASE_COOKIE_DATA));
+    public void doRefreshNeteaseCookieTask(String cookie) {
+        if (ObjectUtils.isEmpty(cookie)) {
+            refreshNeteaseCookie(redisService.get(NETEASE_COOKIE_DATA));
+        } else {
+            refreshNeteaseCookie(cookie);
+        }
     }
 
     public String getNeteaseCookie() {

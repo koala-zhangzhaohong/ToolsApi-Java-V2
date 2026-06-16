@@ -5,7 +5,6 @@ import com.koala.web.template.index.errorTemplate.NoPermissionTemplateWeb;
 import com.koala.web.template.index.errorTemplate.NotFoundTemplateWeb;
 import com.koala.web.template.index.errorTemplate.SystemErrorTemplateWeb;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.hc.core5.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

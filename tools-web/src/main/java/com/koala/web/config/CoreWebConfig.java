@@ -27,7 +27,6 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import jakarta.annotation.Resource;
 
 import java.io.File;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -164,8 +163,4 @@ public class CoreWebConfig implements WebMvcConfigurer {
         return "http://" + ip + "/";
     }
 
-    @Bean
-    public Environment getEnv() {
-        return applicationContext.getEnvironment();
-    }
 }

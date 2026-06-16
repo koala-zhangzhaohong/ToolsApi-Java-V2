@@ -2,7 +2,6 @@ package com.koala.factory.extra.tiktok;
 
 import com.koala.service.utils.HttpClientUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.util.TextUtils;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -75,17 +74,17 @@ public class XGorgonUtil {
 
     public static String getXGon(String url, String stub, String cookies) {
         StringBuilder sb = new StringBuilder();
-        if (TextUtils.isEmpty(url)) {
+        if (StringUtils.isEmpty(url)) {
             sb.append(NULL_MD5_STRING);
         } else {
             sb.append(Objects.requireNonNull(encryption(url)).toLowerCase());
         }
-        if (TextUtils.isEmpty(stub)) {
+        if (StringUtils.isEmpty(stub)) {
             sb.append(NULL_MD5_STRING);
         } else {
             sb.append(stub);
         }
-        if (TextUtils.isEmpty(cookies)) {
+        if (StringUtils.isEmpty(cookies)) {
             sb.append(NULL_MD5_STRING);
         } else {
             sb.append(Objects.requireNonNull(encryption(cookies)).toLowerCase());

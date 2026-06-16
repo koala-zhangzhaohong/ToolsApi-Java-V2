@@ -1,7 +1,6 @@
 package com.koala.data.models.shortUrl;
 
 import com.koala.data.models.douyin.MultiLiveQualityInfoModel;
-import com.koala.data.models.douyin.MultiVideoQualityInfoModel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
