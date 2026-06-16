@@ -49,7 +49,7 @@ public class WebSocketServer {
     //接受sid
     private String sid = "";
     private final KafkaService kafkaService = (KafkaService) BeanContext.getBean("EventTrackerKafkaService");
-    private final Environment env = (Environment) BeanContext.getBean("getEnv");
+    private final Environment env = (Environment) BeanContext.getBean("environment");
     private final String active = env.getProperty("spring.profiles.active");
     private final String version = env.getProperty("spring.application.version");
     private final String serverIp = env.getProperty("server.real.address");

@@ -164,8 +164,4 @@ public class CoreWebConfig implements WebMvcConfigurer {
         return "http://" + ip + "/";
     }
 
-    @Bean
-    public Environment getEnv() {
-        return applicationContext.getEnvironment();
-    }
 }
