@@ -81,7 +81,7 @@ services:
           cpus: "10.00"
 
   traefik-middleware-multiple-1:
-    image: tools-api-package:2.1.0.5-docker
+    image: tools-api-package:2.1.0.6-docker
     container_name: traefik-middleware-multiple-1
     restart: always
     labels:
