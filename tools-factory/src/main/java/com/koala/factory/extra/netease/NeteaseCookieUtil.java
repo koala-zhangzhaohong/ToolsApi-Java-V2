@@ -109,7 +109,7 @@ public class NeteaseCookieUtil {
         ResponseEntity<String> responseEntity = NeteaseRestTemplateUtil.post(new JSONObject(), getCurrentHost() + "tools/Netease/weapi/login/token/refresh", cookies, restTemplate);
         if (StringUtils.hasLength(responseEntity.getBody())) {
             Map<String, Object> data = GsonUtil.toMaps(responseEntity.getBody());
-            if ((Double) data.get("code") == 200) {
+            if (Objects.equals(data.get("code").toString(), "200")) {
                 List<String> cookieData = responseEntity.getHeaders().get("Set-Cookie");
                 StringBuilder cookieString = new StringBuilder();
                 if (!Objects.isNull(cookieData) && cookieData.stream().noneMatch(item -> item.startsWith("__csrf"))) {
