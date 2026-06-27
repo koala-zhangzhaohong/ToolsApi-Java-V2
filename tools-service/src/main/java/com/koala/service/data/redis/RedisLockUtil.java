@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +34,7 @@ public class RedisLockUtil {
     private void init() {
         try {
             String key = "checkRedisAlive";
-            redisTemplate.opsForValue().set(key, "0", 1, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(key, "0", Duration.ofMinutes(1));
             if ("0".equals(redisTemplate.opsForValue().get(key))) {
                 redisStatus = true;
             }

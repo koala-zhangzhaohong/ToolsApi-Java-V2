@@ -1,16 +1,18 @@
 package com.koala.service.custom.http.converter;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializationConfig;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
-import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.BeanDescription;
+import tools.jackson.databind.SerializationConfig;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
+import tools.jackson.databind.ser.BeanPropertyWriter;
+import tools.jackson.databind.ser.ValueSerializerModifier;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
@@ -20,14 +22,24 @@ import java.util.List;
  * @date 2022/4/3 12:01
  * @description
  */
-public class CustomMessageConverter extends MappingJackson2HttpMessageConverter {
+public class CustomMessageConverter extends JacksonJsonHttpMessageConverter {
+
+    public CustomMessageConverter() {
+        super(customJsonMapper());
+    }
+
+    private static JsonMapper customJsonMapper() {
+        SimpleModule module = new SimpleModule();
+        module.setSerializerModifier(new MyBeanSerializerModifier());
+        return JsonMapper.builder().addModule(module).build();
+    }
 
     /**
      * 处理数组类型的null值
      */
-    public static class NullArrayJsonSerializer extends JsonSerializer<Object> {
+    public static class NullArrayJsonSerializer extends ValueSerializer<Object> {
         @Override
-        public void serialize(Object value, JsonGenerator json, SerializerProvider provider) throws IOException {
+        public void serialize(Object value, JsonGenerator json, SerializationContext provider) throws JacksonException {
             if (value == null) {
                 json.writeStartArray();
                 json.writeEndArray();
@@ -39,9 +51,9 @@ public class CustomMessageConverter extends MappingJackson2HttpMessageConverter 
     /**
      * 处理字符串类型的null值
      */
-    public static class NullStringJsonSerializer extends JsonSerializer<Object> {
+    public static class NullStringJsonSerializer extends ValueSerializer<Object> {
         @Override
-        public void serialize(Object o, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+        public void serialize(Object o, JsonGenerator jsonGenerator, SerializationContext serializerProvider) throws JacksonException {
             jsonGenerator.writeString(StringUtils.EMPTY);
         }
     }
@@ -49,9 +61,9 @@ public class CustomMessageConverter extends MappingJackson2HttpMessageConverter 
     /**
      * 处理数字类型的null值
      */
-    public static class NullNumberJsonSerializer extends JsonSerializer<Object> {
+    public static class NullNumberJsonSerializer extends ValueSerializer<Object> {
         @Override
-        public void serialize(Object o, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+        public void serialize(Object o, JsonGenerator jsonGenerator, SerializationContext serializerProvider) throws JacksonException {
             jsonGenerator.writeNumber(0);
         }
     }
@@ -59,18 +71,18 @@ public class CustomMessageConverter extends MappingJackson2HttpMessageConverter 
     /**
      * 处理布尔类型的null值
      */
-    public static class NullBooleanJsonSerializer extends JsonSerializer<Object> {
+    public static class NullBooleanJsonSerializer extends ValueSerializer<Object> {
 
         @Override
-        public void serialize(Object o, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+        public void serialize(Object o, JsonGenerator jsonGenerator, SerializationContext serializerProvider) throws JacksonException {
             jsonGenerator.writeBoolean(false);
         }
     }
 
 
-    public static class MyBeanSerializerModifier extends BeanSerializerModifier {
+    public static class MyBeanSerializerModifier extends ValueSerializerModifier {
         @Override
-        public List<BeanPropertyWriter> changeProperties(SerializationConfig config, BeanDescription beanDesc, List<BeanPropertyWriter> beanProperties) {
+        public List<BeanPropertyWriter> changeProperties(SerializationConfig config, BeanDescription.Supplier beanDesc, List<BeanPropertyWriter> beanProperties) {
             //循环所有的beanPropertyWriter
             for (Object beanProperty : beanProperties) {
                 BeanPropertyWriter writer = (BeanPropertyWriter) beanProperty;
@@ -123,9 +135,4 @@ public class CustomMessageConverter extends MappingJackson2HttpMessageConverter 
         }
 
     }
-
-    public CustomMessageConverter() {
-        getObjectMapper().setSerializerFactory(getObjectMapper().getSerializerFactory().withSerializerModifier(new MyBeanSerializerModifier()));
-    }
-
 }

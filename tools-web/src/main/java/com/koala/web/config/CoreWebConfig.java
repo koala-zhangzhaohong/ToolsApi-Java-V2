@@ -89,7 +89,7 @@ public class CoreWebConfig implements WebMvcConfigurer {
                 //输出字符串 为 ""
                 JSONWriter.Feature.WriteNullStringAsEmpty,
                 //对map进行排序
-                JSONWriter.Feature.MapSortField
+                JSONWriter.Feature.SortMapEntriesByKeys
         );
         fastJsonHttpMessageConverter.setFastJsonConfig(fastJsonConfig);
         fastJsonHttpMessageConverter.setDefaultCharset(StandardCharsets.UTF_8);

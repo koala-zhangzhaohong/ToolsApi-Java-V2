@@ -11,7 +11,6 @@ import org.apache.hc.client5.http.cookie.Cookie;
 import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.entity.UrlEncodedFormEntity;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.*;
@@ -266,7 +265,6 @@ public class HttpClientUtil {
 
     public static String doGetRedirectLocation(String url, Map<String, String> headers, Map<String, String> params) throws IOException, URISyntaxException {
         // 创建httpClient对象
-        int responseCode = 0;
         String location = null;
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             // 创建访问地址
@@ -281,23 +279,13 @@ public class HttpClientUtil {
             httpGet.setConfig(requestConfig);
             // 设置请求头
             packageHeader(headers, httpGet);
-            // 执行请求获取响应体并释放资源
-            // 执行请求
-            CloseableHttpResponse httpResponse = null;
-            try {
-                // 获取响应体
-                httpResponse = httpClient.execute(httpGet);
-                responseCode = httpResponse.getCode();
-                if (Objects.equals(responseCode, 302)) {
+            location = httpClient.execute(httpGet, httpResponse -> {
+                if (Objects.equals(httpResponse.getCode(), 302)) {
                     Header locationHeader = httpResponse.getFirstHeader("Location");
-                    location = locationHeader.getValue();
+                    return locationHeader.getValue();
                 }
-            } finally {
-                // 释放资源
-                if (!ObjectUtils.isEmpty(httpResponse)) {
-                    httpResponse.close();
-                }
-            }
+                return null;
+            });
         }
         return location;
     }
@@ -326,20 +314,7 @@ public class HttpClientUtil {
             httpGet.setConfig(requestConfig);
             // 设置请求头
             packageHeader(headers, httpGet);
-            // 执行请求获取响应体并释放资源
-            // 执行请求
-            CloseableHttpResponse httpResponse = null;
-            try {
-                // 获取响应体
-                httpResponse = httpClient.execute(httpGet);
-                responseCode = httpResponse.getCode();
-                return responseCode;
-            } finally {
-                // 释放资源
-                if (!ObjectUtils.isEmpty(httpResponse)) {
-                    httpResponse.close();
-                }
-            }
+            return httpClient.execute(httpGet, HttpResponse::getCode);
         }
     }
 
@@ -366,12 +341,7 @@ public class HttpClientUtil {
             httpGet.setConfig(requestConfig);
             // 设置请求头
             packageHeader(headers, httpGet);
-            // 执行请求获取响应体并释放资源
-            // 执行请求
-            CloseableHttpResponse httpResponse = null;
-            try {
-                // 获取响应体
-                httpResponse = httpClient.execute(httpGet);
+            httpClient.execute(httpGet, httpResponse -> {
                 HttpEntity entity = httpResponse.getEntity();
                 if (Objects.equals(httpResponse.getCode(), successCode) && !Objects.isNull(entity)) {
                     responseHeader.forEach(response::addHeader);
@@ -387,12 +357,8 @@ public class HttpClientUtil {
                         targetStream.flush();
                     }
                 }
-            } finally {
-                // 释放资源
-                if (!ObjectUtils.isEmpty(httpResponse)) {
-                    httpResponse.close();
-                }
-            }
+                return null;
+            });
         }
     }
 
@@ -438,23 +404,15 @@ public class HttpClientUtil {
      * 执行请求获取响应体并释放资源
      */
     private static String getHttpClientResult(CloseableHttpClient httpClient, HttpUriRequestBase httpMethod) throws IOException {
-        // 执行请求
-        CloseableHttpResponse httpResponse = null;
         try {
-            // 获取响应体
-            httpResponse = httpClient.execute(httpMethod);
-            String content = "";
-            if (!ObjectUtils.isEmpty(httpResponse) && !ObjectUtils.isEmpty(httpResponse.getEntity())) {
-                content = EntityUtils.toString(httpResponse.getEntity(), ENCODING);
-            }
-            return content;
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+            return httpClient.execute(httpMethod, httpResponse -> {
+                String content = "";
+                if (!ObjectUtils.isEmpty(httpResponse) && !ObjectUtils.isEmpty(httpResponse.getEntity())) {
+                    content = EntityUtils.toString(httpResponse.getEntity(), ENCODING);
+                }
+                return content;
+            });
         } finally {
-            // 释放资源
-            if (!ObjectUtils.isEmpty(httpResponse)) {
-                httpResponse.close();
-            }
             if (!ObjectUtils.isEmpty(httpClient)) {
                 httpClient.close();
             }

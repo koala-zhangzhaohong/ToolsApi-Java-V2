@@ -15,6 +15,6 @@ public class KugouMidGenerator {
     }
 
     private static String getRandomData() {
-        return RandomStringUtils.randomAlphanumeric(4);
+        return RandomStringUtils.secure().nextAlphanumeric(4);
     }
 }

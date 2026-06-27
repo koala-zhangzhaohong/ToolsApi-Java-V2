@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +42,7 @@ public class HttpRequestUtil {
         try {
             StringBuffer sb = new StringBuffer();
             strUrl = strUrl + "?" + urlencode(params);
-            URL url = new URL(strUrl);
+            URL url = URI.create(strUrl).toURL();
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("User-agent", userAgent);
