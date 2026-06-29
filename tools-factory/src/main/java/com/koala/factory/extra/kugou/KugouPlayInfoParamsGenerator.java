@@ -4,7 +4,7 @@ import com.koala.service.utils.MD5Utils;
 
 import java.util.*;
 
-import static com.koala.factory.secretKey.KugouSecretKeyCollector.KUGOU_ITEM_SECRET_KEY;
+import static com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_ITEM_SECRET_KEY;
 import static com.koala.factory.extra.kugou.KugouSingnatureGenerator.*;
 
 /**

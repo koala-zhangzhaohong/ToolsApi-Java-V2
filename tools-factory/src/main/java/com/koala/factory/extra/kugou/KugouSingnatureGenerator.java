@@ -5,7 +5,7 @@ import com.koala.service.utils.MD5Utils;
 import java.util.Arrays;
 import java.util.Map;
 
-import static com.koala.factory.secretKey.KugouSecretKeyCollector.KUGOU_PID_VERSION_SECRET_KEY;
+import static com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_PID_VERSION_SECRET_KEY;
 
 public class KugouSingnatureGenerator {
 
