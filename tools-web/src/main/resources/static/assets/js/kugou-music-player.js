@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // canvas 配置
     const barsCount = 32;
-    const visualizationFrameMs = 250;
+    const visualizationMaxFps = 30;
 
     // 状态变量
     let isPlaying = false;
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     visualizationController = MusicPlayerCommon.createVisualizationController({
         barsCount,
-        frameMs: visualizationFrameMs,
+        maxFps: visualizationMaxFps,
         isPlaying: () => visualizationMode === 'bars' && isPlaying,
         isHidden: () => document.hidden
     });
