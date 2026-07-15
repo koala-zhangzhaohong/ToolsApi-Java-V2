@@ -42,19 +42,7 @@ const getHashWithAlbumId = (name) => {
     return params;
 }
 
-function encodeUTF8Base64(str) {
-    const utf8Bytes = new TextEncoder().encode(str);
-    // 将字节数组转换为字符串以便 btoa 处理
-    const latin1String = String.fromCharCode.apply(null, utf8Bytes);
-    return btoa(latin1String);
-}
-
-// 中文解码
-function decodeUTF8Base64(base64) {
-    const latin1String = atob(base64);
-    const utf8Bytes = Uint8Array.from(latin1String, c => c.charCodeAt(0));
-    return new TextDecoder().decode(utf8Bytes);
-}
+const decodeUTF8Base64 = MusicPlayerCommon.decodeUTF8Base64;
 
 document.addEventListener('DOMContentLoaded', async function () {
     // DOM元素
@@ -136,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // canvas 配置
     const barsCount = 32;
+    const visualizationFrameMs = 250;
 
     // 状态变量
     let isPlaying = false;
@@ -144,7 +133,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     let currentLyricIndex = -1;
     let updateInterval;
     let visualizationMode = 'bars';
-    let visualizationAnimationFrame;
     let backgroundUpdateTimer;
     let currentTrackIndex = 0;
     let sleepTimeoutId = null;
@@ -171,15 +159,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 用于缓存的IndexedDB
     let db;
 
-    const worker = new Worker(`${currentHost}assets/js/dataProcessor.js`);
     let visualizationChart;
-    let lastVisualizationData;
+    let visualizationController;
 
-    const nowTime = new Date();
     const timeOptions = {
         hour: '2-digit', minute: '2-digit', hour12: false
     };
-    let currentTime = nowTime.toLocaleTimeString([], timeOptions);
+    const clock = MusicPlayerCommon.createClock(dateTimeDisplay, timeOptions);
 
     qualityInfo.set('currentQualityIndex', 0);
 
@@ -207,21 +193,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         qualityInfo.set('currentQualityName', 'defaultQuality');
     }
 
-    worker.addEventListener('message', function (event) {
-        const {operation, config} = event.data;
-
-        switch (operation) {
-            case 'update':
-                break;
-            case 'init':
-                const canvas = document.createElement('canvas');
-                canvas.classList.add('visualization-canvas');
-                visualization.appendChild(canvas);
-                canvas.style.height = '100px';
-                canvas.style.width = '100%';
-                visualizationChart = new Chart(canvas, config);
-                break;
-        }
+    visualizationController = MusicPlayerCommon.createVisualizationController({
+        barsCount,
+        frameMs: visualizationFrameMs,
+        isPlaying: () => visualizationMode === 'bars' && isPlaying,
+        isHidden: () => document.hidden
     });
 
     const onSelectQuality = (event) => {
@@ -268,9 +244,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         createVisualizationBars();
         loadSettings();
         updateDateTime();
-        // setTimeout(() => {
-        //     requestAnimationFrame(updateDateTime);
-        // }, 1000);
+        updateInterval = setInterval(updateDateTime, 1000);
 
         // 初始背景更新
         updateRandomBackground();
@@ -356,11 +330,11 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 创建可视化频谱柱
     function createVisualizationBars() {
-        if (visualizationChart) {
-            visualizationChart.destroy();
-        }
+        visualizationController.destroyChart();
         visualization.innerHTML = '';
-        worker.postMessage({operation: 'init'});
+        visualizationChart = MusicPlayerCommon.createVisualizationChart(visualization, barsCount);
+        visualizationController.setChart(visualizationChart);
+        startVisualizationLoop();
     }
 
     // 设置事件监听器
@@ -369,6 +343,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         audioPlayer.addEventListener('timeupdate', updateProgress);
         audioPlayer.addEventListener('loadedmetadata', updateTotalTime);
         audioPlayer.addEventListener('ended', handleTrackEnd);
+        audioPlayer.addEventListener('play', startVisualizationLoop);
+        audioPlayer.addEventListener('pause', () => stopVisualizationLoop(true));
+        audioPlayer.addEventListener('emptied', () => stopVisualizationLoop(true));
 
         // 添加播放暂停事件，用于保存播放位置
         audioPlayer.addEventListener('pause', savePlaybackPosition);
@@ -571,6 +548,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         // 上一首/下一首
         prevBtn.addEventListener('click', playPreviousTrack);
         nextBtn.addEventListener('click', playNextTrack);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopVisualizationLoop(false);
+            } else if (isPlaying) {
+                startVisualizationLoop();
+            }
+        });
     }
 
     // ----------------------------------------
@@ -1029,6 +1014,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         audioPlayer.pause();
         audioPlayer.src = '';
         isPlaying = false;
+        stopVisualizationLoop(true);
         currentTrackIndex = 0;
         lastPlayedPosition = 0;
 
@@ -1062,6 +1048,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 停止当前播放
         audioPlayer.pause();
+        stopVisualizationLoop(true);
 
         currentTrackIndex = index;
         const track = playlist[index];
@@ -1769,11 +1756,18 @@ document.addEventListener('DOMContentLoaded', async function () {
             isPlaying = false;
             playPauseIcon.className = 'fas fa-play';
             fullscreenPlayIcon.className = 'fas fa-play';
+            stopVisualizationLoop(true);
         }
 
         // 初始化音频可视化（如果尚未初始化）
         if (isPlaying && !audioContext) {
             initAudioVisualization();
+        }
+        if (isPlaying) {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().catch(e => console.error('音频上下文恢复失败:', e));
+            }
+            startVisualizationLoop();
         }
 
         // 初始化均衡器（如果尚未初始化且已经启用）
@@ -1804,9 +1798,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         // 更新歌词高亮
         updateLyricHighlight();
 
-        // 更新可视化效果
-        updateVisualization();
-
         // 如果播完了 就停止播放 进度条0
         if (percent >= 100) {
             if (isPlaying) {
@@ -1815,6 +1806,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 playPauseIcon.className = 'fas fa-play';
                 fullscreenPlayIcon.className = 'fas fa-play';
                 audioPlayer.currentTime = 0;
+                stopVisualizationLoop(true);
             }
         }
     }
@@ -1899,6 +1891,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             isPlaying = false;
             playPauseIcon.className = 'fas fa-play';
             fullscreenPlayIcon.className = 'fas fa-play';
+            stopVisualizationLoop(true);
         }
     }
 
@@ -2091,6 +2084,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 audioSource = audioContext.createMediaElementSource(audioPlayer);
                 audioSource.connect(analyser);
                 analyser.connect(audioContext.destination);
+                visualizationController.setAnalyser(analyser);
             } catch (e) {
                 console.error('无法创建音频上下文:', e);
             }
@@ -2099,47 +2093,15 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 更新可视化效果
     function updateVisualization() {
-        if (!audioContext || !analyser || visualizationMode === 'none') return;
-
-        cancelAnimationFrame(visualizationAnimationFrame);
-
-        // 根据当前可视化模式选择不同的渲染方法
-        if (visualizationMode === 'bars') {
-            visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-        }
+        startVisualizationLoop();
     }
 
-    // 渲染柱状可视化
-    function renderBarVisualization() {
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-
-        const tmpData = arrayBufferToString(dataArray);
-        // 数据没有改变
-        if (tmpData === lastVisualizationData) {
-            return;
-        }
-        lastVisualizationData = tmpData;
-
-        for (let i = 0; i < barsCount; i++) {
-            // 使用对数刻度为低频提供更多可见度
-            visualizationChart.data.datasets[0].data[i] = {x: i, y: Math.min(100, Math.max(3, dataArray[i] / 3))};
-            const hue = 250 - (dataArray[i] / 255) * 50; // 从紫色到蓝色的渐变
-            visualizationChart.data.datasets[0].backgroundColor = `hsl(${hue}, 70%, 60%)`;
-            visualizationChart.data.datasets[0].background = `hsl(${hue}, 70%, 60%)`;
-        }
-
-        visualizationChart.update();
-
-        setInterval(() => {
-            visualizationAnimationFrame = requestAnimationFrame(renderBarVisualization);
-        }, 5000);
-
-        // worker.postMessage({operation: 'update', dataset: visualizationChart.data.datasets[0], chartData: dataArray});
+    function startVisualizationLoop() {
+        visualizationController.start(audioPlayer);
     }
 
-    function arrayBufferToString(buffer) {
-        return new TextDecoder().decode(buffer);
+    function stopVisualizationLoop(resetBars) {
+        visualizationController.stop(resetBars);
     }
 
     // 显示通知
@@ -2233,15 +2195,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 更新日期时间显示
     function updateDateTime() {
-        const now = new Date();
-        const current = now.toLocaleTimeString([], timeOptions);
-        if (current !== currentTime || dateTimeDisplay.textContent === "") {
-            dateTimeDisplay.textContent = now.toLocaleTimeString([], timeOptions);
-            currentTime = current;
-        } else {
-            setInterval(() => {}, 1000);
-        }
-        requestAnimationFrame(updateDateTime);
+        clock.update();
     }
 
     // 切换全屏模式
