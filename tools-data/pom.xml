@@ -8,12 +8,8 @@
         <version>${revision}</version>
     </parent>
     <artifactId>tools-data</artifactId>
-    <version>${revision}</version>
     <name>tools-data</name>
     <description>tools-data</description>
-    <properties>
-        <java.version>21</java.version>
-    </properties>
     <dependencies>
         <!-- mybatis-plus Spring Boot 4 starter -->
         <dependency>

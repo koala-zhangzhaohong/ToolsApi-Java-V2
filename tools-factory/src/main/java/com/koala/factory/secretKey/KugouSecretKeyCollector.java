@@ -1,4 +1,4 @@
-package com.koala.factory.SecretKey;
+package com.koala.factory.secretKey;
 
 public class KugouSecretKeyCollector {
     public static final String KUGOU_ITEM_SECRET_KEY = "OIlwieks28dk2k092lksi2UIkp";

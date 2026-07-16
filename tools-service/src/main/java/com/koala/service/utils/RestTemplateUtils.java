@@ -1,9 +1,7 @@
 package com.koala.service.utils;
 
-import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.*;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -12,7 +10,7 @@ import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.GsonHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -24,11 +22,11 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -48,7 +46,7 @@ public class RestTemplateUtils {
     public RestTemplateUtils() {
         this.restTemplate = new RestTemplate(new BufferingClientHttpRequestFactory(getClientHttpRequestFactory()));
         this.restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
-        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+        JacksonJsonHttpMessageConverter converter = new JacksonJsonHttpMessageConverter();
         converter.setSupportedMediaTypes(Arrays.asList(
                 MediaType.APPLICATION_JSON,
                 MediaType.TEXT_HTML // Add this to handle HTML responses as JSON/String
@@ -292,7 +290,7 @@ public class RestTemplateUtils {
         params.forEach(paramsData::add);
         MultiValueMap<String, String> headersData = new LinkedMultiValueMap<>();
         headers.forEach(headersData::add);
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, new HttpHeaders(headersData));
         return restTemplate.postForEntity(url, entity, String.class);
     }
 
@@ -301,7 +299,7 @@ public class RestTemplateUtils {
         params.forEach(paramsData::add);
         MultiValueMap<String, String> headersData = new LinkedMultiValueMap<>();
         headers.forEach(headersData::add);
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, new HttpHeaders(headersData));
         return restTemplate.postForEntity(url, entity, responseType);
     }
 
@@ -310,7 +308,7 @@ public class RestTemplateUtils {
         params.forEach(paramsData::add);
         MultiValueMap<String, String> headersData = new LinkedMultiValueMap<>();
         headers.forEach(headersData::add);
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, headersData);
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(paramsData, new HttpHeaders(headersData));
         ResponseEntity<String> exchange = restTemplate.exchange(URI.create(url), HttpMethod.GET, entity, String.class);
         URI uri = exchange.getHeaders().getLocation();
         return ObjectUtils.isEmpty(uri) ? null : uri.toString();
@@ -752,15 +750,13 @@ public class RestTemplateUtils {
      */
     private ClientHttpRequestFactory getClientHttpRequestFactory() {
         int timeout = 5000;
-        RequestConfig config = RequestConfig.custom()
-                .setConnectTimeout(Timeout.of(timeout, TimeUnit.MILLISECONDS))
-                .setConnectionRequestTimeout(Timeout.of(timeout, TimeUnit.MILLISECONDS))
-                .build();
         CloseableHttpClient client = HttpClientBuilder
                 .create()
-                .setDefaultRequestConfig(config)
                 .build();
-        return new HttpComponentsClientHttpRequestFactory(client);
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(client);
+        requestFactory.setConnectionRequestTimeout(Duration.ofMillis(timeout));
+        requestFactory.setReadTimeout(Duration.ofMillis(timeout));
+        return requestFactory;
     }
 
 }

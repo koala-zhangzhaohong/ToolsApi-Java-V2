@@ -16,7 +16,7 @@ public class JsonUtils {
             return false;
         }
         try {
-            new JsonParser().parse(json);
+            JsonParser.parseString(json);
             return true;
         } catch (JsonParseException e) {
             return false;

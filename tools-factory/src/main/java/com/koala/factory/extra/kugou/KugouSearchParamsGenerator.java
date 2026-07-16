@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.koala.factory.SecretKey.KugouSecretKeyCollector.KUGOU_SEARCH_SECRET_KEY;
+import static com.koala.factory.secretKey.KugouSecretKeyCollector.KUGOU_SEARCH_SECRET_KEY;
 import static com.koala.factory.extra.kugou.KugouSingnatureGenerator.generateKugouSignatureV1;
 
 /**

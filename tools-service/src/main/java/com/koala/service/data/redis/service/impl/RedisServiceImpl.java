@@ -6,8 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service("RedisService")
@@ -39,7 +39,7 @@ public class RedisServiceImpl implements RedisService {
 
     @Override
     public void set(String key, String value, Long expireTime) {
-        redisTemplate.opsForValue().set(key, value, expireTime, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(key, value, Duration.ofSeconds(expireTime));
     }
 
     @Override

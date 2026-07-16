@@ -8,7 +8,6 @@
         <version>${revision}</version>
     </parent>
     <artifactId>tools-factory</artifactId>
-    <version>${revision}</version>
     <name>tools-factory</name>
     <description>tools-factory</description>
     <dependencies>
@@ -38,15 +37,4 @@
             <optional>true</optional>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-
-
 </project>

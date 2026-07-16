@@ -1,0 +1,17 @@
+.git
+.idea
+.run
+*.iml
+ServiceData
+scripts
+DockerFile-gateway.yml
+
+target
+tools-base/target
+tools-data/target
+tools-factory/target
+tools-service/target
+tools-web/target/*.jar.original
+
+**/.DS_Store
+**/*.log
