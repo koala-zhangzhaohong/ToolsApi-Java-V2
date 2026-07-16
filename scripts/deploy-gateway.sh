@@ -54,10 +54,12 @@ fi
 
 run_ssh() {
   local remote_command="$1"
+  local escaped_command
+  escaped_command="$(printf '%s' "${remote_command}" | sed "s/'/'\\\\''/g")"
   expect <<EOF
 set timeout -1
 set password \$env(DEPLOY_PASSWORD)
-spawn ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new ${DEPLOY_USER}@${DEPLOY_HOST} -- ${remote_command}
+spawn ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new ${DEPLOY_USER}@${DEPLOY_HOST} -- bash -lc '${escaped_command}'
 expect {
   -re "(?i)password:" {
     send -- "\$password\r"
@@ -99,7 +101,27 @@ load_local_image_to_remote() {
   run_scp "${IMAGE_ARCHIVE}" "${remote_archive}"
 
   echo "导入远端 Docker 镜像 ${IMAGE_NAME}"
-  run_ssh "gzip -dc '${remote_archive}' | docker load"
+  run_ssh "if docker image inspect '${IMAGE_NAME}' >/dev/null 2>&1; then docker tag '${IMAGE_NAME}' 'tools-api-package:previous-${VERSION_BASE}-docker' || true; fi; gzip -dc '${remote_archive}' | docker load"
+}
+
+cleanup_remote_old_images() {
+  local remote_archive="${DEPLOY_DIR}/$(basename "${IMAGE_ARCHIVE}")"
+
+  echo "清理远端旧版本 tools-api 镜像"
+  run_ssh "set -e; \
+current_image='${IMAGE_NAME}'; \
+used_image_count=\$(docker ps --filter \"ancestor=\${current_image}\" --format '{{.ID}}' | wc -l | tr -d ' '); \
+if [ \"\${used_image_count}\" = '0' ]; then \
+  echo \"当前镜像未被运行中的容器使用，跳过旧镜像清理: \${current_image}\" >&2; \
+  exit 1; \
+fi; \
+old_images=\$(docker images 'tools-api-package' --format '{{.Repository}}:{{.Tag}} {{.ID}}' | awk -v current=\"\${current_image}\" '\$1 != current && \$1 ~ /-docker$/ {print \$1}' | sort -u); \
+if [ -n \"\${old_images}\" ]; then \
+  echo \"\${old_images}\" | xargs -r docker rmi; \
+else \
+  echo '没有需要清理的旧 tools-api 镜像'; \
+fi; \
+rm -f '${remote_archive}'"
 }
 
 echo "创建远端部署目录 ${DEPLOY_DIR}"
@@ -113,5 +135,7 @@ run_scp "${GATEWAY_FILE}" "${DEPLOY_DIR}/DockerFile-gateway.yml"
 
 echo "执行 docker compose 部署"
 run_ssh "set -e; cd '${DEPLOY_DIR}'; if command -v docker-compose >/dev/null 2>&1; then COMPOSE='docker-compose'; elif docker compose version >/dev/null 2>&1; then COMPOSE='docker compose'; else echo '未找到 docker compose 或 docker-compose' >&2; exit 1; fi; \${COMPOSE} -f DockerFile-gateway.yml config --quiet; docker rm -f traefik-otel-lgtm traefik-gateway-v1 traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 2>/dev/null || true; \${COMPOSE} -f DockerFile-gateway.yml up -d"
+
+cleanup_remote_old_images
 
 echo "线上部署完成"
