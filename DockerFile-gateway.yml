@@ -1,68 +1,111 @@
-version: '3'
-services:
-#  traefik-prometheus:
-#    image: prom/prometheus:latest
-#    container_name: traefik-prometheus
-#    ports: [ "56003:9090" ]
-#    volumes:
-#      - /www/docker/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml
-#    networks:
-#      - traefik-gateway-v1
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 14G
-#          cpus: "10.00"
+x-common: &common
+  restart: always
+  networks:
+    - traefik-gateway-v1
 
+x-observability-limits: &observability-limits
+  deploy:
+    resources:
+      limits:
+        memory: 14G
+        cpus: "10.00"
+
+x-tools-api-limits: &tools-api-limits
+  deploy:
+    resources:
+      limits:
+        memory: 22G
+        cpus: "14.00"
+
+x-tools-api-labels: &tools-api-labels
+  traefik.enable: "true"
+  traefik.docker.network: traefik-gateway-v1
+  traefik.http.routers.tools-api.entrypoints: web
+  traefik.http.routers.tools-api.rule: PathPrefix(`/`)
+  traefik.http.routers.tools-api.middlewares: tools-api-gzip
+  traefik.http.routers.tools-api.observability.accessLogs: "true"
+  traefik.http.routers.tools-api.observability.metrics: "true"
+  traefik.http.routers.tools-api.observability.tracing: "true"
+  traefik.http.routers.tools-api.service: tools-api
+  traefik.http.middlewares.tools-api-gzip.compress: "true"
+  traefik.http.middlewares.tools-api-gzip.compress.encodings: gzip
+  traefik.http.middlewares.tools-api-gzip.compress.excludedcontenttypes: text/event-stream
+  traefik.http.middlewares.tools-api-gzip.compress.minresponsebodybytes: "1024"
+  traefik.http.services.tools-api.loadbalancer.healthcheck.interval: 10s
+  traefik.http.services.tools-api.loadbalancer.healthcheck.path: /actuator/health
+  traefik.http.services.tools-api.loadbalancer.healthcheck.timeout: 3s
+  traefik.http.services.tools-api.loadbalancer.passhostheader: "true"
+  traefik.http.services.tools-api.loadbalancer.server.port: "8080"
+  traefik.http.services.tools-api.loadbalancer.server.scheme: http
+
+x-observability-labels: &observability-labels
+  traefik.enable: "false"
+  com.koala.observability.stack: otel-lgtm
+  com.koala.observability.otlp.grpc.endpoint: traefik-otel-lgtm:4317
+  com.koala.observability.signals: accesslogs,metrics,tracing
+
+x-traefik-labels: &traefik-labels
+  <<: *observability-labels
+  com.koala.observability.role: edge-gateway
+
+x-otel-lgtm-labels: &otel-lgtm-labels
+  <<: *observability-labels
+  com.koala.observability.role: collector-dashboard
+
+x-tools-api-service: &tools-api-service
+  <<: [*common, *tools-api-limits]
+  image: tools-api-package:2.1.1.0-docker
+  labels: *tools-api-labels
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/actuator/health || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 90s
+  depends_on:
+    - traefik
+
+services:
   traefik-otel-lgtm:
+    <<: [*common, *observability-limits]
     image: grafana/otel-lgtm:latest
     container_name: traefik-otel-lgtm
+    labels: *otel-lgtm-labels
     ports:
-      - "56003:3000" # Grafana UI
-#      - "4317:4317" # OTLP gRPC
-#      - "4318:4318" # OTLP HTTP
-    networks:
-      - traefik-gateway-v1
+      - "56003:3000"
     environment:
-      - GF_PANELS_DISABLE_SANITIZE_HTML=true
-      - GF_PLUGINS_ENABLE_ALPHA=true
-      - GF_ALLOW_EMBEDDING=true
-      - GF_grafanaconThemes=true
-      # - ENABLE_LOGS_GRAFANA=true
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_FEATURE_TOGGLES_ENABLE=provisioning,kubernetesDashboards
-      - TZ=Asia/Shanghai
-      - LOKI_ARGS=--pattern-ingester.enabled=true
+      GF_PANELS_DISABLE_SANITIZE_HTML: "true"
+      GF_PLUGINS_ENABLE_ALPHA: "true"
+      GF_ALLOW_EMBEDDING: "true"
+      GF_grafanaconThemes: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_FEATURE_TOGGLES_ENABLE: provisioning,kubernetesDashboards
+      TZ: Asia/Shanghai
+      LOKI_ARGS: --pattern-ingester.enabled=true
     volumes:
       - /www/docker/otel-lgtm/data:/data
       - /www/docker/otel-lgtm/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards
       - /www/docker/otel-lgtm/loki/config/loki-config.yaml:/otel-lgtm/loki-config.yaml
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 14G
-          cpus: "10.00"
 
   traefik:
-    image: traefik:v3.7.1  # 使用 Traefik 的最新版本
+    <<: [*common, *observability-limits]
+    image: traefik:v3.7.7
     container_name: traefik-gateway-v1
-    restart: always
-    labels:
+    command:
       - "--accessLog.otlp.grpc.endpoint=traefik-otel-lgtm:4317"
       - "--metrics.otlp.grpc.endpoint=traefik-otel-lgtm:4317"
       - "--tracing.otlp.grpc.endpoint=traefik-otel-lgtm:4317"
+    labels: *traefik-labels
     security_opt:
       - no-new-privileges:true
     ports:
-      - 56000:80
+      - "56000:80"
       - "56443:443/tcp"
       - "56443:443/udp"
-      - 56001:8080
-      - 56002:8082
+      - "56001:8080"
+      - "56002:8082"
     environment:
-      - TZ=Asia/Shanghai
-      - DUCKDNS_TOKEN=1483f595-788e-4e57-965c-7aab30f57509
+      TZ: Asia/Shanghai
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /www/docker/traefik/v1/traefik.yml:/traefik.yml:ro
@@ -72,78 +115,20 @@ services:
       - /etc/localtime:/etc/localtime
     depends_on:
       - traefik-otel-lgtm
-    networks:
-      - traefik-gateway-v1
-    deploy:
-      resources:
-        limits:
-          memory: 14G
-          cpus: "10.00"
 
   traefik-middleware-multiple-1:
-    image: tools-api-package:2.1.0.8-docker
+    <<: *tools-api-service
     container_name: traefik-middleware-multiple-1
-    restart: always
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
-      - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
-      - "traefik.http.routers.traefik-middleware-service-http.rule=PathPrefix(`/`)"
-      - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
-    networks:
-      - traefik-gateway-v1
-    depends_on:
-      - traefik
-    deploy:
-      resources:
-        limits:
-          memory: 22G
-          cpus: "14.00"
 
   traefik-middleware-multiple-2:
-    image: tools-api-package:2.1.0.8-docker
+    <<: *tools-api-service
     container_name: traefik-middleware-multiple-2
-    restart: always
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
-      - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
-      - "traefik.http.routers.traefik-middleware-service-http.rule=PathPrefix(`/`)"
-      - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
-    networks:
-      - traefik-gateway-v1
-    depends_on:
-      - traefik
-    deploy:
-      resources:
-        limits:
-          memory: 22G
-          cpus: "14.00"
 
   traefik-middleware-multiple-3:
-    image: tools-api-package:2.1.0.8-docker
+    <<: *tools-api-service
     container_name: traefik-middleware-multiple-3
-    restart: always
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik-middleware-service-http.entrypoints=web"
-      - "traefik.http.routers.traefik-middleware-service-http.middlewares=gzip"
-      - "traefik.http.routers.traefik-middleware-service-http.rule=PathPrefix(`/`)"
-      - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.services.traefik-middleware-service-http.loadbalancer.server.port=8080"
-    networks:
-      - traefik-gateway-v1
-    depends_on:
-      - traefik
-    deploy:
-      resources:
-        limits:
-          memory: 22G
-          cpus: "14.00"
 
 networks:
   traefik-gateway-v1:
-    external: true  # 如果不存在，Traefik 将创建它
+    external: true
     driver: bridge
