@@ -2,7 +2,6 @@ import {
   CopyOutlined,
   CustomerServiceOutlined,
   DownloadOutlined,
-  ExpandOutlined,
   FileTextOutlined,
   PauseCircleFilled,
   PlayCircleFilled,
@@ -71,6 +70,48 @@ function sourceLabel(index: number, total: number) {
   return names[index] || `线路 ${index + 1}`
 }
 
+function waveformHeights(seed: string, count = 96) {
+  let state = [...seed].reduce((value, char) => Math.imul(value ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0
+  return Array.from({ length: count }, (_, index) => {
+    state = (Math.imul(state ^ (state >>> 15), 2246822519) + index) >>> 0
+    const envelope = .55 + Math.sin((index / count) * Math.PI) * .45
+    return Math.round((20 + (state % 75)) * envelope)
+  })
+}
+
+function Waveform({ title, currentTime, duration, playing, onSeek }: { title: string; currentTime: number; duration: number; playing: boolean; onSeek: (time: number) => void }) {
+  const heights = useMemo(() => waveformHeights(title), [title])
+  const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0
+  const jump = (clientX: number, element: HTMLDivElement) => {
+    if (!duration) return
+    const bounds = element.getBoundingClientRect()
+    onSeek(Math.max(0, Math.min(1, (clientX - bounds.left) / bounds.width)) * duration)
+  }
+  return (
+    <div
+      className={`music-waveform ${playing ? 'is-playing' : ''}`}
+      role="slider"
+      tabIndex={0}
+      aria-label="播放波形"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(duration)}
+      aria-valuenow={Math.round(currentTime)}
+      onClick={(event) => jump(event.clientX, event.currentTarget)}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+        event.preventDefault()
+        onSeek(Math.max(0, Math.min(duration, currentTime + (event.key === 'ArrowRight' ? 5 : -5))))
+      }}
+    >
+      {heights.map((height, index) => <span
+        key={index}
+        className={(index + 1) / heights.length <= progress ? 'active' : ''}
+        style={{ height: `${height}%`, animationDelay: `${-(index % 17) * 67}ms`, animationDuration: `${520 + (index * 47) % 680}ms` }}
+      />)}
+    </div>
+  )
+}
+
 interface MusicPlayerPageProps {
   data: PlayerPageData
   sources: string[]
@@ -79,12 +120,10 @@ interface MusicPlayerPageProps {
 export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps) {
   const { message } = App.useApp()
   const meta = useMemo(() => musicMeta(data), [data])
-  const [customLyric, setCustomLyric] = useState<string>()
-  const lines = useMemo(() => parseLyrics(customLyric ?? meta.lyric), [customLyric, meta.lyric])
+  const lines = useMemo(() => parseLyrics(meta.lyric), [meta.lyric])
   const audioRef = useRef<HTMLAudioElement>(null)
   const lyricBoxRef = useRef<HTMLDivElement>(null)
   const resumeAfterSourceChange = useRef(false)
-  const timerRef = useRef<number>()
   const [sourceIndex, setSourceIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -92,7 +131,6 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
   const [volume, setVolume] = useState(80)
   const [speed, setSpeed] = useState(1)
   const [lyricIndex, setLyricIndex] = useState(-1)
-  const [sleepMinutes, setSleepMinutes] = useState(0)
   const [showLyrics, setShowLyrics] = useState(true)
   const [playbackError, setPlaybackError] = useState('')
   const src = sources[sourceIndex] || sources[0]
@@ -132,14 +170,27 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
     lyricBoxRef.current?.querySelector(`[data-lyric-index="${lyricIndex}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [lyricIndex])
 
-  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current) }, [])
-
   const toggle = () => {
     const audio = audioRef.current
     if (!audio) return
     if (audio.paused) void audio.play().catch(() => setPlaybackError('媒体地址不可播放，链接可能已过期'))
     else audio.pause()
   }
+
+  useEffect(() => {
+    const handleSpacePlayback = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName))) return
+      const audio = audioRef.current
+      if (!audio || !src) return
+      event.preventDefault()
+      if (audio.paused) void audio.play().catch(() => setPlaybackError('媒体地址不可播放，链接可能已过期'))
+      else audio.pause()
+    }
+    window.addEventListener('keydown', handleSpacePlayback)
+    return () => window.removeEventListener('keydown', handleSpacePlayback)
+  }, [src])
 
   const changeSource = (next: number) => {
     const audio = audioRef.current
@@ -154,34 +205,6 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
     audio.currentTime = value
     setCurrentTime(value)
     setLyricIndex(activeLyricIndex(lines, value))
-  }
-
-  const setSleepTimer = (minutes: number) => {
-    if (timerRef.current) window.clearTimeout(timerRef.current)
-    setSleepMinutes(minutes)
-    if (minutes > 0) {
-      timerRef.current = window.setTimeout(() => {
-        audioRef.current?.pause()
-        setSleepMinutes(0)
-        message.info('睡眠定时器已暂停播放')
-      }, minutes * 60 * 1000)
-    }
-  }
-
-  const importLyrics = (file?: File) => {
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const content = String(reader.result || '')
-      const imported = parseLyrics(content)
-      if (!imported.length) message.warning('未识别到带时间轴的 LRC 歌词')
-      else {
-        setCustomLyric(content)
-        setLyricIndex(activeLyricIndex(imported, audioRef.current?.currentTime || 0))
-        message.success(`已载入 ${imported.length} 行歌词`)
-      }
-    }
-    reader.readAsText(file)
   }
 
   const copySource = async () => {
@@ -208,38 +231,39 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
             <Typography.Text className="music-player-artist">{meta.artist}</Typography.Text>
             <div className="music-player-art-actions">
               <Button icon={<FileTextOutlined />} onClick={() => setShowLyrics((value) => !value)}>{showLyrics ? '隐藏歌词' : '显示歌词'}</Button>
-              <label className="music-import-label">
-                <Button icon={<FileTextOutlined />}>导入歌词</Button>
-                <input type="file" accept=".lrc,.txt" onChange={(event) => importLyrics(event.target.files?.[0])} />
-              </label>
             </div>
           </Col>
           <Col xs={24} md={15} className="music-player-main-column">
             <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{sourceIndex + 1}/{Math.max(1, sources.length)} 线路</span></div>
-            <div className="music-player-current-lyric">{lines[lyricIndex]?.text || (lines.length ? '准备播放' : '暂无同步歌词')}</div>
+            <div className="music-player-current-lyric">{lines[lyricIndex]?.text || (lines.length ? '准备播放' : '暂无歌词')}</div>
             {showLyrics && <div className="music-lyrics-panel" ref={lyricBoxRef} aria-label="歌词">
               {lines.length ? lines.map((line) => <button key={`${line.time}-${line.index}`} data-lyric-index={line.index} className={line.index === lyricIndex ? 'active' : ''} onClick={() => seek(line.time)}>{line.text}</button>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌词" />}
             </div>}
             {playbackError && <Typography.Text type="danger" className="music-player-error">{playbackError}</Typography.Text>}
+            <Waveform title={`${meta.title}-${meta.artist}`} currentTime={currentTime} duration={duration} playing={playing} onSeek={seek} />
             <Slider className="music-progress-slider" min={0} max={duration || 1} value={Math.min(currentTime, duration || 1)} onChange={seek} tooltip={{ formatter: (value) => formatTime(Number(value)) }} />
             <div className="music-time-row"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
             <audio ref={audioRef} src={src} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} onLoadedMetadata={(event) => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)} onTimeUpdate={(event) => { const time = event.currentTarget.currentTime; setCurrentTime(time); setLyricIndex(activeLyricIndex(lines, time)) }} onError={() => setPlaybackError('媒体地址不可播放，链接可能已过期')} />
             <div className="music-player-controls">
-              <Space>
-                <Button type="text" icon={<StepBackwardOutlined />} onClick={() => changeSource(Math.max(0, sourceIndex - 1))} disabled={sourceIndex === 0} />
-                <Button type="primary" shape="circle" size="large" className="music-player-play" icon={playing ? <PauseCircleFilled /> : <PlayCircleFilled />} onClick={toggle} />
-                <Button type="text" icon={<StepForwardOutlined />} onClick={() => changeSource(Math.min(sources.length - 1, sourceIndex + 1))} disabled={sourceIndex >= sources.length - 1} />
+              <div className="music-volume-control">
+                <Tooltip title="音量"><SoundOutlined /></Tooltip>
+                <Slider className="music-volume-slider" min={0} max={100} value={volume} onChange={setVolume} />
+              </div>
+              <Space className="music-transport-controls" size={6}>
+                <Tooltip title="上一线路"><Button type="text" aria-label="上一线路" icon={<StepBackwardOutlined />} onClick={() => changeSource(Math.max(0, sourceIndex - 1))} disabled={sourceIndex === 0} /></Tooltip>
+                <Button type="primary" aria-label={playing ? '暂停' : '播放'} shape="circle" size="large" className="music-player-play" icon={playing ? <PauseCircleFilled /> : <PlayCircleFilled />} onClick={toggle} />
+                <Tooltip title="下一线路"><Button type="text" aria-label="下一线路" icon={<StepForwardOutlined />} onClick={() => changeSource(Math.min(sources.length - 1, sourceIndex + 1))} disabled={sourceIndex >= sources.length - 1} /></Tooltip>
               </Space>
-              <Space wrap>
-                <Tooltip title="音量"><SoundOutlined /><Slider className="music-volume-slider" min={0} max={100} value={volume} onChange={setVolume} /></Tooltip>
+              <div className="music-playback-settings">
                 <Select aria-label="播放速度" value={speed} onChange={setSpeed} options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => ({ value, label: `${value}x` }))} />
-                <Select aria-label="睡眠定时器" value={sleepMinutes} onChange={setSleepTimer} options={[{ value: 0, label: '定时关闭' }, { value: 15, label: '15 分钟' }, { value: 30, label: '30 分钟' }, { value: 60, label: '60 分钟' }]} />
-                <Tooltip title="全屏"><Button icon={<ExpandOutlined />} onClick={() => document.documentElement.requestFullscreen?.()} /></Tooltip>
-              </Space>
+              </div>
             </div>
             <div className="music-player-source-row">
-              <Select value={sourceIndex} onChange={changeSource} options={sources.map((_, index) => ({ value: index, label: sourceLabel(index, sources.length) }))} />
-              <Space><Button icon={<CopyOutlined />} onClick={() => void copySource()}>复制地址</Button>{src && <Button icon={<DownloadOutlined />} href={src} target="_blank" rel="noreferrer">打开源地址</Button>}</Space>
+              <div className="music-source-selector">
+                <Typography.Text>播放线路</Typography.Text>
+                <Select value={sourceIndex} onChange={changeSource} options={sources.map((_, index) => ({ value: index, label: sourceLabel(index, sources.length) }))} />
+              </div>
+              <Space className="music-source-actions"><Button icon={<CopyOutlined />} onClick={() => void copySource()}>复制地址</Button>{src && <Button icon={<DownloadOutlined />} href={src} target="_blank" rel="noreferrer">打开源地址</Button>}</Space>
             </div>
           </Col>
         </Row>
