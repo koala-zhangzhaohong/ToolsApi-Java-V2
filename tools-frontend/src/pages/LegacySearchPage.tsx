@@ -44,7 +44,7 @@ export default function LegacySearchPage() {
   }
 
   const searchBox = <>
-    <Input.Search value={value} onChange={(event) => setValue(event.target.value)} onSearch={(input) => void search(input)} enterButton={<><SearchOutlined /> 立即解析</>} size="large" allowClear loading={loading} placeholder="粘贴完整的抖音分享文本或链接" />
+    <Input.Search value={value} onChange={(event) => setValue(event.target.value)} onSearch={(input) => void search(input)} enterButton={<><SearchOutlined /><span className="search-button-label">立即解析</span></>} size="large" allowClear loading={loading} placeholder="粘贴完整的抖音分享文本或链接" />
     <Space wrap className="legacy-search-chips"><Typography.Text type="secondary">快捷输入</Typography.Text>{douyinExamples.map((item) => <Tag key={item.label} onClick={() => setValue(item.value)}>{item.label}</Tag>)}</Space>
   </>
 

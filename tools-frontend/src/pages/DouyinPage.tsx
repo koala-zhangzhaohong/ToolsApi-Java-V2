@@ -115,7 +115,7 @@ export default function DouyinPage() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onSearch={search}
-          enterButton={<><SearchOutlined /> 立即解析</>}
+          enterButton={<><SearchOutlined /><span className="search-button-label">立即解析</span></>}
           placeholder="粘贴完整的抖音分享文本或链接"
           loading={loading}
           allowClear
@@ -128,7 +128,7 @@ export default function DouyinPage() {
       </Card>
 
       {loading && <div className="loading-panel"><Spin size="large" /><Typography.Text type="secondary">正在解析分享内容…</Typography.Text></div>}
-      {error && <Alert type="error" showIcon closable message="解析失败" description={error} onClose={() => setError('')} />}
+      {error && <Alert className="page-feedback" type="error" showIcon closable message="解析失败" description={error} onClose={() => setError('')} />}
       {result && <div className="result-section"><ResultLinks result={result} /><Card title="完整响应" className="json-response"><JsonTree data={result} /></Card></div>}
       {!result && !loading && !error && (
         <Card

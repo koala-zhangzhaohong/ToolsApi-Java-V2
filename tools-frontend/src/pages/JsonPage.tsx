@@ -82,7 +82,7 @@ export default function JsonPage() {
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           onSearch={requestUrl}
-          enterButton={<><SendOutlined /> 请求</>}
+          enterButton={<><SendOutlined /><span className="search-button-label">请求</span></>}
           loading={loading}
           prefix={<LinkOutlined />}
           placeholder="输入 JSON 接口地址，例如 /tools/DouYin/api?..."

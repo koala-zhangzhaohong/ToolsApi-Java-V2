@@ -55,6 +55,7 @@ button, input, textarea { font: inherit; }
 .suggestions { margin-top: 16px; }
 .suggestions .ant-tag { cursor: pointer; padding: 5px 12px; border-radius: 999px; }
 .usage-alert { margin-top: 24px; }
+.page-feedback { margin-top: 18px; }
 .loading-panel { min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
 .result-section { display: grid; gap: 18px; margin-top: 22px; }
 .result-card { height: 100%; }
@@ -259,7 +260,9 @@ button, input, textarea { font: inherit; }
   .page-heading { align-items: flex-start; flex-direction: column; }
   .hero-panel { padding: 30px 24px; border-radius: 20px; }
   .hero-panel h1.ant-typography { font-size: 38px; }
-  .search-panel .ant-input-search-button span:not(.anticon) { display: none; }
+  .ant-input-search-button { min-width: 52px; padding-inline: 14px; }
+  .ant-input-search-button .anticon { display: inline-flex !important; margin: 0 !important; }
+  .search-button-label { display: none; }
   .json-workbench .ant-card-head { padding: 0 14px; }
   .json-workbench .ant-card-body { padding: 12px; }
   .player-config .ant-radio-group { display: grid; grid-template-columns: 1fr 1fr; }
