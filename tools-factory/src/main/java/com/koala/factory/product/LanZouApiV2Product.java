@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
@@ -36,8 +35,6 @@ public class LanZouApiV2Product {
     private String acw;
     private static final ArrayList<String> HOST_LIST = new ArrayList<>();
     private static final HashMap<Integer, List<String>> INVALID_LIST = new HashMap<>();
-    private final RestTemplateUtils restTemplateUtils = new RestTemplateUtils();
-
     static {
         HOST_LIST.add("https://wwwx.lanzoux.com");
         HOST_LIST.add("https://www.lanzoui.com");
@@ -75,12 +72,12 @@ public class LanZouApiV2Product {
     private void initHtmlData(int mode) {
         for (String currentHost : HOST_LIST) {
             String url = currentHost + (mode == 0 ? "/" : "/tp/") + this.id;
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
-            String response = responseEntity.getBody();
+            HttpClientUtil.HttpResult responseEntity = get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()));
+            String response = responseEntity.body();
             if (ObjectUtils.isEmpty(response)) {
                 continue;
             }
-            List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+            List<String> cookies = responseEntity.headerValues("Set-Cookie");
             logger.info("[LanZouApiProduct]({}) html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
             this.host = currentHost;
             this.htmlData = response;
@@ -106,12 +103,12 @@ public class LanZouApiV2Product {
         }
         String redirectPath = PatternUtil.matchData("<div class=\"mh\"><a href=\"(.*?)\" id=\"downurl\">", htmlData);
         String url = this.host + redirectPath;
-        ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
-        String response = responseEntity.getBody();
+        HttpClientUtil.HttpResult responseEntity = get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()));
+        String response = responseEntity.body();
         if (ObjectUtils.isEmpty(response)) {
             return null;
         }
-        List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+        List<String> cookies = responseEntity.headerValues("Set-Cookie");
         logger.info("[LanZouApiProduct]({}) redirect html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
         this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
         return response;
@@ -137,12 +134,12 @@ public class LanZouApiV2Product {
             }
             if (!acwStatus) this.htmlCookies.add("acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
             String url = this.host + (mode == 0 ? "/" : "/tp/") + this.id;
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
-            String response = responseEntity.getBody();
+            HttpClientUtil.HttpResult responseEntity = get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()));
+            String response = responseEntity.body();
             if (ObjectUtils.isEmpty(response)) {
                 return null;
             }
-            List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+            List<String> cookies = responseEntity.headerValues("Set-Cookie");
             this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
             logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}", id, response);
             return response;
@@ -176,12 +173,12 @@ public class LanZouApiV2Product {
         params.put("up", PatternUtil.matchData("'up':(.*?),", htmlData));
         params.put("ls", PatternUtil.matchData("'ls':(.*?),", htmlData));
         params.put("pwd", password);
-        ResponseEntity<String> responseEntity = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/filemoreajax.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
-        String response = responseEntity.getBody();
+        HttpClientUtil.HttpResult responseEntity = post(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/filemoreajax.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
+        String response = responseEntity.body();
         if (ObjectUtils.isEmpty(response)) {
             return null;
         }
-        List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+        List<String> cookies = responseEntity.headerValues("Set-Cookie");
         logger.info("[LanZouApiProduct]({}) get folder, html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
         FolderDataRespModel folderData = GsonUtil.toBean(response, FolderDataRespModel.class);
         if (Objects.equals(folderData.getZt(), 1)) {
@@ -208,12 +205,12 @@ public class LanZouApiV2Product {
         String response = null;
         for (String currentHost : HOST_LIST) {
             String url = currentHost + (mode == 0 ? "/" : "/tp/") + fileInfo.getId();
-            ResponseEntity<String> responseEntity = restTemplateUtils.get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()), String.class);
-            response = responseEntity.getBody();
+            HttpClientUtil.HttpResult responseEntity = get(url, HeaderUtil.getLanZouInfoHeader(url, getCookiesStr()));
+            response = responseEntity.body();
             if (ObjectUtils.isEmpty(response)) {
                 continue;
             }
-            List<String> cookies = responseEntity.getHeaders().get("Set-Cookie");
+            List<String> cookies = responseEntity.headerValues("Set-Cookie");
             logger.info("[LanZouApiProduct]({}) html: {}, cookies: {}", id, response, GsonUtil.toString(cookies));
             this.htmlCookies = new ArrayList<>(cookies != null ? cookies : new ArrayList<>());
             String tmpHtmlData = checkAcwAndReload(mode, response);
@@ -267,15 +264,15 @@ public class LanZouApiV2Product {
         params.put("sign", sign);
         params.put("p", password);
         params.put("kd", kdns);
-        ResponseEntity<String> responseEntity = restTemplateUtils.doPost(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
-        LanZouFileInfoRespModel downloadInfo = GsonUtil.toBean(responseEntity.getBody(), LanZouFileInfoRespModel.class);
+        HttpClientUtil.HttpResult responseEntity = post(this.host + (!ObjectUtils.isEmpty(infoPath) ? infoPath : "/ajaxm.php"), params, HeaderUtil.getLanZouInfoHeader(this.host + "/" + this.id, getCookiesStr()));
+        LanZouFileInfoRespModel downloadInfo = GsonUtil.toBean(responseEntity.body(), LanZouFileInfoRespModel.class);
         if (ObjectUtils.isEmpty(downloadInfo) || downloadInfo.getZt() == 0) {
             return null;
         }
         fileInfo.setDownloadHost(downloadInfo.getDownloadHost());
         fileInfo.setDownloadPath(downloadInfo.getDownloadPath());
-        ResponseEntity<String> redirectResponseEntity = restTemplateUtils.get(downloadInfo.getDownloadHost() + "/file/" + downloadInfo.getDownloadPath(), HeaderUtil.getLanZouInfoHeader(this.url, getCookiesStr()), String.class);
-        String redirectResponse = redirectResponseEntity.getBody();
+        HttpClientUtil.HttpResult redirectResponseEntity = get(downloadInfo.getDownloadHost() + "/file/" + downloadInfo.getDownloadPath(), HeaderUtil.getLanZouInfoHeader(this.url, getCookiesStr()));
+        String redirectResponse = redirectResponseEntity.body();
         fileInfo.setDownloadUrl(PatternUtil.matchData("<a href=\"(.*?)\" class=\"d_pclink2\">", redirectResponse));
         logger.info("[LanZouApiProduct]({}) get file info, info: {}", id, GsonUtil.toString(fileInfo));
         return fileInfo;
@@ -330,5 +327,21 @@ public class LanZouApiV2Product {
         }
         cookies.append(" codelen=1; pc_ad1=1;");
         return cookies.toString().trim();
+    }
+
+    private HttpClientUtil.HttpResult get(String url, Map<String, String> headers) {
+        try {
+            return HttpClientUtil.getResponse(url, headers, null);
+        } catch (Exception exception) {
+            throw new IllegalStateException("LanZou GET request failed: " + url, exception);
+        }
+    }
+
+    private HttpClientUtil.HttpResult post(String url, Map<String, ?> params, Map<String, String> headers) {
+        try {
+            return HttpClientUtil.postFormResponse(url, headers, params);
+        } catch (Exception exception) {
+            throw new IllegalStateException("LanZou POST request failed: " + url, exception);
+        }
     }
 }

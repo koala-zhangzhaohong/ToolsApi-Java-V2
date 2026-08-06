@@ -16,8 +16,6 @@ import static com.koala.service.data.redis.RedisKeyPrefix.BING_IMG_LOCKED;
 @SuppressWarnings("ALL")
 public class BingUtils {
 
-    private final RestTemplateUtils restTemplateUtils = new RestTemplateUtils();
-
     public String getImage(Boolean flag, RedisService redisService) throws IOException, URISyntaxException {
         if (flag == null) {
             flag = false;
@@ -52,7 +50,7 @@ public class BingUtils {
         int day = flag == true ? 0 : new Random().nextInt(10);//获取必应最近7天壁纸，必应限制只显示最近7天，随机获取，大于7，显示7的壁纸
         params.put("idx", String.valueOf(day));
         params.put("n", number);
-        String response = HttpRequestUtil.httpGet(url, params);
+        String response = HttpClientUtil.doGet(url, params);
         BingRespDataModel data = GsonUtil.toBean(response, BingRespDataModel.class);
         if (!data.getImages().isEmpty()) {
             String imgUrl = data.getImages().get(0).getUrl();

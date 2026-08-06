@@ -1,20 +1,16 @@
 package com.koala.factory.extra.netease;
 
-import cn.hutool.json.JSONObject;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HttpClientUtil;
 import com.koala.service.utils.PatternUtil;
-import com.koala.service.utils.NeteaseRestTemplateUtil;
 import jakarta.annotation.Resource;
 import org.apache.hc.client5.http.cookie.Cookie;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,9 +44,6 @@ public class NeteaseCookieUtil {
 
     @Resource(name = "getHost")
     private String host;
-
-    @Resource
-    private RestTemplate restTemplate;
 
     public void doRefreshNeteaseCookieTask(String cookie) {
         if (ObjectUtils.isEmpty(cookie)) {
@@ -106,11 +99,21 @@ public class NeteaseCookieUtil {
                 e.printStackTrace();
             }
         });
-        ResponseEntity<String> responseEntity = NeteaseRestTemplateUtil.post(new JSONObject(), getCurrentHost() + "tools/Netease/weapi/login/token/refresh", cookies, restTemplate);
-        if (StringUtils.hasLength(responseEntity.getBody())) {
-            Map<String, Object> data = GsonUtil.toMaps(responseEntity.getBody());
+        HttpClientUtil.HttpResult responseEntity;
+        try {
+            responseEntity = HttpClientUtil.postFormResponse(
+                    getCurrentHost() + "tools/Netease/weapi/login/token/refresh",
+                    getNeteaseHttpHeader(cookies.entrySet().stream()
+                            .map(entry -> entry.getKey() + "=" + entry.getValue())
+                            .collect(java.util.stream.Collectors.joining("; "))),
+                    Map.of());
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to refresh Netease cookie", exception);
+        }
+        if (StringUtils.hasLength(responseEntity.body())) {
+            Map<String, Object> data = GsonUtil.toMaps(responseEntity.body());
             if (Objects.equals(data.get("code").toString(), "200")) {
-                List<String> cookieData = responseEntity.getHeaders().get("Set-Cookie");
+                List<String> cookieData = responseEntity.headerValues("Set-Cookie");
                 StringBuilder cookieString = new StringBuilder();
                 if (!Objects.isNull(cookieData) && cookieData.stream().noneMatch(item -> item.startsWith("__csrf"))) {
                     AtomicReference<String> csrf = new AtomicReference<>("");

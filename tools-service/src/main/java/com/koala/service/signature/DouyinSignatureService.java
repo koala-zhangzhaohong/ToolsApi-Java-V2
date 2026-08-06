@@ -1,5 +1,6 @@
 package com.koala.service.signature;
 
+import com.koala.service.utils.HttpClientUtil;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -8,10 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -47,11 +44,6 @@ public final class DouyinSignatureService {
     private final Object scriptLock = new Object();
     private final Object tokenLock = new Object();
     private final SecureRandom secureRandom = new SecureRandom();
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
-
     private volatile Context xBogusContext;
     private volatile Context aBogusContext;
     private volatile Context liveSignContext;
@@ -121,23 +113,17 @@ public final class DouyinSignatureService {
                 return cachedTtwid;
             }
             try {
-                HttpRequest request = HttpRequest.newBuilder(URI.create(TTWID_REGISTER_URL))
-                        .timeout(Duration.ofSeconds(15))
-                        .header("Content-Type", "application/json")
-                        .header("User-Agent", USER_AGENT)
-                        .POST(HttpRequest.BodyPublishers.ofString(TTWID_REGISTER_BODY))
-                        .build();
-                HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-                String issued = extractTtwid(response.headers().allValues("set-cookie"));
+                HttpClientUtil.HttpResult response = HttpClientUtil.postJsonResponse(
+                        TTWID_REGISTER_URL,
+                        java.util.Map.of("Content-Type", "application/json", "User-Agent", USER_AGENT),
+                        TTWID_REGISTER_BODY);
+                String issued = extractTtwid(response.headerValues("set-cookie"));
                 if (!issued.isBlank()) {
                     cachedTtwid = issued;
                     cachedTtwidExpiresAt = now.plus(TTWID_TTL);
                 }
             } catch (IOException exception) {
                 LOGGER.warn("Unable to refresh ttwid; continuing with the configured Douyin cookie", exception);
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                LOGGER.warn("Interrupted while refreshing ttwid", exception);
             }
             return cachedTtwid;
         }
