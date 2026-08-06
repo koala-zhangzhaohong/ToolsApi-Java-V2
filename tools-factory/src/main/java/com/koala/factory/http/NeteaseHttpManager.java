@@ -1,13 +1,12 @@
 package com.koala.factory.http;
 
-import com.koala.data.models.RespModel;
 import com.koala.service.data.redis.RedisKeyPrefix;
 import com.koala.service.data.redis.service.RedisService;
+import com.koala.service.utils.CryptoUtil;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HeaderUtil;
 import com.koala.service.utils.HttpClientUtil;
 import org.apache.hc.client5.http.cookie.Cookie;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -31,20 +30,10 @@ import static com.koala.service.utils.HeaderUtil.getNeteaseHttpHeader;
 public class NeteaseHttpManager {
 
     private static final String BASE_URL = "http://music.163.com";
-    private static final String TYPE_WEAPI = "weapi";
-    private static final String BASE_LINUX_API = "linuxapi";
-    private static final String BASE_EAPI = "eapi";
-    private static String servicePath;
     private final RedisService redisService;
 
     private String csrf = null;
     private String cookieStr = null;
-
-    @SuppressWarnings("AlibabaCommentsMustBeJavadocFormat")
-    @Value("${netease.generator}")  //删除掉static
-    public void setServicePath(String servicePath) {
-        NeteaseHttpManager.servicePath = servicePath;
-    }
 
     public NeteaseHttpManager(RedisService redisService) {
         this.redisService = redisService;
@@ -79,16 +68,12 @@ public class NeteaseHttpManager {
             csrfToken = this.csrf;
             cookie = this.cookieStr;
         }
-        LinkedHashMap<String, String> data = new LinkedHashMap<>();
-        data.put("encryptType", TYPE_WEAPI);
         params.put("csrf_token", csrfToken);
-        data.put("params", GsonUtil.toString(params));
-        String response = HttpClientUtil.doPostJson(servicePath, GsonUtil.toString(data));
-        String body = null;
-        if (StringUtils.hasLength(response)) {
-            RespModel resp = GsonUtil.toBean(response, RespModel.class);
-            body = GsonUtil.toString(resp.getData());
-        }
+        String[] encrypted = CryptoUtil.weapiEncrypt(GsonUtil.toString(params));
+        LinkedHashMap<String, String> bodyData = new LinkedHashMap<>();
+        bodyData.put("params", encrypted[0]);
+        bodyData.put("encSecKey", encrypted[1]);
+        String body = GsonUtil.toString(bodyData);
         return HttpClientUtil.doPostJson(url + "?csrf_token=" + csrfToken, HeaderUtil.getNeteaseHttpHeader(cookie + customCookies), body);
     }
 }

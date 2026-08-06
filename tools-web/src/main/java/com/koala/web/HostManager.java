@@ -16,7 +16,7 @@ import static com.koala.service.data.redis.RedisKeyPrefix.SERVICE_HOST;
  * @description
  */
 @Component
-@DependsOn({"beanContext", "getHost", "getCdnHost", "RedisService"})
+@DependsOn({"beanContext", "getHost", "getFrontendHost", "getCdnHost", "RedisService"})
 public class HostManager {
 
     @Resource(name = "getHost")
@@ -24,6 +24,9 @@ public class HostManager {
 
     @Resource(name = "getCdnHost")
     private String cdnHost;
+
+    @Resource(name = "getFrontendHost")
+    private String frontendHost;
 
     @Resource
     private RedisService redisService;
@@ -42,6 +45,10 @@ public class HostManager {
             return cachedHost;
         }
         return cdnHost;
+    }
+
+    public String getFrontendHost() {
+        return frontendHost;
     }
 
 }

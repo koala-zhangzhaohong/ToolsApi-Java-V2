@@ -3,7 +3,6 @@ package com.koala.factory.product;
 import com.koala.data.models.file.FileInfoModel;
 import com.koala.data.models.lanzou.FolderDataRespModel;
 import com.koala.data.models.lanzou.FolderFileInfoRespModel;
-import com.koala.data.models.lanzou.LanZouAcwRespModel;
 import com.koala.data.models.lanzou.LanZouFileInfoRespModel;
 import com.koala.service.utils.*;
 import lombok.Getter;
@@ -124,13 +123,11 @@ public class LanZouApiV2Product {
             return null;
         }
         String arg1 = PatternUtil.matchData("var arg1='(.*?)'", htmlData);
-        Map<String, String> params = new HashMap<>();
-        params.put("arg1", arg1);
         if (ObjectUtils.isEmpty(arg1))
             return null;
-        LanZouAcwRespModel acwResp = restTemplateUtils.post(AcwUtils.getAcwPath(), params, LanZouAcwRespModel.class).getBody();
-        if (!ObjectUtils.isEmpty(acwResp) && !ObjectUtils.isEmpty(acwResp.getData().getAcw())) {
-            this.acw = acwResp.getData().getAcw();
+        String calculatedAcw = AcwUtils.calculate(arg1);
+        if (!ObjectUtils.isEmpty(calculatedAcw)) {
+            this.acw = calculatedAcw;
             for (int index = 0; index < this.htmlCookies.size(); index++) {
                 if (this.htmlCookies.get(index).startsWith("acw_sc__v2=")) {
                     this.htmlCookies.set(index, "acw_sc__v2=" + this.acw + ";path=/;HttpOnly;Max-Age=3600");
@@ -150,7 +147,7 @@ public class LanZouApiV2Product {
             logger.info("[LanZouApiProduct]({}) reLoad with acw, html: {}", id, response);
             return response;
         }
-        logger.info("[LanZouApiProduct]({}) arg1: {}, resp: {}", id, arg1, GsonUtil.toString(acwResp));
+        logger.info("[LanZouApiProduct]({}) unable to calculate acw from arg1: {}", id, arg1);
         return null;
     }
 

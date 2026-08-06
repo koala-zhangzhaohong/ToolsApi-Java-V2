@@ -27,6 +27,7 @@ public class CryptoUtil {
     private static final String modulus = "00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7";
     private static final String iv = "0102030405060708";
     private static final String eapiKey = "e82ckenh8dichen8";
+    private static final String linuxApiKey = "rFgB&h#%2?^eDg:Q";
 
 
     /**
@@ -126,6 +127,11 @@ public class CryptoUtil {
         String digest = getMd5(message);
         String data = url + "-36cd479b6b5-" + content + "-36cd479b6b5-" + digest;
         return aesEncrypt(data, eapiKey, AesEncryptEnum.ECB, "").toUpperCase();
+    }
+
+    /** Encrypts the payload used by NetEase Linux API calls. */
+    public static String linuxApiEncrypt(String content) {
+        return aesEncrypt(content, linuxApiKey, AesEncryptEnum.ECB, "").toUpperCase();
     }
 
     /**

@@ -271,7 +271,7 @@ public class DouYinToolsController {
                         simpleData.setRankData(rankData);
                         simpleData.setMediaData(mediaData);
                         String key = ShortKeyGenerator.getKey(url);
-                        String printerUrl = hostManager.getHost() + "tools/json/printer/pro?key=" + key + "&id=6";
+                        String printerUrl = hostManager.getFrontendHost() + "tools/json/printer/pro?key=" + key + "&id=6";
                         simpleData.setPro(printerUrl);
                         redisService.set(JSON_KEY_PREFIX + key, GsonUtil.toString(simpleData), EXPIRE_TIME);
                         if (directJsonViewer) {
@@ -286,7 +286,7 @@ public class DouYinToolsController {
         }
         if (directJsonViewer) {
             // 防止直接展示异常信息 转而展示500
-            redirectStrategy.sendRedirect(request, response, hostManager.getHost() + "tools/json/printer/pro?id=3");
+            redirectStrategy.sendRedirect(request, response, hostManager.getFrontendHost() + "tools/json/printer/pro?id=3");
         }
         return formatRespData(GET_INFO_ERROR, null);
     }
@@ -399,7 +399,7 @@ public class DouYinToolsController {
         if (Objects.isNull(xbogusDataModel) || ObjectUtils.isEmpty(xbogusDataModel.getUrl())) {
             return formatRespData(ENCRYPT_URL_ERROR, null);
         }
-        String response = HttpClientUtil.doGet(xbogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(xbogusDataModel.getMstoken(), xbogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        String response = HttpClientUtil.doGetWithoutTimeout(xbogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(xbogusDataModel.getMstoken(), xbogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
         if (StringUtils.hasLength(response)) {
             switch (version) {
                 case "1" -> {
@@ -481,7 +481,7 @@ public class DouYinToolsController {
         if (Objects.isNull(abogusDataModel) || ObjectUtils.isEmpty(abogusDataModel.getUrl())) {
             return formatRespData(ENCRYPT_URL_ERROR, null);
         }
-        String response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+        String response = HttpClientUtil.doGetWithoutTimeout(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
         if (StringUtils.hasLength(response)) {
             switch (config) {
                 case "1" -> {
@@ -550,7 +550,7 @@ public class DouYinToolsController {
         }
         String response;
         for (int retry = 0; retry < MAX_RETRY_TIMES; retry++) {
-            response = HttpClientUtil.doGet(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+            response = HttpClientUtil.doGetWithoutTimeout(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
             if (StringUtils.hasLength(response)) {
                 TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
                 String nickname = profileData.getUser().getNickname();

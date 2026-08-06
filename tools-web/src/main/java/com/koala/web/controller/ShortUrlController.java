@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -42,6 +43,7 @@ public class ShortUrlController {
     private HostManager hostManager;
 
     @HttpRequestRecorder
+    @CrossOrigin(origins = "*")
     @GetMapping("/short")
     public String shortUrl(@RequestParam(value = "key", required = false, defaultValue = "") String key, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         if (StringUtils.hasLength(key)) {

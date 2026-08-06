@@ -1,15 +1,10 @@
 package com.koala.service.utils;
 
 import com.koala.data.models.xbogus.XbogusDataModel;
-import com.koala.data.models.xbogus.XbogusRespDataModel;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
+import com.koala.service.signature.DouyinSignatureService;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.net.URI;
 
 /**
  * @author koala
@@ -17,30 +12,31 @@ import java.util.Objects;
  * @date 2023/4/9 11:09
  * @description
  */
-@Component
 public class XbogusUtil {
-    private static String host;
+    private static final DouyinSignatureService SIGNATURE_SERVICE = DouyinSignatureService.getInstance();
 
-    @SuppressWarnings("AlibabaCommentsMustBeJavadocFormat")
-    @Value("${xbogus.host}")  //删除掉static
-    public void setHost(String host) {
-        XbogusUtil.host = host;
+    private XbogusUtil() {
     }
 
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36";
-
     public static XbogusDataModel encrypt(String url) throws IOException {
-        Map<String, String> params = new HashMap<>(0);
-        params.put("url", url);
-        params.put("userAgent", USER_AGENT);
-        String response = HttpClientUtil.doPostJson(host, GsonUtil.toString(params));
-        if (!ObjectUtils.isEmpty(response)) {
-            XbogusRespDataModel respData = GsonUtil.toBean(response, XbogusRespDataModel.class);
-            if (!Objects.isNull(respData) && !Objects.isNull(respData.getData()) && !ObjectUtils.isEmpty(respData.getData().getUrl())) {
-                return respData.getData();
-            }
-            return null;
+        try {
+            String query = URI.create(url).getRawQuery();
+            String signature = SIGNATURE_SERVICE.generateXBogus(query, DouyinSignatureService.USER_AGENT);
+            XbogusDataModel result = new XbogusDataModel();
+            result.setXbogus(signature);
+            result.setMstoken(SIGNATURE_SERVICE.generateMsToken());
+            result.setTtwid(SIGNATURE_SERVICE.getTtwid());
+            result.setUrl(appendQueryParameter(url, "X-Bogus", signature));
+            return result;
+        } catch (RuntimeException exception) {
+            throw new IOException("Unable to generate X-Bogus in process", exception);
         }
-        return null;
+    }
+
+    static String appendQueryParameter(String url, String name, String value) {
+        if (url.contains("?")) {
+            return url + (url.endsWith("?") || url.endsWith("&") ? "" : "&") + name + "=" + value;
+        }
+        return url + (url.endsWith("/") ? "?" : "/?") + name + "=" + value;
     }
 }

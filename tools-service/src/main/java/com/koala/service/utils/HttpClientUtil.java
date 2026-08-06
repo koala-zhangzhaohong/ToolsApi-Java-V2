@@ -103,6 +103,23 @@ public class HttpClientUtil {
     }
 
     /**
+     * 发送不限制等待时长的 GET 请求。
+     *
+     * <p>用于用户反查等预期执行时间较长的任务，不配置连接池等待和响应超时。</p>
+     */
+    public static String doGetWithoutTimeout(String url, Map<String, String> headers, Map<String, String> params) throws IOException, URISyntaxException {
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            URIBuilder uriBuilder = new URIBuilder(url);
+            if (!ObjectUtils.isEmpty(params)) {
+                params.forEach(uriBuilder::setParameter);
+            }
+            HttpGet httpGet = new HttpGet(uriBuilder.build());
+            packageHeader(headers, httpGet);
+            return getHttpClientResult(httpClient, httpGet);
+        }
+    }
+
+    /**
      * 发送get请求;带请求参数
      */
     public static String doGet(String url, Map<String, String> params) throws IOException, URISyntaxException {
