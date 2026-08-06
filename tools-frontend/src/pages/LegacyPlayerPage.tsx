@@ -100,7 +100,7 @@ function sourceList(data: PlayerPageData, media: LegacyMedia, params: URLSearchP
   const web = record(data.web_player_info || data.webPlayerInfo)
   const item = record(data.item_info || data.itemInfo)
   const itemData = Array.isArray(item?.data) ? item.data : []
-  return [...objectUrls(web?.player_url_list || web?.playerUrlList), ...itemData.flatMap((value) => {
+  return [...objectUrls(data.path || data.proxyPath), ...objectUrls(web?.player_url_list || web?.playerUrlList), ...itemData.flatMap((value) => {
     const row = record(value)
     return objectUrls(row?.cdn_url || row?.cdnUrl || row?.url)
   })]
@@ -284,6 +284,7 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
 export default function LegacyPlayerPage() {
   const location = useLocation()
   const [params] = useSearchParams()
+  const embedded = params.get('embed') === '1'
   const info = useMemo(() => routeInfo(location.pathname), [location.pathname])
   const defaultVersion = info.platform === 'douyin' && info.media === 'video' && /\/short\/?$/i.test(location.pathname)
     ? '4'
@@ -298,6 +299,18 @@ export default function LegacyPlayerPage() {
   const [loading, setLoading] = useState(Boolean(params.get('key')))
   const [error, setError] = useState('')
   const [playbackError, setPlaybackError] = useState('')
+
+  useEffect(() => {
+    if (!embedded) return
+    const htmlOverflow = document.documentElement.style.overflow
+    const bodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.documentElement.style.overflow = htmlOverflow
+      document.body.style.overflow = bodyOverflow
+    }
+  }, [embedded])
 
   useEffect(() => {
     const key = params.get('key')
@@ -325,9 +338,9 @@ export default function LegacyPlayerPage() {
     ? useCdnProxy ? `CDN 线路 ${params.get('proxyExtra') || '1'}` : '回源线路（原地址）'
     : undefined
 
-  return <main className={`legacy-player-page legacy-player-${variant}`}>
-    <Card className="legacy-player-meta" size="small" bordered={false}><Space wrap><Tag color="purple">{platformLabel}</Tag><Tag>{mediaLabel}</Tag><Tag>{variant.toUpperCase()}</Tag>{routeLabel && <Tag color={useCdnProxy ? 'blue' : 'orange'}>{routeLabel}</Tag>}{info.media === 'live' && <Badge status={sources.length ? 'processing' : 'default'} text={sources.length ? '直播线路' : '等待线路'} />}</Space></Card>
-    {loading ? <Card className="legacy-player-message" bordered={false}><Spin size="large" tip="正在载入媒体数据"><div className="legacy-search-spin" /></Spin></Card> : error ? <Card className="legacy-player-message" bordered={false}><Result status="error" title="媒体数据加载失败" subTitle={error} extra={<Space><Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>重新加载</Button><Button icon={<HomeOutlined />} href="/">返回首页</Button></Space>} /></Card> : !sources.length ? <Card className="legacy-player-message" bordered={false}><Result status="warning" title={info.media === 'live' ? '直播暂不可用' : '媒体链接不可用'} subTitle={info.media === 'live' ? '直播可能已经结束，或者播放地址已经过期。' : '媒体数据可能已过期，请返回解析页面重新获取。'} extra={<Button type="primary" icon={<HomeOutlined />} href="/douyin">重新解析</Button>} /></Card> : info.media === 'music' ? <MusicPlayerPage data={data} sources={musicSources} /> : info.media === 'picture' ? <Card className="legacy-picture" bordered={false} bodyStyle={{ padding: 0 }}><Carousel arrows dots>{sources.map((src) => <div key={src}><Image preview src={src} /></div>)}</Carousel><div className="picture-caption"><PictureOutlined /> {title}</div></Card> : <Card className="legacy-video-shell" bordered={false} bodyStyle={{ padding: 0 }}>{playbackError && <Alert banner closable type="warning" message={playbackError} onClose={() => setPlaybackError('')} />}{variant === 'zwplayer' ? <OriginalZwPlayer sources={sources} live={info.media === 'live'} transport={transport} useCdnProxy={useCdnProxy} onError={setPlaybackError} /> : <><NativeVideo src={sources[active]} live={info.media === 'live'} transport={transport} useCdnProxy={useCdnProxy} onError={setPlaybackError} /><div className="legacy-video-bar"><Space><Badge status={info.media === 'live' ? 'processing' : 'success'} /><Typography.Text>{info.media === 'live' ? 'LIVE' : variant.toUpperCase()} · {title}</Typography.Text></Space>{sources.length > 1 && <Select value={active} onChange={(value) => { setActive(value); setPlaybackError('') }} options={sources.map((_, index) => ({ value: index, label: `线路 ${index + 1}` }))} />}</div></>}</Card>}
+  return <main className={`legacy-player-page legacy-player-${variant} ${embedded ? 'legacy-player-embedded' : ''}`}>
+    {!embedded && <Card className="legacy-player-meta" size="small" bordered={false}><Space wrap><Tag color="purple">{platformLabel}</Tag><Tag>{mediaLabel}</Tag><Tag>{variant.toUpperCase()}</Tag>{routeLabel && <Tag color={useCdnProxy ? 'blue' : 'orange'}>{routeLabel}</Tag>}{info.media === 'live' && <Badge status={sources.length ? 'processing' : 'default'} text={sources.length ? '直播线路' : '等待线路'} />}</Space></Card>}
+    {loading ? <Card className="legacy-player-message" bordered={false}><Spin size="large" tip="正在载入媒体数据"><div className="legacy-search-spin" /></Spin></Card> : error ? <Card className="legacy-player-message" bordered={false}><Result status="error" title="媒体数据加载失败" subTitle={error} extra={<Space><Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>重新加载</Button><Button icon={<HomeOutlined />} href="/">返回首页</Button></Space>} /></Card> : !sources.length ? <Card className="legacy-player-message" bordered={false}><Result status="warning" title={info.media === 'live' ? '直播暂不可用' : '媒体链接不可用'} subTitle={info.media === 'live' ? '直播可能已经结束，或者播放地址已经过期。' : '媒体数据可能已过期，请返回解析页面重新获取。'} extra={<Button type="primary" icon={<HomeOutlined />} href="/douyin">重新解析</Button>} /></Card> : info.media === 'music' ? <MusicPlayerPage data={data} sources={musicSources} compact={embedded} /> : info.media === 'picture' ? <Card className="legacy-picture" bordered={false} bodyStyle={{ padding: 0 }}><Carousel arrows dots>{sources.map((src) => <div key={src}><Image preview src={src} /></div>)}</Carousel><div className="picture-caption"><PictureOutlined /> {title}</div></Card> : <Card className="legacy-video-shell" bordered={false} bodyStyle={{ padding: 0 }}>{playbackError && <Alert banner closable type="warning" message={playbackError} onClose={() => setPlaybackError('')} />}{variant === 'zwplayer' ? <OriginalZwPlayer sources={sources} live={info.media === 'live'} transport={transport} useCdnProxy={useCdnProxy} onError={setPlaybackError} /> : <><NativeVideo src={sources[active]} live={info.media === 'live'} transport={transport} useCdnProxy={useCdnProxy} onError={setPlaybackError} /><div className="legacy-video-bar"><Space><Badge status={info.media === 'live' ? 'processing' : 'success'} /><Typography.Text>{info.media === 'live' ? 'LIVE' : variant.toUpperCase()} · {title}</Typography.Text></Space>{sources.length > 1 && <Select value={active} onChange={(value) => { setActive(value); setPlaybackError('') }} options={sources.map((_, index) => ({ value: index, label: `线路 ${index + 1}` }))} />}</div></>}</Card>}
     {sources[active] && info.media !== 'music' && <Button className="legacy-source-link" type="primary" ghost href={proxiedMediaUrl(sources[active], useCdnProxy)} target="_blank" rel="noreferrer" icon={<LinkOutlined />}>打开源地址</Button>}
   </main>
 }

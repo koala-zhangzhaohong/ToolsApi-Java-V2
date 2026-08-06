@@ -115,9 +115,10 @@ function Waveform({ title, currentTime, duration, playing, onSeek }: { title: st
 interface MusicPlayerPageProps {
   data: PlayerPageData
   sources: string[]
+  compact?: boolean
 }
 
-export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps) {
+export default function MusicPlayerPage({ data, sources, compact = false }: MusicPlayerPageProps) {
   const { message } = App.useApp()
   const meta = useMemo(() => musicMeta(data), [data])
   const lines = useMemo(() => parseLyrics(meta.lyric), [meta.lyric])
@@ -218,11 +219,11 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
   }
 
   return (
-    <main className="music-player-page">
+    <main className={`music-player-page ${compact ? 'music-player-compact' : ''}`}>
       <Card className="music-player-shell" bordered={false}>
         <div className="music-player-background" style={meta.cover ? { backgroundImage: `linear-gradient(120deg, rgba(10,12,22,.95), rgba(20,20,42,.88)), url(${meta.cover})` } : undefined} />
         <Row gutter={[32, 32]} className="music-player-grid">
-          <Col xs={24} md={9} className="music-player-art-column">
+          {!compact && <Col xs={24} md={9} className="music-player-art-column">
             <div className={`music-player-disc ${playing ? 'is-playing' : ''}`}>
               {meta.cover ? <img src={meta.cover} alt={`${meta.title}专辑封面`} /> : <CustomerServiceOutlined />}
             </div>
@@ -232,11 +233,13 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
             <div className="music-player-art-actions">
               <Button icon={<FileTextOutlined />} onClick={() => setShowLyrics((value) => !value)}>{showLyrics ? '隐藏歌词' : '显示歌词'}</Button>
             </div>
-          </Col>
-          <Col xs={24} md={15} className="music-player-main-column">
-            <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{sourceIndex + 1}/{Math.max(1, sources.length)} 线路</span></div>
-            <div className="music-player-current-lyric">{lines[lyricIndex]?.text || (lines.length ? '准备播放' : '暂无歌词')}</div>
-            {showLyrics && <div className="music-lyrics-panel" ref={lyricBoxRef} aria-label="歌词">
+          </Col>}
+          <Col xs={24} md={compact ? 24 : 15} className="music-player-main-column">
+            {compact ? <Typography.Title level={2} className="music-player-compact-title">{meta.title}</Typography.Title> : <>
+              <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{sourceIndex + 1}/{Math.max(1, sources.length)} 线路</span></div>
+              <div className="music-player-current-lyric">{lines[lyricIndex]?.text || (lines.length ? '准备播放' : '暂无歌词')}</div>
+            </>}
+            {!compact && showLyrics && <div className="music-lyrics-panel" ref={lyricBoxRef} aria-label="歌词">
               {lines.length ? lines.map((line) => <button key={`${line.time}-${line.index}`} data-lyric-index={line.index} className={line.index === lyricIndex ? 'active' : ''} onClick={() => seek(line.time)}>{line.text}</button>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌词" />}
             </div>}
             {playbackError && <Typography.Text type="danger" className="music-player-error">{playbackError}</Typography.Text>}
@@ -258,13 +261,13 @@ export default function MusicPlayerPage({ data, sources }: MusicPlayerPageProps)
                 <Select aria-label="播放速度" value={speed} onChange={setSpeed} options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => ({ value, label: `${value}x` }))} />
               </div>
             </div>
-            <div className="music-player-source-row">
+            {!compact && <div className="music-player-source-row">
               <div className="music-source-selector">
                 <Typography.Text>播放线路</Typography.Text>
                 <Select value={sourceIndex} onChange={changeSource} options={sources.map((_, index) => ({ value: index, label: sourceLabel(index, sources.length) }))} />
               </div>
               <Space className="music-source-actions"><Button icon={<CopyOutlined />} onClick={() => void copySource()}>复制地址</Button>{src && <Button icon={<DownloadOutlined />} href={src} target="_blank" rel="noreferrer">打开源地址</Button>}</Space>
-            </div>
+            </div>}
           </Col>
         </Row>
       </Card>

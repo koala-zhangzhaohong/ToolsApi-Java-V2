@@ -217,16 +217,21 @@ public class DouYinToolsController {
                         TiktokMediaData mediaData = new TiktokMediaData();
                         switch (Objects.requireNonNull(douYinTypeEnum)) {
                             case MUSIC_TYPE -> {
-                                simpleData.setUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthorUserId().toString());
-                                simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
-                                simpleData.setNickname(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getNickname());
-                                simpleData.setUid(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getUid());
-                                simpleData.setSecUserId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getAuthor().getSecUid());
-                                simpleData.setIdStr(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getIdStr());
-                                simpleData.setSongId(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getSong().getIdStr());
-                                simpleData.setDesc(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getDesc());
-                                mediaData.setPreviewPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockPreviewMusicPath());
-                                mediaData.setDownloadPath(productData.getMusicItemInfoData().getAwemeMusicDetail().get(0).getMusic().getMockDownloadMusicPath());
+                                var musicDetail = productData.getMusicItemInfoData().getAwemeMusicDetail().get(0);
+                                var music = musicDetail.getMusic();
+                                var author = musicDetail.getAuthor();
+                                simpleData.setUserId(Objects.toString(musicDetail.getAuthorUserId(), null));
+                                if (author != null) {
+                                    simpleData.setSecUserId(author.getSecUid());
+                                    simpleData.setNickname(author.getNickname());
+                                    simpleData.setUid(author.getUid());
+                                }
+                                simpleData.setIdStr(music.getIdStr());
+                                String songId = music.getSong() == null ? null : music.getSong().getIdStr();
+                                simpleData.setSongId(StringUtils.hasText(songId) ? songId : music.getIdStr());
+                                simpleData.setDesc(musicDetail.getDesc());
+                                mediaData.setPreviewPath(music.getMockPreviewMusicPath());
+                                mediaData.setDownloadPath(music.getMockDownloadMusicPath());
                             }
                             case VIDEO_TYPE -> {
                                 simpleData.setUserId(productData.getItemInfoData().getAwemeDetailModel().getAuthorUserId().toString());
