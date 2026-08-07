@@ -23,6 +23,17 @@ function content(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+function friendlyParseError(reason: unknown, input: string) {
+  const raw = reason instanceof Error ? reason.message : '解析失败'
+  if (/UNKNOWN_ERROR|GET_INFO_ERROR/i.test(raw)) {
+    return /直播|正在直播/.test(input)
+      ? '抖音直播接口暂时没有返回完整数据，直播可能已结束，请稍后重试。'
+      : '抖音接口暂时不可用或链接已失效，请稍后重试。'
+  }
+  if (/INVALID_LINK/i.test(raw)) return '未识别到有效的抖音分享链接，请确认分享文本中包含 v.douyin.com 链接。'
+  return raw
+}
+
 function ResultLinks({ result }: { result: DouyinResult }) {
   const media = useMemo(() => result.media_data || {}, [result.media_data])
   const rank = useMemo(() => result.rank_data || {}, [result.rank_data])
@@ -100,7 +111,7 @@ export default function DouyinPage() {
       }
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '解析失败')
+      setError(friendlyParseError(err, link))
     } finally {
       setLoading(false)
     }

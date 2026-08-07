@@ -123,12 +123,8 @@ public class DouYinApiProduct {
     public void getRedirectUrl() throws IOException, URISyntaxException {
         if (!Objects.isNull(this.url)) {
             String key = TIKTOK_DIRECT_KEY_PREFIX + ShortKeyGenerator.getKey(this.url);
-            String tmp = redisService.get(key);
-            if (StringUtils.hasLength(tmp)) {
-                this.directUrl = tmp;
-                logger.info("[DouYinApiProduct]({}, {}) get direct url from redis, directUrl: {}", id, itemId, this.directUrl);
-                return;
-            }
+            // 抖音跳转地址和后续媒体地址都带有时效签名。立即解析必须重新获取，
+            // 不能复用 Redis 中可能已经过期的 directUrl；Redis 仅保留作下次非关键场景的缓存记录。
             if (this.url.contains(LIVE_TYPE_1.getPrefix())) {
                 this.directUrl = this.url;
             } else {

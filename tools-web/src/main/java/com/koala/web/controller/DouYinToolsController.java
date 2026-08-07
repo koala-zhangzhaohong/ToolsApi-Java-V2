@@ -153,9 +153,23 @@ public class DouYinToolsController {
         DouYinApiManager manager = new DouYinApiManager(builder);
         DouYinApiProduct product = null;
         try {
-            product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), url, version, isMobile, tiktokCookieUtil.getTiktokCookie());
+            // 抖音接口偶发会在短时间内返回空响应或连接异常；重试一次可避免把瞬时网络抖动直接暴露成 UNKNOWN_ERROR。
+            Exception lastFailure = null;
+            for (int attempt = 1; attempt <= 2 && product == null; attempt++) {
+                try {
+                    product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), url, version, isMobile, tiktokCookieUtil.getTiktokCookie());
+                } catch (Exception exception) {
+                    lastFailure = exception;
+                    if (attempt < 2) {
+                        logger.warn("[DouYin] parse attempt {} failed, retrying once: {}", attempt, exception.getMessage());
+                    }
+                }
+            }
+            if (product == null && lastFailure != null) {
+                throw lastFailure;
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("[DouYin] parse failed for {}", url, e);
             return formatRespData(FAILURE, null);
         }
         PublicTiktokDataRespModel productData = product.generateData();
