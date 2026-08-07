@@ -13,6 +13,16 @@
 https://github.com/zhangzhaohong/SpringBootAdminServer
 已支持docker
 
+## Docker 生产上线
+
+使用 `scripts/deploy-prod.sh` 可一次完成前后端镜像构建、打包和远端部署。脚本会在构建期间临时切换到 `docker` Spring profile，退出时自动恢复 `application.properties` 原配置。
+
+```bash
+DEPLOY_PASSWORD='服务器密码' scripts/deploy-prod.sh
+```
+
+生产 Compose 会启动 3 个后端容器和 2 个前端容器：`traefik-middleware-multiple-1~3`、`traefik-middleware-web-multiple-1~2`。Traefik 动态配置中的后端服务名为 `tools-api`，前端服务名为 `tools-api-web`。
+
 ## 签名程序
 抖音 X-Bogus、A-Bogus、直播 X-Bogus 已迁移到后端 JVM 内，由 GraalJS 执行，不再依赖 `signature_web_project` HTTP 服务。
 酷狗 MD5、网易云 WEAPI/EAPI 和蓝奏云 ACW 也已迁移为 Java 本地实现。`signature_web_project` 仅保留作为历史参考，运行时不再依赖它。

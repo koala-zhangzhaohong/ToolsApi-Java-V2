@@ -4,138 +4,105 @@ set -euo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_PROPERTIES="${ROOT_DIR}/tools-web/src/main/resources/application.properties"
 APP_DOCKER_PROPERTIES="${ROOT_DIR}/tools-web/src/main/resources/application-docker.properties"
 GATEWAY_FILE="${ROOT_DIR}/DockerFile-gateway.yml"
+DYNAMIC_CONFIG_FILE="${ROOT_DIR}/traefik-tools-api.yml"
+OUTPUT_DIR="${OUTPUT_DIR:-${ROOT_DIR}/image-output}"
 
 DEPLOY_HOST="${DEPLOY_HOST:-116.255.208.81}"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_USER="${DEPLOY_USER:-root}"
 DEPLOY_DIR="${DEPLOY_DIR:-/www/docker/tools-api-gateway}"
+TRAEFIK_CONFIG_DIR="${TRAEFIK_CONFIG_DIR:-/www/docker/traefik/v1/config}"
 DEPLOY_PASSWORD="${DEPLOY_PASSWORD:-}"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 
 VERSION_BASE="$(awk -F= '/^spring\.application\.version\.base=/{print $2; exit}' "${APP_DOCKER_PROPERTIES}" | tr -d '[:space:]')"
-if [[ -z "${VERSION_BASE}" ]]; then
-  VERSION_BASE="$(awk -F= '/^spring\.application\.version\.base=/{print $2; exit}' "${APP_PROPERTIES}" | tr -d '[:space:]')"
-fi
-if [[ -z "${VERSION_BASE}" ]]; then
-  echo "无法从 ${APP_DOCKER_PROPERTIES} 或 ${APP_PROPERTIES} 读取 spring.application.version.base" >&2
-  exit 1
-fi
-IMAGE_NAME="tools-api-package:${VERSION_BASE}-docker"
-IMAGE_ARCHIVE="/tmp/tools-api-package-${VERSION_BASE}-docker.tar.gz"
+IMAGE_VERSION="${IMAGE_VERSION:-${VERSION_BASE}-docker}"
+BACKEND_IMAGE="tools-api-package:${IMAGE_VERSION}"
+FRONTEND_IMAGE="tools-api-web-package:${IMAGE_VERSION}"
+BACKEND_ARCHIVE="${OUTPUT_DIR}/${BACKEND_IMAGE//:/-}.tar.gz"
+FRONTEND_ARCHIVE="${OUTPUT_DIR}/${FRONTEND_IMAGE//:/-}.tar.gz"
 
-if [[ -z "${DEPLOY_PASSWORD}" ]]; then
-  echo "请通过 DEPLOY_PASSWORD 环境变量传入 SSH 密码" >&2
-  exit 1
-fi
+[[ -n "${DEPLOY_PASSWORD}" ]] || { echo "请通过 DEPLOY_PASSWORD 环境变量传入 SSH 密码" >&2; exit 1; }
+command -v sshpass >/dev/null 2>&1 || { echo "未找到 sshpass" >&2; exit 1; }
+command -v rsync >/dev/null 2>&1 || { echo "未找到 rsync" >&2; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "未找到 docker" >&2; exit 1; }
+docker info >/dev/null 2>&1 || { echo "Docker daemon 未运行" >&2; exit 1; }
 
-if ! command -v expect >/dev/null 2>&1; then
-  echo "未找到 expect，无法自动输入 SSH 密码" >&2
-  exit 1
-fi
+for file in "${GATEWAY_FILE}" "${DYNAMIC_CONFIG_FILE}"; do
+  [[ -f "${file}" ]] || { echo "文件不存在: ${file}" >&2; exit 1; }
+done
+for image in "${BACKEND_IMAGE}" "${FRONTEND_IMAGE}"; do
+  docker image inspect "${image}" >/dev/null 2>&1 || {
+    echo "未找到镜像 ${image}，请先执行 scripts/package-docker.sh" >&2
+    exit 1
+  }
+  [[ "$(docker image inspect "${image}" --format '{{.Os}}/{{.Architecture}}')" == "${DOCKER_PLATFORM}" ]] || {
+    echo "镜像架构不匹配: ${image}" >&2
+    exit 1
+  }
+done
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "未找到 docker，请先安装 Docker 或配置 PATH" >&2
-  exit 1
-fi
-
-if ! docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1; then
-  echo "未找到本地镜像 ${IMAGE_NAME}，请先执行 scripts/package-docker.sh" >&2
-  exit 1
-fi
-
-IMAGE_PLATFORM="$(docker image inspect "${IMAGE_NAME}" --format '{{.Os}}/{{.Architecture}}')"
-if [[ "${IMAGE_PLATFORM}" != "${DOCKER_PLATFORM}" ]]; then
-  echo "本地镜像架构不匹配: ${IMAGE_PLATFORM}, 期望: ${DOCKER_PLATFORM}，请重新执行 scripts/package-docker.sh" >&2
-  exit 1
-fi
+mkdir -p "${OUTPUT_DIR}"
+[[ -f "${BACKEND_ARCHIVE}" ]] || docker save "${BACKEND_IMAGE}" | gzip -1 > "${BACKEND_ARCHIVE}"
+[[ -f "${FRONTEND_ARCHIVE}" ]] || docker save "${FRONTEND_IMAGE}" | gzip -1 > "${FRONTEND_ARCHIVE}"
 
 run_ssh() {
   local remote_command="$1"
-  local escaped_command
-  escaped_command="$(printf '%s' "${remote_command}" | sed "s/'/'\\\\''/g")"
-  expect <<EOF
-set timeout -1
-set password \$env(DEPLOY_PASSWORD)
-spawn ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new ${DEPLOY_USER}@${DEPLOY_HOST} -- bash -lc '${escaped_command}'
-expect {
-  -re "(?i)password:" {
-    send -- "\$password\r"
-    exp_continue
-  }
-  eof
-}
-catch wait result
-exit [lindex \$result 3]
-EOF
+  SSHPASS="${DEPLOY_PASSWORD}" sshpass -e ssh \
+    -p "${DEPLOY_PORT}" \
+    -o StrictHostKeyChecking=accept-new \
+    -o ServerAliveInterval=20 \
+    -o ServerAliveCountMax=30 \
+    -o TCPKeepAlive=yes \
+    "${DEPLOY_USER}@${DEPLOY_HOST}" \
+    "${remote_command}"
 }
 
 run_scp() {
   local source_file="$1"
   local target_path="$2"
-  expect <<EOF
-set timeout -1
-set password \$env(DEPLOY_PASSWORD)
-spawn scp -O -P ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new "${source_file}" ${DEPLOY_USER}@${DEPLOY_HOST}:${target_path}
-expect {
-  -re "(?i)password:" {
-    send -- "\$password\r"
-    exp_continue
-  }
-  eof
-}
-catch wait result
-exit [lindex \$result 3]
-EOF
+  SSHPASS="${DEPLOY_PASSWORD}" sshpass -e rsync \
+    --archive \
+    --partial \
+    --inplace \
+    --human-readable \
+    --progress \
+    -e "ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=20 -o ServerAliveCountMax=30 -o TCPKeepAlive=yes" \
+    "${source_file}" "${DEPLOY_USER}@${DEPLOY_HOST}:${target_path}"
 }
 
-load_local_image_to_remote() {
-  local remote_archive="${DEPLOY_DIR}/$(basename "${IMAGE_ARCHIVE}")"
+echo "创建远端目录 ${DEPLOY_DIR}"
+run_ssh "mkdir -p '${DEPLOY_DIR}' '${TRAEFIK_CONFIG_DIR}'"
 
-  echo "生成本地镜像压缩包 ${IMAGE_ARCHIVE}"
-  docker save "${IMAGE_NAME}" | gzip -1 > "${IMAGE_ARCHIVE}"
+echo "上传前后端镜像压缩包"
+run_scp "${BACKEND_ARCHIVE}" "${DEPLOY_DIR}/$(basename "${BACKEND_ARCHIVE}")"
+run_scp "${FRONTEND_ARCHIVE}" "${DEPLOY_DIR}/$(basename "${FRONTEND_ARCHIVE}")"
+run_scp "${GATEWAY_FILE}" "${DEPLOY_DIR}/DockerFile-gateway.yml.next"
+run_scp "${DYNAMIC_CONFIG_FILE}" "${TRAEFIK_CONFIG_DIR}/tools-api.yml.next"
 
-  echo "上传镜像压缩包 ${remote_archive}"
-  run_scp "${IMAGE_ARCHIVE}" "${remote_archive}"
+echo "远端导入镜像并启动 3 个后端、2 个前端容器"
+remote_archive_backend="${DEPLOY_DIR}/$(basename "${BACKEND_ARCHIVE}")"
+remote_archive_frontend="${DEPLOY_DIR}/$(basename "${FRONTEND_ARCHIVE}")"
+run_ssh "set -e; cd '${DEPLOY_DIR}'; \
+if command -v docker-compose >/dev/null 2>&1; then COMPOSE='docker-compose'; elif docker compose version >/dev/null 2>&1; then COMPOSE='docker compose'; else echo '未找到 docker compose 或 docker-compose' >&2; exit 1; fi; \
+gzip -dc '${remote_archive_backend}' | docker load; \
+gzip -dc '${remote_archive_frontend}' | docker load; \
+docker network inspect traefik-gateway-v1 >/dev/null 2>&1 || docker network create traefik-gateway-v1 >/dev/null; \
+docker network connect traefik-gateway-v1 spring-boot-admin-server 2>/dev/null || true; \
+export TOOLS_API_IMAGE='${BACKEND_IMAGE}'; export TOOLS_API_WEB_IMAGE='${FRONTEND_IMAGE}'; \
+\${COMPOSE} -f DockerFile-gateway.yml.next config --quiet; \
+docker rm -f traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2 2>/dev/null || true; \
+if [ -f DockerFile-gateway.yml ]; then cp DockerFile-gateway.yml DockerFile-gateway.yml.bak; fi; \
+mv DockerFile-gateway.yml.next DockerFile-gateway.yml; \
+if [ -f '${TRAEFIK_CONFIG_DIR}/tools-api.yml' ]; then cp '${TRAEFIK_CONFIG_DIR}/tools-api.yml' '${TRAEFIK_CONFIG_DIR}/tools-api.yml.bak'; fi; \
+mv '${TRAEFIK_CONFIG_DIR}/tools-api.yml.next' '${TRAEFIK_CONFIG_DIR}/tools-api.yml'; \
+\${COMPOSE} -f DockerFile-gateway.yml up -d --pull never; \
+for container in traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2; do \
+  for attempt in \$(seq 1 40); do [ \"\$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \"\${container}\" 2>/dev/null || true)\" = healthy ] && break; sleep 3; done; \
+  [ \"\$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \"\${container}\")\" = healthy ] || { echo \"容器未健康: \${container}\" >&2; exit 1; }; \
+done; \
+rm -f '${remote_archive_backend}' '${remote_archive_frontend}'"
 
-  echo "导入远端 Docker 镜像 ${IMAGE_NAME}"
-  run_ssh "if docker image inspect '${IMAGE_NAME}' >/dev/null 2>&1; then docker tag '${IMAGE_NAME}' 'tools-api-package:previous-${VERSION_BASE}-docker' || true; fi; gzip -dc '${remote_archive}' | docker load"
-}
-
-cleanup_remote_old_images() {
-  local remote_archive="${DEPLOY_DIR}/$(basename "${IMAGE_ARCHIVE}")"
-
-  echo "清理远端旧版本 tools-api 镜像"
-  run_ssh "set -e; \
-current_image='${IMAGE_NAME}'; \
-used_image_count=\$(docker ps --filter \"ancestor=\${current_image}\" --format '{{.ID}}' | wc -l | tr -d ' '); \
-if [ \"\${used_image_count}\" = '0' ]; then \
-  echo \"当前镜像未被运行中的容器使用，跳过旧镜像清理: \${current_image}\" >&2; \
-  exit 1; \
-fi; \
-old_images=\$(docker images 'tools-api-package' --format '{{.Repository}}:{{.Tag}} {{.ID}}' | awk -v current=\"\${current_image}\" '\$1 != current && \$1 ~ /-docker$/ {print \$1}' | sort -u); \
-if [ -n \"\${old_images}\" ]; then \
-  echo \"\${old_images}\" | xargs -r docker rmi; \
-else \
-  echo '没有需要清理的旧 tools-api 镜像'; \
-fi; \
-rm -f '${remote_archive}'"
-}
-
-echo "创建远端部署目录 ${DEPLOY_DIR}"
-run_ssh "mkdir -p '${DEPLOY_DIR}'"
-
-echo "导入本地镜像到服务器 ${IMAGE_NAME}"
-load_local_image_to_remote
-
-echo "上传 DockerFile-gateway.yml"
-run_scp "${GATEWAY_FILE}" "${DEPLOY_DIR}/DockerFile-gateway.yml"
-
-echo "执行 docker compose 部署"
-run_ssh "set -e; cd '${DEPLOY_DIR}'; if command -v docker-compose >/dev/null 2>&1; then COMPOSE='docker-compose'; elif docker compose version >/dev/null 2>&1; then COMPOSE='docker compose'; else echo '未找到 docker compose 或 docker-compose' >&2; exit 1; fi; \${COMPOSE} -f DockerFile-gateway.yml config --quiet; docker rm -f traefik-otel-lgtm traefik-gateway-v1 traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 2>/dev/null || true; \${COMPOSE} -f DockerFile-gateway.yml up -d"
-
-cleanup_remote_old_images
-
-echo "线上部署完成"
+echo "上线完成：后端 3 个容器，前端 2 个容器"
