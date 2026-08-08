@@ -1,4 +1,4 @@
-import { ClearOutlined, HistoryOutlined, LinkOutlined, SearchOutlined } from '@ant-design/icons'
+import { ClearOutlined, HistoryOutlined, LinkOutlined, LoadingOutlined, SearchOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Empty, Input, List, Space, Spin, Tag, Typography } from 'antd'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -29,6 +29,7 @@ export default function LegacySearchPage() {
   const { history, addHistory, clearHistory } = useParseHistory()
 
   const search = async (candidate = value) => {
+    if (loading) return
     const input = candidate.trim()
     if (!input) { message.warning('请先粘贴分享内容或链接'); return }
     setLoading(true); setError(''); setResult(null)
@@ -44,7 +45,7 @@ export default function LegacySearchPage() {
   }
 
   const searchBox = <>
-    <Input.Search value={value} onChange={(event) => setValue(event.target.value)} onSearch={(input) => void search(input)} enterButton={<><SearchOutlined /><span className="search-button-label">立即解析</span></>} size="large" allowClear loading={loading} placeholder="粘贴完整的抖音分享文本或链接" />
+    <Input.Search value={value} onChange={(event) => setValue(event.target.value)} onSearch={(input) => void search(input)} enterButton={loading ? <LoadingOutlined className="legacy-search-button-loading" /> : <><SearchOutlined /><span className="search-button-label">立即解析</span></>} size="large" allowClear placeholder="粘贴完整的抖音分享文本或链接" />
     <Space wrap className="legacy-search-chips"><Typography.Text type="secondary">快捷输入</Typography.Text>{douyinExamples.map((item) => <Tag key={item.label} onClick={() => setValue(item.value)}>{item.label}</Tag>)}</Space>
   </>
 
@@ -52,7 +53,7 @@ export default function LegacySearchPage() {
 
   return <main className="legacy-search-v2">
     <Card className="search-v2-hero" bordered={false}><Typography.Text>TOOLS · DOUYIN</Typography.Text><Typography.Title>发现内容，解析精彩</Typography.Title><Typography.Paragraph>支持视频、直播、图集与音乐分享</Typography.Paragraph>{searchBox}</Card>
-    {loading && <Card className="legacy-search-loading" bordered={false}><Spin size="large" tip="正在连接抖音并读取内容"><div className="legacy-search-spin" /></Spin></Card>}
+    {loading && <Card className="legacy-search-loading" bordered={false}><div className="legacy-loading-state"><Spin size="large" /><Typography.Text>正在连接抖音并读取内容</Typography.Text></div></Card>}
     {error && <Alert className="legacy-search-feedback" type="error" showIcon closable message="解析失败" description={error} action={<Button onClick={() => void search()}>重试</Button>} onClose={() => setError('')} />}
     {result && <Card className="legacy-search-result" title={<Space><LinkOutlined />解析成功</Space>}><Typography.Title level={3}>{result.desc || result.title || '内容解析成功'}</Typography.Title><Space wrap><Button type="primary" onClick={() => navigate('/tools/json/printer/pro?id=6', { state: { data: result } })}>查看详情</Button><Button onClick={() => navigate('/tools/json/printer/pro?id=5', { state: { data: result } })}>查看 JSON</Button></Space></Card>}
     <Card title={<Space><HistoryOutlined />最近解析</Space>} extra={history.length > 0 && <Button type="text" danger icon={<ClearOutlined />} onClick={clearHistory}>清空</Button>} className="legacy-search-history">{history.length ? <List dataSource={history} renderItem={(item) => <List.Item actions={[<Button type="link" onClick={() => { setValue(item); void search(item) }}>再次解析</Button>]}><Typography.Text ellipsis={{ tooltip: item }}>{item}</Typography.Text></List.Item>} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无记录" />}</Card>

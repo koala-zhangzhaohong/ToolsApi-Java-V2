@@ -44,12 +44,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.koala.base.enums.DouYinResponseEnums.*;
 import static com.koala.base.enums.DouYinTypeEnums.*;
@@ -69,7 +68,9 @@ public class DouYinToolsController {
 
     private static final Logger logger = LoggerFactory.getLogger(DouYinToolsController.class);
 
-    private static final Integer MAX_RETRY_TIMES = 10;
+    private static final Integer MAX_RETRY_TIMES = 3;
+
+    private static final String MASKED_USER_ID = "111111";
 
     private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
 
@@ -269,7 +270,7 @@ public class DouYinToolsController {
                                 simpleData.setTitle(productData.getRoomItemInfoData().getData().getData().get(0).getTitle());
                                 rankData.setRankListUrl(productData.getRoomItemInfoData().getData().getData().get(0).getRankListData());
                                 rankData.setRankListUrlBackup(productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataBackup());
-                                rankData.setRankListSpecial(productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataSpecialLiat());
+                                rankData.setRankListSpecial(buildRankListSpecial(rankData.getRankListUrlBackup(), productData.getRoomItemInfoData().getData().getData().get(0).getRankListDataSpecialLiat()));
                                 mediaData.setPreviewPathHLS(productData.getRoomItemInfoData().getData().getData().get(0).getStreamUrl().getMockPreviewLivePath());
                                 mediaData.setPreviewPathFLV(productData.getRoomItemInfoData().getData().getData().get(0).getStreamUrl().getMockPreviewLivePathBackup());
                             }
@@ -409,7 +410,7 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "200") Integer count) throws IOException, URISyntaxException, ExecutionException, InterruptedException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "200") Integer count) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
@@ -437,7 +438,7 @@ public class DouYinToolsController {
                     });
                     ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList;
                     if (extra.equals("1")) {
-                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count, nickname);
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count);
                     } else {
                         userInfoDataList = new ArrayList<>(userInfoList);
                     }
@@ -467,7 +468,7 @@ public class DouYinToolsController {
                     });
                     ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList;
                     if (extra.equals("1")) {
-                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count, nickname);
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count);
                     } else {
                         userInfoDataList = new ArrayList<>(userInfoList);
                     }
@@ -584,39 +585,23 @@ public class DouYinToolsController {
     }
 
 
-    private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer count, String nickname) throws ExecutionException, InterruptedException {
-        ArrayList<T> tmp = new ArrayList<>();
-        AtomicInteger index = new AtomicInteger();
-        IterableUtils.forEach(userInfoList, item -> {
-            if (count == -1 || index.get() < count) {
-                if (nickname != null && !nickname.isEmpty()) {
-                    if (item instanceof TiktokLiveRankUserInfoModel) {
-                        if (((TiktokLiveRankUserInfoModel) item).getNickname().contains(nickname)) {
-                            tmp.add(item);
-                        }
-                    }
-                    if (item instanceof TiktokLiveRankSimpleUserInfoModel) {
-                        if (((TiktokLiveRankSimpleUserInfoModel) item).getNickname().contains(nickname)) {
-                            tmp.add(item);
-                        }
-                    }
-                } else {
-                    tmp.add(item);
-                }
-            }
-            index.addAndGet(1);
-        });
+    private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer count) {
+        // 先补全真实昵称，再做关键词筛选。榜单中的“神秘人/dou/神秘嘉宾”通常是
+        // 脱敏昵称，提前筛选会把这些用户全部排除掉。
+        int resolveCount = count == null || count < 0 ? userInfoList.size() : Math.min(count, userInfoList.size());
+        ArrayList<T> candidates = new ArrayList<>(userInfoList.subList(0, resolveCount));
         ThreadPoolUtil<HashMap<String, String>> threadPoolUtil = ThreadPoolUtil.getInstance();
         List<Future<HashMap<String, String>>> futureList = new ArrayList<>();
-        // int threadCount = Runtime.getRuntime().availableProcessors() / 2;
-        int threadCount = 1;
-        for (int i = 0; i < tmp.size(); i += threadCount) {
-            @SuppressWarnings("UnnecessaryLocalVariable") int start = i;
-            int end = Math.min(i + threadCount, tmp.size());
-            List<T> input = tmp.subList(start, end);
-            Callable<HashMap<String, String>> task = () -> execute(input);
-            Future<HashMap<String, String>> future = threadPoolUtil.submitTask(task);
-            futureList.add(future);
+        // 每个用户一个 I/O 任务，交由共享线程池动态扩容；同时去重，避免同一 sec_uid 重复请求。
+        Set<String> submittedSecUids = new HashSet<>();
+        for (T item : candidates) {
+            String secUid = getSecUid(item);
+            // 脱敏用户保留在榜单中参与昵称筛选和展示，但占位 ID 无法反查，跳过资料接口。
+            if (!isMaskedUser(item) && StringUtils.hasText(secUid) && submittedSecUids.add(secUid)) {
+                Callable<HashMap<String, String>> task = () -> execute(Collections.singletonList(item));
+                Future<HashMap<String, String>> future = threadPoolUtil.submitTask(task);
+                futureList.add(future);
+            }
         }
         HashMap<String, String> nicknameInfoMap = new HashMap<>();
         IterableUtils.forEach(futureList, future -> {
@@ -636,6 +621,33 @@ public class DouYinToolsController {
             }
         });
         return userInfoList;
+    }
+
+    private String getSecUid(Object userInfo) {
+        if (userInfo instanceof TiktokLiveRankUserInfoModel item) {
+            return item.getSecUid();
+        }
+        if (userInfo instanceof TiktokLiveRankSimpleUserInfoModel item) {
+            return item.getSecUid();
+        }
+        return null;
+    }
+
+    private boolean isMaskedUser(Object userInfo) {
+        if (userInfo instanceof TiktokLiveRankUserInfoModel item) {
+            return isMaskedId(item.getId(), item.getShortId(), item.getDisplayId(), item.getSecUid());
+        }
+        if (userInfo instanceof TiktokLiveRankSimpleUserInfoModel item) {
+            return isMaskedId(item.getId(), item.getShortId(), item.getDisplayId(), item.getSecUid());
+        }
+        return false;
+    }
+
+    private boolean isMaskedId(Long id, Long shortId, String displayId, String secUid) {
+        return Objects.equals(id, Long.valueOf(MASKED_USER_ID))
+                || Objects.equals(shortId, Long.valueOf(MASKED_USER_ID))
+                || MASKED_USER_ID.equals(displayId)
+                || MASKED_USER_ID.equals(secUid);
     }
 
     private <T> HashMap<String, String> execute(List<T> userInfoList) {
@@ -666,8 +678,9 @@ public class DouYinToolsController {
 
     private ArrayList<TiktokLiveRankUserInfoModel> getDataListByPrefix(ArrayList<TiktokLiveRankUserInfoModel> data, String prefix) {
         ArrayList<TiktokLiveRankUserInfoModel> tmp = new ArrayList<>();
+        String normalizedPrefix = normalizeKeyword(prefix);
         for (TiktokLiveRankUserInfoModel userInfo : data) {
-            if (userInfo.getNickname().contains(prefix)) {
+            if (containsKeyword(userInfo.getNickname(), normalizedPrefix)) {
                 tmp.add(userInfo);
             }
         }
@@ -676,12 +689,47 @@ public class DouYinToolsController {
 
     private ArrayList<TiktokLiveRankSimpleUserInfoModel> getSimpleDataListByPrefix(ArrayList<TiktokLiveRankSimpleUserInfoModel> data, String prefix) {
         ArrayList<TiktokLiveRankSimpleUserInfoModel> tmp = new ArrayList<>();
+        String normalizedPrefix = normalizeKeyword(prefix);
         for (TiktokLiveRankSimpleUserInfoModel userInfo : data) {
-            if (userInfo.getNickname().contains(prefix)) {
+            if (containsKeyword(userInfo.getNickname(), normalizedPrefix)) {
                 tmp.add(userInfo);
             }
         }
         return tmp;
+    }
+
+    private ArrayList<String> buildRankListSpecial(String proRankListUrl, ArrayList<String> fallbackSpecialList) {
+        if (!StringUtils.hasText(proRankListUrl)) {
+            return fallbackSpecialList;
+        }
+        ArrayList<String> specialList = new ArrayList<>();
+        specialList.add(buildRankListFilterUrl(proRankListUrl, "神秘人"));
+        specialList.add(buildRankListFilterUrl(proRankListUrl, "dou"));
+        specialList.add(buildRankListFilterUrl(proRankListUrl, "神秘嘉宾"));
+        return specialList;
+    }
+
+    private String buildRankListFilterUrl(String baseUrl, String nickname) {
+        String cleanUrl = removeQueryParam(removeQueryParam(baseUrl, "nickname"), "config");
+        String separator = cleanUrl.contains("?") ? "&" : "?";
+        return cleanUrl + separator + "config=2&nickname=" + URLEncoder.encode(nickname, StandardCharsets.UTF_8);
+    }
+
+    private String removeQueryParam(String url, String paramName) {
+        return url
+                .replaceAll("([?&])" + paramName + "=[^&]*&", "$1")
+                .replaceAll("([?&])" + paramName + "=[^&]*$", "")
+                .replace("?&", "?")
+                .replaceAll("\\?$", "");
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean containsKeyword(String value, String normalizedKeyword) {
+        return normalizedKeyword.isEmpty()
+                || (value != null && value.toLowerCase(Locale.ROOT).contains(normalizedKeyword));
     }
 
 }

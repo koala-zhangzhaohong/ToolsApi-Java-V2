@@ -5,6 +5,8 @@
 ServiceData
 scripts
 DockerFile-gateway.yml
+Dockerfile.remote-build
+image-output
 
 target
 !tools-web/target/

@@ -92,6 +92,7 @@ gzip -dc '${remote_archive_frontend}' | docker load; \
 docker network inspect traefik-gateway-v1 >/dev/null 2>&1 || docker network create traefik-gateway-v1 >/dev/null; \
 docker network connect traefik-gateway-v1 spring-boot-admin-server 2>/dev/null || true; \
 export TOOLS_API_IMAGE='${BACKEND_IMAGE}'; export TOOLS_API_WEB_IMAGE='${FRONTEND_IMAGE}'; \
+export OLD_TOOLS_API_IMAGES=\"\$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | awk -v backend='${BACKEND_IMAGE}' -v frontend='${FRONTEND_IMAGE}' '\$1 ~ /^(tools-api-package|tools-api-web-package):/ && \$1 != backend && \$1 != frontend {print \$2}' | sort -u)\"; \
 \${COMPOSE} -f DockerFile-gateway.yml.next config --quiet; \
 docker rm -f traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2 2>/dev/null || true; \
 if [ -f DockerFile-gateway.yml ]; then cp DockerFile-gateway.yml DockerFile-gateway.yml.bak; fi; \
@@ -103,6 +104,14 @@ for container in traefik-middleware-multiple-1 traefik-middleware-multiple-2 tra
   for attempt in \$(seq 1 40); do [ \"\$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \"\${container}\" 2>/dev/null || true)\" = healthy ] && break; sleep 3; done; \
   [ \"\$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \"\${container}\")\" = healthy ] || { echo \"容器未健康: \${container}\" >&2; exit 1; }; \
 done; \
-rm -f '${remote_archive_backend}' '${remote_archive_frontend}'"
+if [ -n \"\${OLD_TOOLS_API_IMAGES}\" ]; then \
+  for old_image in \${OLD_TOOLS_API_IMAGES}; do \
+    old_containers=\"\$(docker ps -aq --filter ancestor=\"\${old_image}\" 2>/dev/null || true)\"; \
+    [ -z \"\${old_containers}\" ] || docker rm -f \${old_containers} >/dev/null 2>&1 || true; \
+  done; \
+  docker image rm \${OLD_TOOLS_API_IMAGES} >/dev/null 2>&1 || true; \
+fi; \
+docker image prune -f >/dev/null; \
+rm -f '${remote_archive_backend}' '${remote_archive_frontend}' source-build-*.tar.gz"
 
 echo "上线完成：后端 3 个容器，前端 2 个容器"

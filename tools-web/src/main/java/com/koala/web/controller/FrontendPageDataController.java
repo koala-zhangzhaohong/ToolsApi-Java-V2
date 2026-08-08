@@ -5,6 +5,7 @@ import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HeaderUtil;
 import com.koala.service.utils.HttpClientUtil;
+import com.koala.service.utils.ShortKeyGenerator;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,6 +32,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.koala.service.data.redis.RedisKeyPrefix.*;
 
@@ -45,6 +48,7 @@ import static com.koala.service.data.redis.RedisKeyPrefix.*;
 public class FrontendPageDataController {
 
     private static final Logger logger = LoggerFactory.getLogger(FrontendPageDataController.class);
+    private static final Pattern HLS_URI_ATTRIBUTE = Pattern.compile("URI=\"([^\"]+)\"");
 
     private static final Set<String> REMOTE_PAGE_PATHS = Set.of(
             "/tools/DouYin/api/ranklist/audience",
@@ -120,6 +124,7 @@ public class FrontendPageDataController {
 
     @GetMapping("media")
     public void media(@RequestParam String key,
+                      @RequestParam(name = "mime_type", required = false) String mimeType,
                       HttpServletRequest servletRequest,
                       HttpServletResponse servletResponse) {
         String decodedKey = decodeKey(key);
@@ -140,6 +145,10 @@ public class FrontendPageDataController {
                 mediaError(servletResponse, HttpStatus.FORBIDDEN, "MEDIA_HOST_NOT_ALLOWED");
                 return;
             }
+            if (isHlsPlaylistRequest(mimeType, uri)) {
+                relayHlsPlaylist(mediaUrl, uri, servletRequest, servletResponse);
+                return;
+            }
             HttpClientUtil.doRelay(
                     mediaUrl,
                     HeaderUtil.getMediaRelayHeader(mediaUrl, mediaDestination(servletRequest, false)),
@@ -152,6 +161,78 @@ public class FrontendPageDataController {
             logger.error("[frontendPageData] failed to relay media key={}", decodedKey, exception);
             if (!servletResponse.isCommitted()) mediaError(servletResponse, HttpStatus.BAD_GATEWAY, "MEDIA_PROXY_ERROR");
         }
+    }
+
+    private boolean isHlsPlaylistRequest(String mimeType, URI uri) {
+        String normalizedMimeType = Objects.toString(mimeType, "").toLowerCase();
+        String path = Objects.toString(uri.getPath(), "").toLowerCase();
+        return !normalizedMimeType.contains("segment")
+                && (normalizedMimeType.contains("hls")
+                || normalizedMimeType.contains("mpegurl")
+                || path.endsWith(".m3u8"));
+    }
+
+    private void relayHlsPlaylist(String mediaUrl,
+                                  URI playlistUri,
+                                  HttpServletRequest servletRequest,
+                                  HttpServletResponse servletResponse) throws Exception {
+        HttpClientUtil.HttpResult upstream = HttpClientUtil.getResponseWithoutTimeout(
+                mediaUrl,
+                HeaderUtil.getMediaRelayHeader(mediaUrl, mediaDestination(servletRequest, false)),
+                null);
+        if (!upstream.isSuccessful()) {
+            servletResponse.sendError(upstream.statusCode());
+            return;
+        }
+
+        String rewritten = rewriteHlsPlaylist(upstream.body(), playlistUri, servletRequest);
+        byte[] payload = rewritten.getBytes(StandardCharsets.UTF_8);
+        servletResponse.setStatus(upstream.statusCode());
+        servletResponse.setContentType("application/vnd.apple.mpegurl;charset=UTF-8");
+        servletResponse.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        servletResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        servletResponse.setHeader("X-Accel-Buffering", "no");
+        servletResponse.setContentLength(payload.length);
+        servletResponse.getOutputStream().write(payload);
+    }
+
+    private String rewriteHlsPlaylist(String playlist, URI playlistUri, HttpServletRequest servletRequest) {
+        StringBuilder builder = new StringBuilder(playlist.length() + 256);
+        String[] lines = playlist.split("\\r?\\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) {
+                builder.append(line);
+            } else if (trimmed.startsWith("#")) {
+                builder.append(rewriteHlsDirectiveUris(line, playlistUri, servletRequest));
+            } else {
+                builder.append(proxyMediaUrl(playlistUri.resolve(trimmed), servletRequest, "video_hls_segment"));
+            }
+            if (i < lines.length - 1) builder.append('\n');
+        }
+        return builder.toString();
+    }
+
+    private String rewriteHlsDirectiveUris(String line, URI playlistUri, HttpServletRequest servletRequest) {
+        Matcher matcher = HLS_URI_ATTRIBUTE.matcher(line);
+        StringBuilder builder = new StringBuilder();
+        while (matcher.find()) {
+            String resolved = proxyMediaUrl(playlistUri.resolve(matcher.group(1)), servletRequest, "video_hls_segment");
+            matcher.appendReplacement(builder, Matcher.quoteReplacement("URI=\"" + resolved + "\""));
+        }
+        matcher.appendTail(builder);
+        return builder.toString();
+    }
+
+    private String proxyMediaUrl(URI mediaUri, HttpServletRequest servletRequest, String mimeType) {
+        String mediaUrl = mediaUri.toString();
+        String shortKey = ShortKeyGenerator.getKey(mediaUrl);
+        redisService.set(SHORT_KEY_PREFIX + shortKey, mediaUrl, TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
+        redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
+        String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
+        String contextPath = Objects.toString(servletRequest.getContextPath(), "");
+        return contextPath + "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=" + mimeType;
     }
 
     /**

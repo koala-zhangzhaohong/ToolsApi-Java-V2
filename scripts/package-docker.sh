@@ -5,11 +5,12 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PROPERTIES="${ROOT_DIR}/tools-web/src/main/resources/application.properties"
+APP_DOCKER_PROPERTIES="${ROOT_DIR}/tools-web/src/main/resources/application-docker.properties"
 DOCKERFILE_BACKEND="${ROOT_DIR}/ServerDockerFile"
 DOCKERFILE_FRONTEND="${ROOT_DIR}/Dockerfile.frontend"
 GATEWAY_FILE="${ROOT_DIR}/DockerFile-gateway.yml"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
-VERSION_BASE="$(awk -F= '/^spring\.application\.version\.base=/{print $2; exit}' "${ROOT_DIR}/tools-web/src/main/resources/application-docker.properties" | tr -d '[:space:]')"
+VERSION_BASE="$(awk -F= '/^spring\.application\.version\.base=/{print $2; exit}' "${APP_DOCKER_PROPERTIES}" | tr -d '[:space:]')"
 IMAGE_VERSION="${IMAGE_VERSION:-${VERSION_BASE}-docker}"
 BACKEND_IMAGE="tools-api-package:${IMAGE_VERSION}"
 FRONTEND_IMAGE="tools-api-web-package:${IMAGE_VERSION}"
@@ -32,6 +33,14 @@ restore_profile() {
   fi
 }
 trap restore_profile EXIT
+
+BUILD_TIME="$(date '+%Y%m%d%H%M%S')"
+echo "更新 Docker 配置 spring.application.build.time=${BUILD_TIME}"
+if grep -q '^spring\.application\.build\.time=' "${APP_DOCKER_PROPERTIES}"; then
+  perl -0pi -e "s/^spring\\.application\\.build\\.time=.*/spring.application.build.time=${BUILD_TIME}/m" "${APP_DOCKER_PROPERTIES}"
+else
+  printf '\nspring.application.build.time=%s\n' "${BUILD_TIME}" >> "${APP_DOCKER_PROPERTIES}"
+fi
 
 echo "切换 Spring profile 为 docker（脚本结束后自动恢复）"
 perl -0pi -e 's/^spring\.profiles\.active=.*/spring.profiles.active=docker/m' "${APP_PROPERTIES}"

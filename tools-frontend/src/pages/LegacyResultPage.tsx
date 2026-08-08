@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import JsonTree from '../components/JsonTree'
 import { useParseHistory } from '../hooks/useParseHistory'
 import { getJson } from '../services/http'
-import type { DouyinResult } from '../types'
+import type { DouyinResult, PlayerPageData } from '../types'
 import { downloadRoutes, isLocalDownloadProxy, localDownloadUrl } from '../utils/downloadRoute'
 import { mediaRouteLabel } from '../utils/mediaRoute'
 import { specialRankRouteLabel } from '../utils/rankRoute'
@@ -26,6 +26,21 @@ function unique(values: string[]) {
   return [...new Set(values.filter(nonEmpty))]
 }
 
+function isAppleMobileBrowser() {
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function isWeChatBrowser() {
+  return /MicroMessenger/i.test(navigator.userAgent)
+}
+
+function objectUrls(value: unknown): string[] {
+  if (nonEmpty(value)) return [value]
+  if (Array.isArray(value)) return value.flatMap(objectUrls)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(objectUrls)
+  return []
+}
+
 function frontendUrl(value: string): string {
   try {
     const url = new URL(value, window.location.origin)
@@ -38,8 +53,63 @@ function frontendUrl(value: string): string {
   }
 }
 
+function applePreviewUrl(value: string) {
+  if (!isAppleMobileBrowser()) return frontendUrl(value)
+  try {
+    const url = new URL(frontendUrl(value), window.location.origin)
+    if (/\/tools\/DouYin\/pro\/player\/live\//i.test(url.pathname)) {
+      url.searchParams.set('version', '2')
+      url.searchParams.set('type', 'hls')
+      return `${url.pathname}${url.search}`
+    }
+    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : url.toString()
+  } catch {
+    return frontendUrl(value)
+  }
+}
+
+function internalReturnPath(value: string): string {
+  if (!value) return ''
+  try {
+    const url = new URL(value, window.location.origin)
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/')) return ''
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return ''
+  }
+}
+
+interface CachedResultState {
+  data: DouyinResult
+  parseInput?: string
+}
+
+function getCacheKey(pathname: string, search: string) {
+  return `tools-frontend:legacy-result:${pathname}${search}`
+}
+
+function readCachedState(pathname: string, search: string): CachedResultState | null {
+  try {
+    const raw = sessionStorage.getItem(getCacheKey(pathname, search))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<CachedResultState>
+    if (!parsed.data || typeof parsed.data !== 'object') return null
+    return { data: parsed.data as DouyinResult, parseInput: typeof parsed.parseInput === 'string' ? parsed.parseInput : undefined }
+  } catch {
+    return null
+  }
+}
+
+function writeCachedState(pathname: string, search: string, state: CachedResultState) {
+  try {
+    sessionStorage.setItem(getCacheKey(pathname, search), JSON.stringify(state))
+  } catch {
+    // ignore storage errors in private mode or locked-down browsers
+  }
+}
+
 function LegacyPlayer({ url }: { url: string }) {
-  const playerUrl = new URL(frontendUrl(url), window.location.origin)
+  const playerUrl = new URL(applePreviewUrl(url), window.location.origin)
   playerUrl.searchParams.set('embed', '1')
   return (
     <div className="legacy-player-frame">
@@ -48,23 +118,67 @@ function LegacyPlayer({ url }: { url: string }) {
   )
 }
 
+function LegacyWechatPlayer({ url }: { url: string }) {
+  const [src, setSrc] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let disposed = false
+    const playerUrl = new URL(applePreviewUrl(url), window.location.origin)
+    const platform = /\/DouYin\//i.test(playerUrl.pathname) ? 'douyin' : /\/Netease\//i.test(playerUrl.pathname) ? 'netease' : 'kugou'
+    const media = /live/i.test(playerUrl.pathname) ? 'live' : /video/i.test(playerUrl.pathname) ? 'video' : ''
+    const key = playerUrl.searchParams.get('key')
+    if (!key || !media) {
+      setSrc(applePreviewUrl(url))
+      return
+    }
+    getJson<PlayerPageData>(`/api/frontend/pages/player?platform=${platform}&media=${media}&version=${playerUrl.searchParams.get('version') || '2'}&key=${encodeURIComponent(key)}`)
+      .then((result) => {
+        if (disposed) return
+        const liveSources = objectUrls(result.multiLiveQualityInfo?.hls || result.multiLiveQualityInfo?.HLS || result.multiLiveQualityInfo?.m3u8)
+        const videoSources = objectUrls(result.path || result.proxyPath || result.multiVideoQualityInfo || result.multiMvQualityInfo)
+        const nextSrc = liveSources[0] || videoSources[0]
+        if (nextSrc) setSrc(nextSrc)
+        else setError('暂未获取到可播放线路')
+      })
+      .catch((reason) => {
+        if (!disposed) setError(reason instanceof Error ? reason.message : '媒体线路加载失败')
+      })
+    return () => { disposed = true }
+  }, [url])
+
+  if (error) return <div className="legacy-wechat-player-state">{error}</div>
+  if (!src) return <div className="legacy-wechat-player-state">正在准备播放线路</div>
+  return <video className="legacy-wechat-video" src={src} controls playsInline webkit-playsinline="true" x5-playsinline="true" preload="metadata" />
+}
+
 export default function LegacyResultPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const routeState = location.state as { data?: DouyinResult; parseInput?: string } | null
+  const routeState = location.state as { data?: DouyinResult; parseInput?: string; returnedFromChild?: boolean } | null
   const routeData = routeState?.data
-  const parseInput = routeState?.parseInput?.trim() || ''
+  const cachedState = useMemo(() => readCachedState(location.pathname, location.search), [location.pathname, location.search])
+  const parseInput = routeState?.parseInput?.trim() || cachedState?.parseInput?.trim() || ''
   const { addHistory } = useParseHistory()
   const [params] = useSearchParams()
   const key = params.get('key') || ''
   const id = Number(params.get('id') || 5)
   const remotePath = params.get('path') || ''
-  const [data, setData] = useState<DouyinResult | null>(routeData || null)
-  const [loading, setLoading] = useState(!routeData)
+  const returnTo = internalReturnPath(params.get('returnTo') || '')
+  const [data, setData] = useState<DouyinResult | null>(routeData || cachedState?.data || null)
+  const [loading, setLoading] = useState(!(routeData || cachedState?.data))
   const [error, setError] = useState('')
 
   const goBack = () => {
     if (parseInput) addHistory(parseInput)
+    if (returnTo) {
+      navigate(returnTo, { replace: true, state: { returnedFromChild: true } })
+      return
+    }
+    if (routeState?.returnedFromChild) {
+      navigate(-2)
+      return
+    }
     if (location.key === 'default') {
       navigate('/douyin')
       return
@@ -100,7 +214,22 @@ export default function LegacyResultPage() {
     }
   }
 
-  useEffect(() => { if (!routeData && (id < 1 || id > 3)) void load() }, [key, remotePath, id, routeData]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!data) return
+    writeCachedState(location.pathname, location.search, {
+      data,
+      parseInput: parseInput || routeState?.parseInput?.trim() || undefined,
+    })
+  }, [data, location.pathname, location.search, parseInput, routeState?.parseInput])
+
+  useEffect(() => {
+    if (!routeData && cachedState?.data) {
+      setData(cachedState.data)
+      setLoading(false)
+    }
+  }, [cachedState?.data, routeData])
+
+  useEffect(() => { if (!routeData && !cachedState?.data && (id < 1 || id > 3)) void load() }, [key, remotePath, id, routeData, cachedState?.data]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (parseInput) addHistory(parseInput) }, [addHistory, parseInput])
 
   const media = useMemo(() => data?.media_data || {}, [data])
@@ -108,9 +237,14 @@ export default function LegacyResultPage() {
   const previews = useMemo(() => unique([
     ...getUrls(media.proxy_preview_path),
     ...getUrls(media.preview_path),
-    ...getUrls(media.preview_path_flv),
     ...getUrls(media.preview_path_hls),
-  ]), [media])
+    ...getUrls(media.preview_path_flv),
+  ]).sort((first, second) => {
+    if (!isAppleMobileBrowser()) return 0
+    const firstIsHls = /m3u8|hls|type=hls/i.test(first)
+    const secondIsHls = /m3u8|hls|type=hls/i.test(second)
+    return Number(secondIsHls) - Number(firstIsHls)
+  }), [media])
   const downloads = useMemo(() => downloadRoutes(media), [media])
   const ranks = useMemo(() => {
     const routes = [
@@ -142,6 +276,8 @@ export default function LegacyResultPage() {
     )
   }
 
+  const rankReturnTo = `${location.pathname}${location.search}`
+
   if (id >= 1 && id <= 3) return <LegacyErrorPage status={id === 1 ? 403 : id === 2 ? 404 : 500} />
 
   if (loading) return <div className="legacy-result-page">{header(false)}<Skeleton active paragraph={{ rows: 12 }} /></div>
@@ -151,7 +287,7 @@ export default function LegacyResultPage() {
       {header()}
       {error && <Alert type="error" showIcon message="数据加载失败" description={error} />}
       {!data && !error && <Empty description="暂无数据" />}
-      {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 0 } }}><LegacyPlayer url={previews[0]} /></Card>}
+      {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 0 } }}>{isAppleMobileBrowser() && isWeChatBrowser() ? <LegacyWechatPlayer url={previews[0]} /> : <LegacyPlayer url={previews[0]} />}</Card>}
       {data && id === 7 && <Card title="查询结果" className="legacy-section-card legacy-rank-card">
         {rankRows.length ? <div className="legacy-rank-table"><table><thead><tr><th>昵称</th><th>账号</th><th>原始昵称</th></tr></thead><tbody>{rankRows.map((row, index) => <tr key={index}><td>{String(row.nickname || '')}</td><td>{String(row.display_id || row.displayId || '')}</td><td>{String(row.user_real_nickname || row.userRealNickName || '')}</td></tr>)}</tbody></table></div> : <Empty description="暂无数据" />}
       </Card>}
@@ -163,7 +299,7 @@ export default function LegacyResultPage() {
               <Col className="legacy-ids"><Typography.Text type="secondary">{data.unique_id || data.room_id || data.song_id || '—'}</Typography.Text><Typography.Text type="secondary">{data.user_id || data.sec_uid || '—'}</Typography.Text></Col>
             </Row>
           </Card>
-          {ranks.length > 0 && <Card title="用户榜单查询" className="legacy-section-card"><div className="legacy-action-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/tools/json/printer/pro?path=${encodeURIComponent(url)}&id=7`} icon={<UserOutlined />}>{label}</Button>)}</div></Card>}
+          {ranks.length > 0 && <Card title="用户榜单查询" className="legacy-section-card"><div className="legacy-action-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/tools/json/printer/pro?path=${encodeURIComponent(url)}&id=7&returnTo=${encodeURIComponent(rankReturnTo)}`} icon={<UserOutlined />}>{label}</Button>)}</div></Card>}
           {previews.length > 0 && <Card title="预览" className="legacy-section-card"><div className="legacy-action-grid">{previews.map((url, index) => <Button key={url} href={frontendUrl(url)} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></Card>}
           {downloads.length > 0 && <Card title="下载" className="legacy-section-card"><div className="legacy-action-grid">{downloads.map(downloadButton)}</div></Card>}
           {id === 4 && <Card title={<Space><LinkOutlined />JSON 数据</Space>}><pre className="legacy-json-plain">{JSON.stringify(data, null, 2)}</pre></Card>}

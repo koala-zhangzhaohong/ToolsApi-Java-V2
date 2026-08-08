@@ -70,11 +70,38 @@ function routeInfo(pathname: string) {
   return { platform, media }
 }
 
+function isAppleMobileBrowser() {
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
 function objectUrls(value: unknown): string[] {
   if (typeof value === 'string' && value) return [value]
   if (Array.isArray(value)) return value.flatMap(objectUrls)
   if (value && typeof value === 'object') return Object.values(value).flatMap(objectUrls)
   return []
+}
+
+function isHlsSource(value: string) {
+  return /(?:\.m3u8(?:[?#]|$)|[?&]type=hls(?:&|$)|[?&]mime_type=video_hls(?:&|$)|hls)/i.test(value)
+}
+
+function liveHlsSources(data: PlayerPageData) {
+  const live = data.multiLiveQualityInfo
+  return [...new Set([
+    ...objectUrls(live?.hls),
+    ...objectUrls(live?.HLS),
+    ...objectUrls(live?.m3u8),
+    ...objectUrls(live).filter(isHlsSource),
+  ])]
+}
+
+function liveFlvSources(data: PlayerPageData) {
+  const live = data.multiLiveQualityInfo
+  return [...new Set([
+    ...objectUrls(live?.flv),
+    ...objectUrls(live?.FLV),
+    ...objectUrls(live).filter((value) => !isHlsSource(value)),
+  ])]
 }
 
 function proxyVideoSources(data: PlayerPageData, params: URLSearchParams) {
@@ -140,9 +167,13 @@ function proxiedMediaUrl(src: string, useCdnProxy = false) {
 function playerMediaUrl(src: string, transport: VideoTransport, useCdnProxy = false) {
   const proxied = proxiedMediaUrl(src, useCdnProxy)
   if (transport === 'native') return proxied
-  const url = new URL(proxied, window.location.origin)
-  url.searchParams.set('mime_type', `video_${transport}`)
-  return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.toString()
+  try {
+    const url = new URL(proxied, window.location.origin)
+    url.searchParams.set('mime_type', `video_${transport}`)
+    return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.toString()
+  } catch {
+    return proxied
+  }
 }
 
 function qualityName(index: number, total: number) {
@@ -167,7 +198,7 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
       const video = document.getElementById(playerElementId)?.querySelector('video')
       if (!video || transport === 'native') return
       const selectedSource = sources[activeSourceIndex]
-      const playbackUrl = proxiedMediaUrl(selectedSource, useCdnProxy)
+      const playbackUrl = playerMediaUrl(selectedSource, transport, useCdnProxy)
       if (transport === 'flv' && flvjs.isSupported()) {
         const stream = flvjs.createPlayer({ type: 'flv', isLive: live, url: playbackUrl }, { enableStashBuffer: !live })
         stream.on(flvjs.Events.ERROR, (_, detail) => onError(`FLV 播放失败：${String(detail)}`))
@@ -196,7 +227,7 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
         playerElm: playerElementId,
         url: sources.map((source, index) => ({
           name: qualityName(index, sources.length),
-          url: transport === 'native' ? playerMediaUrl(source, transport, useCdnProxy) : proxiedMediaUrl(source, useCdnProxy),
+          url: playerMediaUrl(source, transport, useCdnProxy),
           type: transport === 'native' ? undefined : 'mp4',
           default: index === (sources.length > 1 ? 1 : 0),
         })),
@@ -258,15 +289,20 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
   useEffect(() => {
     const video = ref.current
     if (!video || !src) return
-    const playbackUrl = proxiedMediaUrl(src, useCdnProxy)
-    const useHls = transport === 'hls' || /\.m3u8(?:\?|$)/i.test(src)
-    const useFlv = transport === 'flv' || /\.flv(?:\?|$)/i.test(src)
+    const playbackUrl = playerMediaUrl(src, transport, useCdnProxy)
+    const useHls = transport === 'hls' || /\.m3u8(?:\?|$)/i.test(src) || /mime_type=video_hls/i.test(playbackUrl)
+    const useFlv = transport === 'flv' || /\.flv(?:\?|$)/i.test(src) || /mime_type=video_flv/i.test(playbackUrl)
     if (useHls && Hls.isSupported()) {
       const player = new Hls({ lowLatencyMode: live })
       player.on(Hls.Events.ERROR, (_, event) => { if (event.fatal) onError(`HLS 播放失败：${event.details}`) })
       player.loadSource(playbackUrl)
       player.attachMedia(video)
       return () => player.destroy()
+    }
+    if (useHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = playbackUrl
+      video.load()
+      return
     }
     if (useFlv && flvjs.isSupported()) {
       const player = flvjs.createPlayer({ type: 'flv', isLive: live, url: playbackUrl }, { enableStashBuffer: !live })
@@ -277,8 +313,9 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
       return () => { player.pause(); player.unload(); player.detachMediaElement(); player.destroy() }
     }
     video.src = playbackUrl
+    video.load()
   }, [src, live, transport, useCdnProxy, onError])
-  return <video ref={ref} controls playsInline autoPlay={live} muted={live} className="legacy-media-video" onCanPlay={() => onError('')} onError={() => onError('媒体地址不可播放，链接可能已经过期')} />
+  return <video ref={ref} controls playsInline webkit-playsinline="true" x5-playsinline="true" autoPlay={live} muted={live} preload="metadata" className="legacy-media-video" onCanPlay={() => onError('')} onError={() => onError('媒体地址不可播放，链接可能已经过期')} />
 }
 
 export default function LegacyPlayerPage() {
@@ -286,10 +323,11 @@ export default function LegacyPlayerPage() {
   const [params] = useSearchParams()
   const embedded = params.get('embed') === '1'
   const info = useMemo(() => routeInfo(location.pathname), [location.pathname])
+  const appleMobile = useMemo(isAppleMobileBrowser, [])
   const defaultVersion = info.platform === 'douyin' && info.media === 'video' && /\/short\/?$/i.test(location.pathname)
     ? '4'
     : info.platform === 'douyin' && info.media === 'live' && /\/short\/?$/i.test(location.pathname)
-      ? '3'
+      ? appleMobile ? '2' : '3'
       : '2'
   const version = params.get('version') || defaultVersion
   const direct = firstNonEmpty(decodeUrlSafeBase64(params.get('path')), params.get('path'), params.get('src'))
@@ -299,6 +337,11 @@ export default function LegacyPlayerPage() {
   const [loading, setLoading] = useState(Boolean(params.get('key')))
   const [error, setError] = useState('')
   const [playbackError, setPlaybackError] = useState('')
+  const flvPlayable = useMemo(() => !appleMobile && flvjs.isSupported(), [appleMobile])
+  const requestedLiveTransport: VideoTransport = params.get('type') === 'hls' ? 'hls' : 'flv'
+  const transport: VideoTransport = info.media === 'live'
+    ? requestedLiveTransport === 'hls' || !flvPlayable ? 'hls' : 'flv'
+    : 'native'
 
   useEffect(() => {
     if (!embedded) return
@@ -318,17 +361,29 @@ export default function LegacyPlayerPage() {
     setLoading(true); setError('')
     getJson<PlayerPageData>(`/api/frontend/pages/player?platform=${info.platform}&media=${info.media}&version=${version}&key=${encodeURIComponent(key)}`)
       .then(async (result) => {
+        if (info.media === 'live') {
+          const flvUrls = liveFlvSources(result)
+          const hlsUrls = liveHlsSources(result)
+          const shouldUseHls = requestedLiveTransport === 'hls' || !flvPlayable
+          const urls = shouldUseHls ? hlsUrls : (flvUrls.length ? flvUrls : hlsUrls)
+          setData(result); setSources([...new Set(urls)]); setActive(0)
+          setPlaybackError(!flvPlayable && requestedLiveTransport === 'flv' && hlsUrls.length
+            ? '当前浏览器不支持 FLV，已自动切换到 HLS 兼容线路'
+            : !urls.length && !flvPlayable && flvUrls.length
+              ? '当前浏览器不支持 FLV，且该直播暂未提供 HLS 线路'
+              : '')
+          return
+        }
         let urls = sourceList(result, info.media, params)
         if (!urls.length && info.platform === 'kugou' && info.media === 'music') urls = await kugouMusicSources(result)
         setData(result); setSources([...new Set(urls)]); setActive(0); setPlaybackError('')
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : '媒体数据加载失败'))
       .finally(() => setLoading(false))
-  }, [info.media, info.platform, params, version])
+  }, [flvPlayable, info.media, info.platform, params, requestedLiveTransport, version])
 
   const title = firstNonEmpty(decodeUrlSafeBase64(params.get('title')), params.get('title'), data.title, musicMeta(data).title)
   const variant = info.media === 'video' ? (version === '1' ? 'videojs' : version === '2' ? 'plyr' : version === '3' ? 'dplayer' : 'zwplayer') : info.media === 'live' ? (version === '1' ? 'flvjs' : version === '2' ? 'dplayer' : 'zwplayer') : version === '2' ? 'h5' : 'plyr'
-  const transport: VideoTransport = info.media === 'live' ? (params.get('type') === 'hls' ? 'hls' : 'flv') : 'native'
   const useCdnProxy = info.platform === 'douyin' && info.media === 'video' && proxyVideoSources(data, params).length > 0
   const musicSources = useMemo(() => sources.map((source) => proxiedMediaUrl(source)), [sources])
 
