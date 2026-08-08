@@ -102,7 +102,7 @@ public class DouYinToolsController {
         if ("0".equals(isDownload)) {
             redirectStrategy.sendRedirect(request, response, "/tools/DouYin/preview/video?path=" + Base64Utils.encodeToUrlSafeString(redirectUrl.getBytes(StandardCharsets.UTF_8)));
         } else {
-            HttpClientUtil.doRelay(redirectUrl, HeaderUtil.getDouYinDownloadHeader(), null, 206, HeaderUtil.getMockVideoHeader(true), request, response);
+            HttpClientUtil.doRelay(redirectUrl, HeaderUtil.getMediaRelayHeader(redirectUrl, "video"), null, 206, HeaderUtil.getMockVideoHeader(true), request, response);
         }
         return formatRespData(FAILURE, null);
     }
@@ -112,7 +112,7 @@ public class DouYinToolsController {
     public void previewVideo(@RequestParam String path, @RequestParam(value = "isDownload", required = false, defaultValue = "false") Boolean isDownload, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         String url = new String(Base64Utils.decodeFromUrlSafeString(path));
         logger.info("[previewVideo] inputUrl: {}, Sec-Fetch-Dest: {}", url, request.getHeader("Sec-Fetch-Dest"));
-        HttpClientUtil.doRelay(url, HeaderUtil.getDouYinDownloadHeader(), null, 206, HeaderUtil.getMockVideoHeader(isDownload), request, response);
+        HttpClientUtil.doRelay(url, HeaderUtil.getMediaRelayHeader(url, "video"), null, 206, HeaderUtil.getMockVideoHeader(isDownload), request, response);
     }
 
     @HttpRequestRecorder
@@ -120,7 +120,7 @@ public class DouYinToolsController {
     public void previewLiveStream(@RequestParam String path, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         String url = new String(Base64Utils.decodeFromUrlSafeString(path));
         logger.info("[previewLive] inputUrl: {}, Sec-Fetch-Dest: {}", url, request.getHeader("Sec-Fetch-Dest"));
-        HttpClientUtil.doRelay(url, HeaderUtil.getDouYinDownloadHeader(), null, 206, HeaderUtil.getMockLiveStreamHeader(), request, response);
+        HttpClientUtil.doRelay(url, HeaderUtil.getMediaRelayHeader(url, "video"), null, 206, HeaderUtil.getMockLiveStreamHeader(), request, response);
     }
 
     @HttpRequestRecorder
@@ -128,7 +128,7 @@ public class DouYinToolsController {
     public void downloadMusic(@RequestParam String path, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         String url = new String(Base64Utils.decodeFromUrlSafeString(path));
         logger.info("[previewLive] inputUrl: {}, Sec-Fetch-Dest: {}", url, request.getHeader("Sec-Fetch-Dest"));
-        HttpClientUtil.doRelay(url, HeaderUtil.getDouYinDownloadHeader(), null, 206, HeaderUtil.getMockMusicHeader(true), request, response);
+        HttpClientUtil.doRelay(url, HeaderUtil.getMediaRelayHeader(url, "audio"), null, 206, HeaderUtil.getMockMusicHeader(true), request, response);
     }
 
     @HttpRequestRecorder

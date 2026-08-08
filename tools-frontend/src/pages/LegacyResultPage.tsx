@@ -6,6 +6,7 @@ import JsonTree from '../components/JsonTree'
 import { useParseHistory } from '../hooks/useParseHistory'
 import { getJson } from '../services/http'
 import type { DouyinResult } from '../types'
+import { downloadRoutes, localDownloadUrl } from '../utils/downloadRoute'
 import { mediaRouteLabel } from '../utils/mediaRoute'
 import { specialRankRouteLabel } from '../utils/rankRoute'
 import LegacyErrorPage from './LegacyErrorPage'
@@ -110,10 +111,7 @@ export default function LegacyResultPage() {
     ...getUrls(media.preview_path_flv),
     ...getUrls(media.preview_path_hls),
   ]), [media])
-  const downloads = useMemo(() => unique([
-    ...getUrls(media.proxy_download_path),
-    ...getUrls(media.download_path),
-  ]), [media])
+  const downloads = useMemo(() => downloadRoutes(media), [media])
   const ranks = useMemo(() => {
     const routes = [
       ...getUrls(rank.rank_list_url).map((url) => ({ url, label: '用户查询[简略]' })),
@@ -139,7 +137,7 @@ export default function LegacyResultPage() {
       {header()}
       {error && <Alert type="error" showIcon message="数据加载失败" description={error} />}
       {!data && !error && <Empty description="暂无数据" />}
-      {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 16 } }}><LegacyPlayer url={previews[0]} /></Card>}
+      {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 0 } }}><LegacyPlayer url={previews[0]} /></Card>}
       {data && id === 7 && <Card title="查询结果" className="legacy-section-card legacy-rank-card">
         {rankRows.length ? <div className="legacy-rank-table"><table><thead><tr><th>昵称</th><th>账号</th><th>原始昵称</th></tr></thead><tbody>{rankRows.map((row, index) => <tr key={index}><td>{String(row.nickname || '')}</td><td>{String(row.display_id || row.displayId || '')}</td><td>{String(row.user_real_nickname || row.userRealNickName || '')}</td></tr>)}</tbody></table></div> : <Empty description="暂无数据" />}
       </Card>}
@@ -153,7 +151,7 @@ export default function LegacyResultPage() {
           </Card>
           {ranks.length > 0 && <Card title="用户榜单查询" className="legacy-section-card"><div className="legacy-action-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/tools/json/printer/pro?path=${encodeURIComponent(url)}&id=7`} icon={<UserOutlined />}>{label}</Button>)}</div></Card>}
           {previews.length > 0 && <Card title="预览" className="legacy-section-card"><div className="legacy-action-grid">{previews.map((url, index) => <Button key={url} href={frontendUrl(url)} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></Card>}
-          {downloads.length > 0 && <Card title="下载" className="legacy-section-card"><div className="legacy-action-grid">{downloads.map((url, index) => <Button key={url} href={url} target="_blank" icon={<CloudDownloadOutlined />}>下载线路 - {index + 1}</Button>)}</div></Card>}
+          {downloads.length > 0 && <Card title="下载" className="legacy-section-card"><div className="legacy-action-grid">{downloads.map(({ url, label }) => <Button key={url} href={localDownloadUrl(url)} download icon={<CloudDownloadOutlined />}>{label}</Button>)}</div></Card>}
           {id === 4 && <Card title={<Space><LinkOutlined />JSON 数据</Space>}><pre className="legacy-json-plain">{JSON.stringify(data, null, 2)}</pre></Card>}
           {id === 5 && <Card title={<Space><LinkOutlined />完整数据</Space>}><JsonTree data={data} /></Card>}
           <Typography.Text type="secondary" className="legacy-disclaimer">* 仅供学习使用，禁止用于商业用途</Typography.Text>

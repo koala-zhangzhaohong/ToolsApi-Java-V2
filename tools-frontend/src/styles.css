@@ -107,8 +107,8 @@ button, input, textarea { font: inherit; }
 .legacy-result-header h2 { margin: 3px 0 0; }
 .legacy-result-header .eyebrow { color: #6d5dfc; }
 .legacy-preview-card, .legacy-section-card { border: 0; box-shadow: 0 12px 30px rgba(54, 43, 118, .08); }
-.legacy-preview-card { margin-bottom: 20px; }
-.legacy-player-frame { overflow: hidden; width: 100%; background: #171717; border-radius: 8px; aspect-ratio: 16 / 10; }
+.legacy-preview-card { overflow: hidden; margin-bottom: 20px; }
+.legacy-player-frame { overflow: hidden; width: 100%; aspect-ratio: 16 / 9; height: auto; min-height: 0; background: #171717; border-radius: 8px; }
 .legacy-player-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
 .legacy-section-card .ant-card-head-title { color: #5681f4; font-size: 20px; }
 .legacy-ids { display: flex; flex-direction: column; text-align: right; max-width: 46%; overflow: hidden; }
@@ -212,6 +212,8 @@ button, input, textarea { font: inherit; }
 .music-source-selector .ant-typography { color: rgba(255,255,255,.5); white-space: nowrap; }
 .music-source-selector .ant-select { min-width: 135px; }
 .legacy-player-embedded { display: flex; align-items: center; width: 100%; height: 100vh; min-height: 0; overflow: hidden; padding: 0; }
+.legacy-player-embedded > .legacy-video-shell { width: 100%; height: 100%; margin: 0; border-radius: 0; box-shadow: none; }
+.legacy-player-embedded .legacy-original-player { height: 100%; min-height: 0; }
 .legacy-player-embedded > .music-player-page { margin: 0; }
 .legacy-player-embedded > .legacy-picture { width: 100%; height: 100%; margin: 0; border-radius: 0; box-shadow: none; }
 .legacy-player-embedded > .legacy-picture > .ant-card-body { display: flex; flex-direction: column; height: 100%; }

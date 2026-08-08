@@ -3,6 +3,7 @@ package com.koala.web.controller;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.GsonUtil;
+import com.koala.service.utils.HeaderUtil;
 import com.koala.service.utils.HttpClientUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,9 +25,12 @@ import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.util.HashMap;
 
 import static com.koala.service.data.redis.RedisKeyPrefix.*;
 
@@ -138,7 +142,7 @@ public class FrontendPageDataController {
             }
             HttpClientUtil.doRelay(
                     mediaUrl,
-                    Map.of(HttpHeaders.USER_AGENT, "Mozilla/5.0", HttpHeaders.ACCEPT, "*/*"),
+                    HeaderUtil.getMediaRelayHeader(mediaUrl, mediaDestination(servletRequest, false)),
                     null,
                     206,
                     Map.of(HttpHeaders.CACHE_CONTROL, "no-store"),
@@ -148,6 +152,147 @@ public class FrontendPageDataController {
             logger.error("[frontendPageData] failed to relay media key={}", decodedKey, exception);
             if (!servletResponse.isCommitted()) mediaError(servletResponse, HttpStatus.BAD_GATEWAY, "MEDIA_PROXY_ERROR");
         }
+    }
+
+    /**
+     * Stable, range-aware download endpoint for the independent frontend.
+     *
+     * <p>The old page linked to the short URL directly. That exposed the browser to an
+     * expiring CDN redirect and made a failed upstream route look like a local 404. This
+     * endpoint resolves the server-generated short key internally and streams the media.
+     * Every HTTP Range request remains independent, so browsers and download managers can
+     * download multiple byte ranges concurrently without buffering the complete file in a
+     * backend JVM.</p>
+     */
+    @GetMapping("download")
+    public void download(@RequestParam String key,
+                         HttpServletRequest servletRequest,
+                         HttpServletResponse servletResponse) {
+        String decodedKey = decodeKey(key);
+        if (!StringUtils.hasText(decodedKey)) {
+            mediaError(servletResponse, HttpStatus.BAD_REQUEST, "INVALID_KEY");
+            return;
+        }
+        String storedUrl = redisService.get(SHORT_KEY_PREFIX + decodedKey);
+        if (!StringUtils.hasText(storedUrl)) {
+            mediaError(servletResponse, HttpStatus.NOT_FOUND, "DOWNLOAD_NOT_FOUND");
+            return;
+        }
+        try {
+            DownloadTarget target = resolveDownloadTarget(storedUrl, 0);
+            if (target == null || !isPublicMediaUri(target.uri())) {
+                mediaError(servletResponse, HttpStatus.FORBIDDEN, "DOWNLOAD_HOST_NOT_ALLOWED");
+                return;
+            }
+            Map<String, String> responseHeaders = new HashMap<>();
+            responseHeaders.put(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + safeDownloadName(target.fileName(), decodedKey) + "\"");
+            responseHeaders.put(HttpHeaders.CACHE_CONTROL, "no-store");
+            responseHeaders.put("X-Accel-Buffering", "no");
+            responseHeaders.put(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
+                    "Accept-Ranges, Content-Length, Content-Range, Content-Disposition");
+            HttpClientUtil.doRelay(
+                    target.uri().toString(),
+                    HeaderUtil.getMediaRelayHeader(target.uri().toString(), downloadDestination(target)),
+                    null,
+                    206,
+                    responseHeaders,
+                    servletRequest,
+                    servletResponse);
+        } catch (Exception exception) {
+            logger.error("[frontendPageData] failed to relay download key={}", decodedKey, exception);
+            if (!servletResponse.isCommitted()) {
+                mediaError(servletResponse, HttpStatus.BAD_GATEWAY, "DOWNLOAD_PROXY_ERROR");
+            }
+        }
+    }
+
+    private DownloadTarget resolveDownloadTarget(String value, int depth) throws URISyntaxException {
+        if (depth > 3 || !StringUtils.hasText(value)) return null;
+        URI uri = URI.create(value);
+
+        if ("/short".equals(uri.getPath())) {
+            String nestedKey = queryParameter(uri, "key");
+            String decodedNestedKey = decodeKey(nestedKey);
+            if (!StringUtils.hasText(decodedNestedKey)) return null;
+            return resolveDownloadTarget(redisService.get(SHORT_KEY_PREFIX + decodedNestedKey), depth + 1);
+        }
+
+        if (uri.getPath() != null && uri.getPath().endsWith("/doProxy")) {
+            String host = queryParameter(uri, "host");
+            String path = queryParameter(uri, "path");
+            if (!StringUtils.hasText(host) || !StringUtils.hasText(path)) return null;
+            URI origin = URI.create(host + path);
+            // Some Douyin CDN nodes reject direct origin requests even with a referer. Keep
+            // the generated CDN relay as the upstream, but hide it behind our stable endpoint
+            // so the browser never navigates to that external service.
+            return new DownloadTarget(uri, downloadName(uri, origin));
+        }
+
+        if (uri.getPath() != null && (uri.getPath().endsWith("/preview/video")
+                || uri.getPath().endsWith("/download/music"))) {
+            String encodedPath = queryParameter(uri, "path");
+            if (!StringUtils.hasText(encodedPath)) return null;
+            URI origin = URI.create(new String(Base64Utils.decodeFromUrlSafeString(encodedPath), StandardCharsets.UTF_8));
+            DownloadTarget resolved = resolveDownloadTarget(origin.toString(), depth + 1);
+            if (resolved == null) return null;
+            String wrapperName = downloadName(uri, resolved.uri());
+            return new DownloadTarget(resolved.uri(), StringUtils.hasText(wrapperName) ? wrapperName : resolved.fileName());
+        }
+
+        return new DownloadTarget(uri, downloadName(uri, uri));
+    }
+
+    private String queryParameter(URI uri, String name) {
+        if (!StringUtils.hasText(uri.getRawQuery())) return null;
+        for (String item : uri.getRawQuery().split("&")) {
+            int separator = item.indexOf('=');
+            if (separator > 0 && name.equals(item.substring(0, separator))) {
+                return URLDecoder.decode(item.substring(separator + 1), StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
+
+    private String downloadName(URI wrapper, URI origin) {
+        String fileName = queryParameter(wrapper, "fileName");
+        String extension = queryParameter(wrapper, "extension");
+        if (StringUtils.hasText(fileName)) {
+            return StringUtils.hasText(extension) && !fileName.endsWith("." + extension)
+                    ? fileName + "." + extension : fileName;
+        }
+        String path = origin.getPath();
+        if (StringUtils.hasText(path)) {
+            int slash = path.lastIndexOf('/');
+            String candidate = slash >= 0 ? path.substring(slash + 1) : path;
+            if (StringUtils.hasText(candidate) && candidate.contains(".")) return candidate;
+        }
+        return "media-download";
+    }
+
+    private String safeDownloadName(String value, String key) {
+        String fallback = "media-" + key.replaceAll("[^a-zA-Z0-9_-]", "");
+        String safe = StringUtils.hasText(value) ? value : fallback;
+        safe = safe.replaceAll("[\\r\\n\\\\/\";]", "_").trim();
+        return StringUtils.hasText(safe) ? safe : fallback;
+    }
+
+    private record DownloadTarget(URI uri, String fileName) {
+    }
+
+    private String mediaDestination(HttpServletRequest request, boolean download) {
+        String destination = request.getHeader("Sec-Fetch-Dest");
+        if ("audio".equalsIgnoreCase(destination) || "video".equalsIgnoreCase(destination)) {
+            return destination.toLowerCase();
+        }
+        return download ? "empty" : "video";
+    }
+
+    private String downloadDestination(DownloadTarget target) {
+        String name = Objects.toString(target.fileName(), "").toLowerCase();
+        String path = Objects.toString(target.uri().getPath(), "").toLowerCase();
+        return name.matches(".*\\.(mp3|m4a|aac|wav|flac|ogg|opus)$")
+                || path.matches(".*\\.(mp3|m4a|aac|wav|flac|ogg|opus)$") ? "audio" : "video";
     }
 
     private void mediaError(HttpServletResponse response, HttpStatus status, String message) {

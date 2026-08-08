@@ -623,8 +623,13 @@ public final class HttpClientUtil {
         if (!ObjectUtils.isEmpty(configured)) headers.putAll(configured);
         String range = request.getHeader("Range");
         if (ObjectUtils.isEmpty(range)) headers.remove("Range");
-        else headers.put("Range", range);
-        for (String name : List.of("If-Range", "If-None-Match", "If-Modified-Since")) {
+        else {
+            headers.put("Range", range);
+            // Compressed transfer coding makes byte offsets ambiguous and breaks chunk merging.
+            headers.put("Accept-Encoding", "identity");
+        }
+        for (String name : List.of("Accept", "Accept-Language", "Cache-Control", "If-Match",
+                "If-Modified-Since", "If-None-Match", "If-Range", "If-Unmodified-Since", "User-Agent")) {
             String value = request.getHeader(name);
             if (!ObjectUtils.isEmpty(value)) headers.put(name, value);
         }

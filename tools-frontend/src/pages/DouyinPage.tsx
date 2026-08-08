@@ -16,6 +16,7 @@ import { useParseHistory } from '../hooks/useParseHistory'
 import JsonTree from '../components/JsonTree'
 import { parseDouyinShare } from '../services/douyin'
 import type { DouyinResult } from '../types'
+import { downloadRoutes, localDownloadUrl } from '../utils/downloadRoute'
 import { mediaRouteLabel } from '../utils/mediaRoute'
 import { specialRankRouteLabel } from '../utils/rankRoute'
 
@@ -46,14 +47,7 @@ function ResultLinks({ result }: { result: DouyinResult }) {
     ]
     return [...new Set(values.filter(content))]
   }, [media])
-  const downloads = useMemo(() => {
-    const values: string[] = []
-    if (content(media.download_path)) values.push(media.download_path)
-    if (Array.isArray(media.proxy_download_path)) {
-      media.proxy_download_path.forEach((item) => Object.values(item).forEach((value) => content(value) && values.push(value)))
-    }
-    return [...new Set(values)]
-  }, [media])
+  const downloads = useMemo(() => downloadRoutes(media), [media])
   const ranks = [
     ...(content(rank.rank_list_url) ? [{ url: rank.rank_list_url, label: '用户查询[简略]' }] : []),
     ...(content(rank.rank_list_url_backup) ? [{ url: rank.rank_list_url_backup, label: '用户反查[Pro]' }] : []),
@@ -77,7 +71,7 @@ function ResultLinks({ result }: { result: DouyinResult }) {
               {!previews.length && !downloads.length && !ranks.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="接口未返回媒体线路" /> : (
             <Space direction="vertical" size={14} className="full-width">
               {previews.length > 0 && <div><Typography.Text strong><PlayCircleOutlined /> 预览</Typography.Text><div className="link-grid">{previews.map((url, index) => <Button key={url} href={url} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></div>}
-              {downloads.length > 0 && <div><Typography.Text strong><CloudDownloadOutlined /> 下载</Typography.Text><div className="link-grid">{downloads.map((url, index) => <Button key={url} href={url} target="_blank" icon={<CloudDownloadOutlined />}>线路 {index + 1}</Button>)}</div></div>}
+              {downloads.length > 0 && <div><Typography.Text strong><CloudDownloadOutlined /> 下载</Typography.Text><div className="link-grid">{downloads.map(({ url, label }) => <Button key={url} href={localDownloadUrl(url)} download icon={<CloudDownloadOutlined />}>{label}</Button>)}</div></div>}
               {ranks.length > 0 && <div><Typography.Text strong><LinkOutlined /> 榜单</Typography.Text><div className="link-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/json?url=${encodeURIComponent(url)}`} target="_blank">{label}</Button>)}</div></div>}
             </Space>
           )}
