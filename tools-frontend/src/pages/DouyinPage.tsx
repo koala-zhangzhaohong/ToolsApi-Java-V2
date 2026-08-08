@@ -16,7 +16,7 @@ import { useParseHistory } from '../hooks/useParseHistory'
 import JsonTree from '../components/JsonTree'
 import { parseDouyinShare } from '../services/douyin'
 import type { DouyinResult } from '../types'
-import { downloadRoutes, localDownloadUrl } from '../utils/downloadRoute'
+import { downloadRoutes, isLocalDownloadProxy, localDownloadUrl } from '../utils/downloadRoute'
 import { mediaRouteLabel } from '../utils/mediaRoute'
 import { specialRankRouteLabel } from '../utils/rankRoute'
 
@@ -54,6 +54,20 @@ function ResultLinks({ result }: { result: DouyinResult }) {
     ...(rank.rank_list_special || []).filter(content).map((url, index) => ({ url, label: specialRankRouteLabel(url, index) })),
   ]
 
+  const downloadButton = ({ url, label }: (typeof downloads)[number]) => {
+    const href = localDownloadUrl(url)
+    return (
+      <Button
+        key={url}
+        href={href}
+        {...(isLocalDownloadProxy(href) ? { target: 'media-download-frame' } : { download: true })}
+        icon={<CloudDownloadOutlined />}
+      >
+        {label}
+      </Button>
+    )
+  }
+
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={10}>
@@ -71,12 +85,13 @@ function ResultLinks({ result }: { result: DouyinResult }) {
               {!previews.length && !downloads.length && !ranks.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="接口未返回媒体线路" /> : (
             <Space direction="vertical" size={14} className="full-width">
               {previews.length > 0 && <div><Typography.Text strong><PlayCircleOutlined /> 预览</Typography.Text><div className="link-grid">{previews.map((url, index) => <Button key={url} href={url} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></div>}
-              {downloads.length > 0 && <div><Typography.Text strong><CloudDownloadOutlined /> 下载</Typography.Text><div className="link-grid">{downloads.map(({ url, label }) => <Button key={url} href={localDownloadUrl(url)} download icon={<CloudDownloadOutlined />}>{label}</Button>)}</div></div>}
+              {downloads.length > 0 && <div><Typography.Text strong><CloudDownloadOutlined /> 下载</Typography.Text><div className="link-grid">{downloads.map(downloadButton)}</div></div>}
               {ranks.length > 0 && <div><Typography.Text strong><LinkOutlined /> 榜单</Typography.Text><div className="link-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/json?url=${encodeURIComponent(url)}`} target="_blank">{label}</Button>)}</div></div>}
             </Space>
           )}
         </Card>
       </Col>
+      <iframe name="media-download-frame" title="下载" hidden />
     </Row>
   )
 }

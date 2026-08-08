@@ -6,7 +6,7 @@ import JsonTree from '../components/JsonTree'
 import { useParseHistory } from '../hooks/useParseHistory'
 import { getJson } from '../services/http'
 import type { DouyinResult } from '../types'
-import { downloadRoutes, localDownloadUrl } from '../utils/downloadRoute'
+import { downloadRoutes, isLocalDownloadProxy, localDownloadUrl } from '../utils/downloadRoute'
 import { mediaRouteLabel } from '../utils/mediaRoute'
 import { specialRankRouteLabel } from '../utils/rankRoute'
 import LegacyErrorPage from './LegacyErrorPage'
@@ -128,6 +128,20 @@ export default function LegacyResultPage() {
     return Array.isArray(list) ? list : []
   }, [data])
 
+  const downloadButton = ({ url, label }: (typeof downloads)[number]) => {
+    const href = localDownloadUrl(url)
+    return (
+      <Button
+        key={url}
+        href={href}
+        {...(isLocalDownloadProxy(href) ? { target: 'media-download-frame' } : { download: true })}
+        icon={<CloudDownloadOutlined />}
+      >
+        {label}
+      </Button>
+    )
+  }
+
   if (id >= 1 && id <= 3) return <LegacyErrorPage status={id === 1 ? 403 : id === 2 ? 404 : 500} />
 
   if (loading) return <div className="legacy-result-page">{header(false)}<Skeleton active paragraph={{ rows: 12 }} /></div>
@@ -151,12 +165,13 @@ export default function LegacyResultPage() {
           </Card>
           {ranks.length > 0 && <Card title="用户榜单查询" className="legacy-section-card"><div className="legacy-action-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/tools/json/printer/pro?path=${encodeURIComponent(url)}&id=7`} icon={<UserOutlined />}>{label}</Button>)}</div></Card>}
           {previews.length > 0 && <Card title="预览" className="legacy-section-card"><div className="legacy-action-grid">{previews.map((url, index) => <Button key={url} href={frontendUrl(url)} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></Card>}
-          {downloads.length > 0 && <Card title="下载" className="legacy-section-card"><div className="legacy-action-grid">{downloads.map(({ url, label }) => <Button key={url} href={localDownloadUrl(url)} download icon={<CloudDownloadOutlined />}>{label}</Button>)}</div></Card>}
+          {downloads.length > 0 && <Card title="下载" className="legacy-section-card"><div className="legacy-action-grid">{downloads.map(downloadButton)}</div></Card>}
           {id === 4 && <Card title={<Space><LinkOutlined />JSON 数据</Space>}><pre className="legacy-json-plain">{JSON.stringify(data, null, 2)}</pre></Card>}
           {id === 5 && <Card title={<Space><LinkOutlined />完整数据</Space>}><JsonTree data={data} /></Card>}
           <Typography.Text type="secondary" className="legacy-disclaimer">* 仅供学习使用，禁止用于商业用途</Typography.Text>
         </Space>
       )}
+      <iframe name="media-download-frame" title="下载" hidden />
     </div>
   )
 }

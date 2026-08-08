@@ -54,3 +54,12 @@ export function localDownloadUrl(value: string): string {
   }
   return value
 }
+
+export function isLocalDownloadProxy(value: string): boolean {
+  try {
+    const url = new URL(value, window.location.origin)
+    return url.origin === window.location.origin && url.pathname === '/api/frontend/pages/download'
+  } catch {
+    return false
+  }
+}
