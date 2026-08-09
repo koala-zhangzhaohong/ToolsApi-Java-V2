@@ -103,7 +103,12 @@ public class FrontendPageDataController {
 
     private URI normalizeSelfUri(URI uri) throws URISyntaxException {
         int port = Integer.parseInt(environment.getProperty("server.port", "8080"));
-        return new URI("http", null, "127.0.0.1", port, uri.getPath(), uri.getQuery(), null);
+        StringBuilder builder = new StringBuilder("http://127.0.0.1:").append(port);
+        builder.append(uri.getRawPath());
+        if (StringUtils.hasText(uri.getRawQuery())) {
+            builder.append('?').append(uri.getRawQuery());
+        }
+        return new URI(builder.toString());
     }
 
     @GetMapping("player")

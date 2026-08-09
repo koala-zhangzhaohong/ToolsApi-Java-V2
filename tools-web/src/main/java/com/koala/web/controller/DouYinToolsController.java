@@ -437,8 +437,9 @@ public class DouYinToolsController {
                         userInfoList.add(userInfoModel);
                     });
                     ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList;
+                    int effectiveCount = "2".equals(config) ? -1 : count;
                     if (extra.equals("1")) {
-                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count);
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, effectiveCount);
                     } else {
                         userInfoDataList = new ArrayList<>(userInfoList);
                     }
@@ -467,8 +468,9 @@ public class DouYinToolsController {
                         userInfoList.add(simpleUserInfoModel);
                     });
                     ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList;
+                    int effectiveCount = "2".equals(config) ? -1 : count;
                     if (extra.equals("1")) {
-                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, count);
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, effectiveCount);
                     } else {
                         userInfoDataList = new ArrayList<>(userInfoList);
                     }
@@ -586,8 +588,7 @@ public class DouYinToolsController {
 
 
     private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer count) {
-        // 先补全真实昵称，再做关键词筛选。榜单中的“神秘人/dou/神秘嘉宾”通常是
-        // 脱敏昵称，提前筛选会把这些用户全部排除掉。
+        // 先补全真实昵称用于展示；特殊入口筛选仍只匹配榜单返回的 nickname。
         int resolveCount = count == null || count < 0 ? userInfoList.size() : Math.min(count, userInfoList.size());
         ArrayList<T> candidates = new ArrayList<>(userInfoList.subList(0, resolveCount));
         ThreadPoolUtil<HashMap<String, String>> threadPoolUtil = ThreadPoolUtil.getInstance();
@@ -710,7 +711,7 @@ public class DouYinToolsController {
     }
 
     private String buildRankListFilterUrl(String baseUrl, String nickname) {
-        String cleanUrl = removeQueryParam(removeQueryParam(baseUrl, "nickname"), "config");
+        String cleanUrl = removeQueryParam(removeQueryParam(removeQueryParam(baseUrl, "nickname"), "config"), "count");
         String separator = cleanUrl.contains("?") ? "&" : "?";
         return cleanUrl + separator + "config=2&nickname=" + URLEncoder.encode(nickname, StandardCharsets.UTF_8);
     }
@@ -724,12 +725,15 @@ public class DouYinToolsController {
     }
 
     private String normalizeKeyword(String keyword) {
-        return keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        return keyword == null ? "" : keyword
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s\\p{Cf}\\uFE0E\\uFE0F]+", "");
     }
 
     private boolean containsKeyword(String value, String normalizedKeyword) {
         return normalizedKeyword.isEmpty()
-                || (value != null && value.toLowerCase(Locale.ROOT).contains(normalizedKeyword));
+                || (value != null && normalizeKeyword(value).contains(normalizedKeyword));
     }
 
 }
