@@ -168,6 +168,84 @@ public class FrontendPageDataController {
         }
     }
 
+    @GetMapping("/{*segmentPath}")
+    public void hlsSegment(@RequestParam(required = false) String vhost,
+                           HttpServletRequest servletRequest,
+                           HttpServletResponse servletResponse) {
+        String segmentName = null;
+        try {
+            segmentName = normalizeHlsSegmentPath(servletRequest);
+            if (!StringUtils.hasText(segmentName) || !segmentName.endsWith(".ts")) {
+                mediaError(servletResponse, HttpStatus.NOT_FOUND, "HLS_SEGMENT_NOT_FOUND");
+                return;
+            }
+            String segmentUrl = hlsSegmentUrl(segmentName, vhost, servletRequest.getQueryString());
+            if (!StringUtils.hasText(segmentUrl)) {
+                mediaError(servletResponse, HttpStatus.BAD_REQUEST, "INVALID_HLS_SEGMENT");
+                return;
+            }
+            URI segmentUri = URI.create(segmentUrl);
+            if (!isPublicMediaUri(segmentUri)) {
+                mediaError(servletResponse, HttpStatus.FORBIDDEN, "HLS_SEGMENT_HOST_NOT_ALLOWED");
+                return;
+            }
+            HttpClientUtil.doRelay(
+                    segmentUrl,
+                    HeaderUtil.getMediaRelayHeader(segmentUrl, "video"),
+                    null,
+                    206,
+                    Map.of(HttpHeaders.CACHE_CONTROL, "no-store"),
+                    servletRequest,
+                    servletResponse);
+        } catch (Exception exception) {
+            logger.error("[frontendPageData] failed to relay hls segment={}", segmentName, exception);
+            if (!servletResponse.isCommitted()) {
+                mediaError(servletResponse, HttpStatus.BAD_GATEWAY, "HLS_SEGMENT_PROXY_ERROR");
+            }
+        }
+    }
+
+    private String normalizeHlsSegmentPath(HttpServletRequest servletRequest) {
+        String requestUri = servletRequest.getRequestURI();
+        if (!StringUtils.hasText(requestUri)) {
+            return null;
+        }
+        String contextPath = Objects.toString(servletRequest.getContextPath(), "");
+        String prefix = contextPath + "/api/frontend/pages/";
+        String normalized = requestUri.startsWith(prefix) ? requestUri.substring(prefix.length()) : requestUri;
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return URLDecoder.decode(normalized, StandardCharsets.UTF_8);
+    }
+
+    private String hlsSegmentUrl(String segmentName, String vhost, String rawQuery) throws URISyntaxException {
+        if (!StringUtils.hasText(segmentName) || !StringUtils.hasText(vhost)) {
+            return null;
+        }
+        URI hostUri = new URI("https://" + vhost);
+        if (!isAllowedMediaUri(hostUri)) {
+            return null;
+        }
+        return new URI("https", vhost, "/" + segmentName, hlsSegmentQuery(rawQuery), null).toString();
+    }
+
+    private String hlsSegmentQuery(String rawQuery) {
+        if (!StringUtils.hasText(rawQuery)) return null;
+        StringBuilder builder = new StringBuilder();
+        for (String item : rawQuery.split("&")) {
+            if (!StringUtils.hasText(item)) continue;
+            int separator = item.indexOf('=');
+            String name = separator >= 0 ? item.substring(0, separator) : item;
+            if ("vhost".equals(URLDecoder.decode(name, StandardCharsets.UTF_8))) {
+                continue;
+            }
+            if (!builder.isEmpty()) builder.append('&');
+            builder.append(item);
+        }
+        return builder.isEmpty() ? null : builder.toString();
+    }
+
     private boolean isHlsPlaylistRequest(String mimeType, URI uri) {
         String normalizedMimeType = Objects.toString(mimeType, "").toLowerCase();
         String path = Objects.toString(uri.getPath(), "").toLowerCase();

@@ -30,6 +30,74 @@ document.addEventListener('DOMContentLoaded', function () {
     // 从localStorage加载搜索历史
     let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
 
+    function internalPath(input) {
+        if (!input) {
+            return '';
+        }
+        try {
+            const url = new URL(input, window.location.origin);
+            if (url.origin !== window.location.origin || !url.pathname.startsWith('/')) {
+                return '';
+            }
+            return `${url.pathname}${url.search}${url.hash}`;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function stripNavigationParams(input) {
+        if (!input) {
+            return '';
+        }
+        try {
+            const url = new URL(input, window.location.origin);
+            url.searchParams.delete('returnTo');
+            url.searchParams.delete('returnedFromChild');
+            return `${url.pathname}${url.search}${url.hash}`;
+        } catch (e) {
+            return input;
+        }
+    }
+
+    function withReturnedFromChild(input) {
+        const cleanPath = stripNavigationParams(input);
+        if (!cleanPath) {
+            return '';
+        }
+        const url = new URL(cleanPath, window.location.origin);
+        url.searchParams.set('returnedFromChild', '1');
+        return `${url.pathname}${url.search}${url.hash}`;
+    }
+
+    function detailReturnPath() {
+        return stripNavigationParams(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+    }
+
+    function childPageHref(rawPath) {
+        const url = new URL(`${currentHost}tools/json/printer/pro`, window.location.origin);
+        url.searchParams.set('path', Util.htmlspecialchars_decode(rawPath));
+        url.searchParams.set('returnTo', detailReturnPath());
+        return url.toString();
+    }
+
+    window.goBackFromJsonPrinter = function () {
+        const params = new URLSearchParams(window.location.search);
+        const returnTo = stripNavigationParams(internalPath(params.get('returnTo') || ''));
+        if (params.get('returnedFromChild') === '1') {
+            window.location.replace(`${currentHost}douyin`);
+            return;
+        }
+        if (returnTo) {
+            window.location.replace(withReturnedFromChild(returnTo));
+            return;
+        }
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        window.location.replace(`${currentHost}douyin`);
+    };
+
     function updateApiData() {
         const json = JSON.parse(jsonData);
         apiData.innerHTML = '';
@@ -101,14 +169,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (checkIsNotEmptyContent(json.rank_data.rank_list_url)) {
                 const a = document.createElement('a');
                 a.className = 'info-button info-link';
-                a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url))}`;
+                a.href = childPageHref(json.rank_data.rank_list_url);
                 a.textContent = '用户查询[简略]';
                 infoRanklistWrapper.appendChild(a);
             }
             if (checkIsNotEmptyContent(json.rank_data.rank_list_url_backup)) {
                 const a = document.createElement('a');
                 a.className = 'info-button info-link';
-                a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(json.rank_data.rank_list_url_backup))}`;
+                a.href = childPageHref(json.rank_data.rank_list_url_backup);
                 a.textContent = '用户反查[Pro]';
                 infoRanklistWrapper.appendChild(a);
             }
@@ -124,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     const a = document.createElement('a');
                     a.className = 'info-button info-link';
-                    a.href = `${currentHost}tools/json/printer/pro?path=${encodeURIComponent(Util.htmlspecialchars_decode(item))}`;
+                    a.href = childPageHref(item);
                     a.textContent = prefix + " - 用户反查";
                     infoRanklistWrapper.appendChild(a);
                 });

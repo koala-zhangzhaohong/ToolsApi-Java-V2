@@ -79,6 +79,26 @@ function internalReturnPath(value: string): string {
   }
 }
 
+function stripNavigationParams(value: string): string {
+  if (!value) return ''
+  try {
+    const url = new URL(value, window.location.origin)
+    url.searchParams.delete('returnTo')
+    url.searchParams.delete('returnedFromChild')
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return value
+  }
+}
+
+function withReturnedFromChild(value: string): string {
+  const cleanPath = stripNavigationParams(value)
+  if (!cleanPath) return ''
+  const url = new URL(cleanPath, window.location.origin)
+  url.searchParams.set('returnedFromChild', '1')
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
 interface CachedResultState {
   data: DouyinResult
   parseInput?: string
@@ -157,30 +177,33 @@ export default function LegacyResultPage() {
   const navigate = useNavigate()
   const routeState = location.state as { data?: DouyinResult; parseInput?: string; returnedFromChild?: boolean } | null
   const routeData = routeState?.data
-  const cachedState = useMemo(() => readCachedState(location.pathname, location.search), [location.pathname, location.search])
+  const businessPath = useMemo(() => stripNavigationParams(`${location.pathname}${location.search}`), [location.pathname, location.search])
+  const cacheUrl = useMemo(() => new URL(businessPath || location.pathname, window.location.origin), [businessPath, location.pathname])
+  const cachedState = useMemo(() => readCachedState(cacheUrl.pathname, cacheUrl.search), [cacheUrl.pathname, cacheUrl.search])
   const parseInput = routeState?.parseInput?.trim() || cachedState?.parseInput?.trim() || ''
   const { addHistory } = useParseHistory()
   const [params] = useSearchParams()
   const key = params.get('key') || ''
   const id = Number(params.get('id') || 5)
   const remotePath = params.get('path') || ''
-  const returnTo = internalReturnPath(params.get('returnTo') || '')
+  const returnTo = stripNavigationParams(internalReturnPath(params.get('returnTo') || ''))
+  const returnedFromChild = params.get('returnedFromChild') === '1' || Boolean(routeState?.returnedFromChild)
   const [data, setData] = useState<DouyinResult | null>(routeData || cachedState?.data || null)
   const [loading, setLoading] = useState(!(routeData || cachedState?.data))
   const [error, setError] = useState('')
 
   const goBack = () => {
     if (parseInput) addHistory(parseInput)
-    if (returnTo) {
-      navigate(returnTo, { replace: true, state: { returnedFromChild: true } })
+    if (returnedFromChild) {
+      navigate('/douyin', { replace: true })
       return
     }
-    if (routeState?.returnedFromChild) {
-      navigate(-2)
+    if (returnTo) {
+      navigate(withReturnedFromChild(returnTo), { replace: true, state: { returnedFromChild: true } })
       return
     }
     if (location.key === 'default') {
-      navigate('/douyin')
+      navigate('/douyin', { replace: true })
       return
     }
     navigate(-1)
@@ -216,11 +239,11 @@ export default function LegacyResultPage() {
 
   useEffect(() => {
     if (!data) return
-    writeCachedState(location.pathname, location.search, {
+    writeCachedState(cacheUrl.pathname, cacheUrl.search, {
       data,
       parseInput: parseInput || routeState?.parseInput?.trim() || undefined,
     })
-  }, [data, location.pathname, location.search, parseInput, routeState?.parseInput])
+  }, [cacheUrl.pathname, cacheUrl.search, data, parseInput, routeState?.parseInput])
 
   useEffect(() => {
     if (!routeData && cachedState?.data) {
@@ -276,7 +299,7 @@ export default function LegacyResultPage() {
     )
   }
 
-  const rankReturnTo = `${location.pathname}${location.search}`
+  const rankReturnTo = stripNavigationParams(`${location.pathname}${location.search}`)
 
   if (id >= 1 && id <= 3) return <LegacyErrorPage status={id === 1 ? 403 : id === 2 ? 404 : 500} />
 
