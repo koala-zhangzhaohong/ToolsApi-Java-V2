@@ -1,4 +1,4 @@
-import { CodeOutlined, LinkOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { CodeOutlined, CustomerServiceOutlined, LinkOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Row, Space, Tag, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
@@ -12,6 +12,20 @@ const tools = [
     color: 'purple',
   },
   {
+    title: '网易云音乐搜索',
+    description: '搜索单曲、歌单、歌手、专辑、MV 与歌词，单曲结果可继续解析播放。',
+    path: '/netease',
+    icon: <CustomerServiceOutlined />,
+    color: 'red',
+  },
+  {
+    title: '酷狗音乐搜索',
+    description: '搜索酷狗单曲与 MV，单曲结果可继续解析播放。',
+    path: '/kugou',
+    icon: <CustomerServiceOutlined />,
+    color: 'cyan',
+  },
+  {
     title: 'JSON 工作台',
     description: '粘贴 JSON 或请求远程接口，完成校验、格式化、压缩与复制。',
     path: '/json',
@@ -23,7 +37,7 @@ const tools = [
     description: '统一承载视频、音频、HLS、图片集合，替代分散的播放器模板。',
     path: '/player',
     icon: <PlayCircleOutlined />,
-    color: 'cyan',
+    color: 'purple',
   },
 ]
 
@@ -46,7 +60,7 @@ export default function HomePage() {
       <PageHeader eyebrow="TOOLKIT" title="工具集合" description="迁移后的核心页面均从这里进入。" />
       <Row gutter={[18, 18]}>
         {tools.map((tool) => (
-          <Col xs={24} md={12} xl={8} key={tool.path}>
+          <Col xs={24} md={12} xl={6} key={tool.path}>
             <Card className="tool-card" hoverable onClick={() => navigate(tool.path)}>
               <span className={`tool-icon tool-icon-${tool.color}`}>{tool.icon}</span>
               <Typography.Title level={3}>{tool.title}</Typography.Title>

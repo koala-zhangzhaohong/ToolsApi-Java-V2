@@ -135,7 +135,7 @@ export default function DouyinPage() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onSearch={search}
-          enterButton={<><SearchOutlined /><span className="search-button-label">立即解析</span></>}
+          enterButton={loading ? <span className="search-button-label">立即解析</span> : <><SearchOutlined /><span className="search-button-label">立即解析</span></>}
           placeholder="粘贴完整的抖音分享文本或链接"
           loading={loading}
           allowClear

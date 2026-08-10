@@ -7,12 +7,14 @@ const DouyinPage = lazy(() => import('./pages/DouyinPage'))
 const ErrorPage = lazy(() => import('./pages/ErrorPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
 const JsonPage = lazy(() => import('./pages/JsonPage'))
+const KugouPage = lazy(() => import('./pages/KugouPage'))
 const LegacyResultPage = lazy(() => import('./pages/LegacyResultPage'))
 const LegacyPlayerPage = lazy(() => import('./pages/LegacyPlayerPage'))
 const LegacySearchPage = lazy(() => import('./pages/LegacySearchPage'))
 const LegacyJsonPage = lazy(() => import('./pages/LegacyJsonPage'))
 const LegacyErrorPage = lazy(() => import('./pages/LegacyErrorPage'))
 const MediaPage = lazy(() => import('./pages/MediaPage'))
+const NeteasePage = lazy(() => import('./pages/NeteasePage'))
 
 export default function App() {
   return (
@@ -22,6 +24,8 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
             <Route path="douyin" element={<DouyinPage />} />
+            <Route path="netease" element={<NeteasePage />} />
+            <Route path="kugou" element={<KugouPage />} />
             <Route path="json" element={<JsonPage />} />
             <Route path="player" element={<MediaPage />} />
             <Route path="tools/json/printer/pro" element={<LegacyResultPage />} />

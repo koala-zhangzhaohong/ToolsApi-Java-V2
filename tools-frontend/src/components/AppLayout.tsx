@@ -1,6 +1,7 @@
 import {
   ApiOutlined,
   CodeOutlined,
+  CustomerServiceOutlined,
   HomeOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -16,6 +17,8 @@ const { Header, Content, Sider } = Layout
 const menuItems = [
   { key: '/', icon: <HomeOutlined />, label: '工作台' },
   { key: '/douyin', icon: <ThunderboltFilled />, label: '抖音解析' },
+  { key: '/netease', icon: <CustomerServiceOutlined />, label: '网易云搜索' },
+  { key: '/kugou', icon: <CustomerServiceOutlined />, label: '酷狗搜索' },
   { key: '/json', icon: <CodeOutlined />, label: 'JSON 工具' },
   { key: '/player', icon: <PlayCircleOutlined />, label: '媒体播放器' },
 ]
