@@ -119,6 +119,7 @@ button, input, textarea { font: inherit; }
 .legacy-result-heading { display: flex; flex-direction: column; align-items: flex-start; }
 .legacy-back-button { height: auto; margin: 0 0 14px -12px; padding: 4px 12px; color: #596273; }
 .legacy-back-button:hover { color: #6d5dfc !important; background: #eeeaff !important; }
+.legacy-back-button-result { margin: 0; }
 .legacy-result-header h2 { margin: 3px 0 0; }
 .legacy-result-header .eyebrow { color: #6d5dfc; }
 .legacy-preview-card, .legacy-section-card { border: 0; box-shadow: 0 12px 30px rgba(54, 43, 118, .08); }
@@ -173,6 +174,8 @@ button, input, textarea { font: inherit; }
 .legacy-picture .ant-image-mask { pointer-events: none; }
 .picture-caption { padding: 16px; color: #d9dce4; }
 .music-player-page { width: min(1120px, 100%); }
+.music-playback-page .music-player-page { width: 100%; }
+.music-playback-loading { display: grid; min-height: 260px; place-items: center; color: #667085; }
 .music-player-shell { position: relative; overflow: hidden; min-height: 620px; color: white; border: 1px solid rgba(255,255,255,.1); border-radius: 32px; background: #111421; box-shadow: 0 32px 90px rgba(7,10,20,.36); }
 .music-player-shell > .ant-card-body { position: relative; min-height: 620px; padding: clamp(28px, 5vw, 62px); }
 .music-player-background { position: absolute; inset: 0; background: radial-gradient(circle at 15% 15%, rgba(112,84,255,.3), transparent 34%), linear-gradient(135deg, #11131e, #20213b); background-position: center; background-size: cover; }

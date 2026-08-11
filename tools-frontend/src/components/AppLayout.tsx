@@ -11,6 +11,7 @@ import {
 import { Button, Drawer, Layout, Menu, Space, Typography } from 'antd'
 import { useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { readMusicPlayback } from '../services/musicPlayback'
 
 const { Header, Content, Sider } = Layout
 
@@ -42,9 +43,19 @@ export default function AppLayout() {
       if (/^\/tools\/DouYin\/web|^\/tools\/json\/printer\/pro/.test(location.pathname)) return '/douyin'
       if (/^\/tools\/json\/printer$/.test(location.pathname)) return '/json'
       if (/^\/tools\/(DouYin|Netease|Kugou)\/pro\/player/.test(location.pathname)) return '/player'
+      if (/^\/music\/player/.test(location.pathname)) {
+        const source = new URLSearchParams(location.search).get('from')
+        if (source === 'netease') return '/netease'
+        if (source === 'kugou') return '/kugou'
+        const key = new URLSearchParams(location.search).get('key')
+        const payload = key ? readMusicPlayback(key) : null
+        if (payload?.platform === 'netease') return '/netease'
+        if (payload?.platform === 'kugou') return '/kugou'
+        return '/player'
+      }
       return menuItems.find((item) => item.key !== '/' && location.pathname.startsWith(item.key))?.key || '/'
     },
-    [location.pathname],
+    [location.pathname, location.search],
   )
   const onSelect = ({ key }: { key: string }) => {
     navigate(key)

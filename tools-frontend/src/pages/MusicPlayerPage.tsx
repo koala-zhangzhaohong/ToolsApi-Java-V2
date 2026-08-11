@@ -1,10 +1,10 @@
 import {
-  CopyOutlined,
   CustomerServiceOutlined,
   DownloadOutlined,
   FileTextOutlined,
   PauseCircleFilled,
   PlayCircleFilled,
+  ShareAltOutlined,
   StepBackwardOutlined,
   StepForwardOutlined,
   SoundOutlined,
@@ -65,7 +65,29 @@ function formatTime(value: number) {
   return `${Math.floor(value / 60).toString().padStart(2, '0')}:${Math.floor(value % 60).toString().padStart(2, '0')}`
 }
 
-function sourceLabel(index: number, total: number) {
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return true
+    } catch {
+      // HTTP deployments may not expose the Clipboard API.
+    }
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  return copied
+}
+
+function sourceLabel(index: number, total: number, labels?: string[]) {
+  if (labels?.[index]) return labels[index]
   const names = total >= 4 ? ['原画', '超清', '高清', '标清'] : total === 2 ? ['高音质', '标准'] : []
   return names[index] || `线路 ${index + 1}`
 }
@@ -115,16 +137,21 @@ function Waveform({ title, currentTime, duration, playing, onSeek }: { title: st
 interface MusicPlayerPageProps {
   data: PlayerPageData
   sources: string[]
+  sourceLabels?: string[]
   compact?: boolean
+  qualityOptions?: Array<{ value: string; label: string }>
+  initialQuality?: string
+  onQualityChange?: (quality: string) => Promise<string>
 }
 
-export default function MusicPlayerPage({ data, sources, compact = false }: MusicPlayerPageProps) {
+export default function MusicPlayerPage({ data, sources, sourceLabels, compact = false, qualityOptions, initialQuality, onQualityChange }: MusicPlayerPageProps) {
   const { message } = App.useApp()
   const meta = useMemo(() => musicMeta(data), [data])
   const lines = useMemo(() => parseLyrics(meta.lyric), [meta.lyric])
   const audioRef = useRef<HTMLAudioElement>(null)
   const lyricBoxRef = useRef<HTMLDivElement>(null)
   const resumeAfterSourceChange = useRef(false)
+  const resumeTimeAfterSourceChange = useRef(0)
   const [sourceIndex, setSourceIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -134,7 +161,24 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
   const [lyricIndex, setLyricIndex] = useState(-1)
   const [showLyrics, setShowLyrics] = useState(true)
   const [playbackError, setPlaybackError] = useState('')
-  const src = sources[sourceIndex] || sources[0]
+  const [quality, setQuality] = useState(initialQuality || '')
+  const [qualitySource, setQualitySource] = useState('')
+  const [qualityLoading, setQualityLoading] = useState(false)
+  const hasQualitySelector = Boolean(qualityOptions?.length && initialQuality && onQualityChange)
+  const src = qualitySource || sources[sourceIndex] || sources[0]
+  const downloadSrc = useMemo(() => {
+    if (!src) return ''
+    try {
+      const parsed = new URL(src, window.location.origin)
+      const key = parsed.searchParams.get('key')
+      if (parsed.pathname === '/api/frontend/pages/media' && key) {
+        return `/api/frontend/pages/download?key=${encodeURIComponent(key)}`
+      }
+    } catch {
+      return src
+    }
+    return src
+  }, [src])
 
   useEffect(() => {
     setSourceIndex(0)
@@ -142,21 +186,9 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
     setDuration(0)
     setLyricIndex(-1)
     setPlaybackError('')
+    setQuality(initialQuality || '')
+    setQualitySource('')
   }, [sources])
-
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio || !src) return
-    audio.pause()
-    audio.load()
-    const resume = () => {
-      if (!resumeAfterSourceChange.current) return
-      resumeAfterSourceChange.current = false
-      void audio.play().catch(() => setPlaybackError('浏览器阻止了自动播放，请点击播放按钮'))
-    }
-    audio.addEventListener('loadedmetadata', resume, { once: true })
-    return () => audio.removeEventListener('loadedmetadata', resume)
-  }, [src])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -195,9 +227,40 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
 
   const changeSource = (next: number) => {
     const audio = audioRef.current
-    resumeAfterSourceChange.current = Boolean(audio && !audio.paused)
+    const shouldResume = Boolean(audio && !audio.paused)
+    resumeAfterSourceChange.current = shouldResume
+    resumeTimeAfterSourceChange.current = audio?.currentTime || 0
+    if (shouldResume) audio?.pause()
+    setCurrentTime(resumeTimeAfterSourceChange.current)
+    setDuration(0)
+    setLyricIndex(-1)
     setSourceIndex(next)
     setPlaybackError('')
+  }
+
+  const changeQuality = async (next: string) => {
+    if (!onQualityChange || next === quality || qualityLoading) return
+    const audio = audioRef.current
+    const shouldResume = Boolean(audio && !audio.paused)
+    const resumeTime = audio?.currentTime || 0
+    if (shouldResume) audio?.pause()
+    setQualityLoading(true)
+    setPlaybackError('')
+    try {
+      const nextSource = await onQualityChange(next)
+      resumeAfterSourceChange.current = shouldResume
+      resumeTimeAfterSourceChange.current = resumeTime
+      setCurrentTime(resumeTime)
+      setDuration(0)
+      setLyricIndex(-1)
+      setQuality(next)
+      setQualitySource(nextSource)
+    } catch (error) {
+      setPlaybackError(error instanceof Error ? error.message : '音质切换失败')
+      if (shouldResume && audio) void audio.play().catch(() => undefined)
+    } finally {
+      setQualityLoading(false)
+    }
   }
 
   const seek = (value: number) => {
@@ -208,13 +271,12 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
     setLyricIndex(activeLyricIndex(lines, value))
   }
 
-  const copySource = async () => {
-    if (!src) return
+  const copyShareLink = async () => {
     try {
-      await navigator.clipboard.writeText(src)
-      message.success('播放地址已复制')
+      if (!await copyText(window.location.href)) throw new Error('copy failed')
+      message.success('分享链接已复制')
     } catch {
-      message.warning('复制失败，请手动打开源地址')
+      message.warning('分享链接复制失败')
     }
   }
 
@@ -236,7 +298,7 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
           </Col>}
           <Col xs={24} md={compact ? 24 : 15} className="music-player-main-column">
             {compact ? <Typography.Title level={2} className="music-player-compact-title">{meta.title}</Typography.Title> : <>
-              <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{sourceIndex + 1}/{Math.max(1, sources.length)} 线路</span></div>
+              <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{hasQualitySelector ? qualityOptions?.findIndex((option) => option.value === quality)! + 1 : sourceIndex + 1}/{Math.max(1, hasQualitySelector ? qualityOptions?.length || 0 : sources.length)} 音质</span></div>
               <div className="music-player-current-lyric">{lines[lyricIndex]?.text || (lines.length ? '准备播放' : '暂无歌词')}</div>
             </>}
             {!compact && showLyrics && <div className="music-lyrics-panel" ref={lyricBoxRef} aria-label="歌词">
@@ -246,16 +308,54 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
             <Waveform title={`${meta.title}-${meta.artist}`} currentTime={currentTime} duration={duration} playing={playing} onSeek={seek} />
             <Slider className="music-progress-slider" min={0} max={duration || 1} value={Math.min(currentTime, duration || 1)} onChange={seek} tooltip={{ formatter: (value) => formatTime(Number(value)) }} />
             <div className="music-time-row"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
-            <audio ref={audioRef} src={src} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} onLoadedMetadata={(event) => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)} onTimeUpdate={(event) => { const time = event.currentTarget.currentTime; setCurrentTime(time); setLyricIndex(activeLyricIndex(lines, time)) }} onError={() => setPlaybackError('媒体地址不可播放，链接可能已过期')} />
+            <audio
+              key={src}
+              ref={audioRef}
+              src={src}
+              preload="metadata"
+              onCanPlay={(event) => {
+                const resumeTime = resumeTimeAfterSourceChange.current
+                if (resumeTime > 0 && Number.isFinite(resumeTime)) {
+                  event.currentTarget.currentTime = resumeTime
+                }
+                if (!resumeAfterSourceChange.current) {
+                  resumeTimeAfterSourceChange.current = 0
+                  return
+                }
+                resumeAfterSourceChange.current = false
+                resumeTimeAfterSourceChange.current = 0
+                void event.currentTarget.play().catch(() => setPlaybackError('浏览器阻止了自动播放，请点击播放按钮'))
+              }}
+              onPlay={() => { setPlaying(true); setPlaybackError('') }}
+              onPause={() => setPlaying(false)}
+              onEnded={() => setPlaying(false)}
+              onLoadedMetadata={(event) => {
+                setPlaybackError('')
+                setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)
+                if (resumeTimeAfterSourceChange.current > 0) {
+                  event.currentTarget.currentTime = Math.min(resumeTimeAfterSourceChange.current, event.currentTarget.duration || resumeTimeAfterSourceChange.current)
+                }
+              }}
+              onTimeUpdate={(event) => {
+                const time = event.currentTarget.currentTime
+                setCurrentTime(time)
+                setLyricIndex(activeLyricIndex(lines, time))
+              }}
+              onError={(event) => {
+                if (event.currentTarget.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+                  setPlaybackError('媒体地址不可播放，链接可能已过期')
+                }
+              }}
+            />
             <div className="music-player-controls">
               <div className="music-volume-control">
                 <Tooltip title="音量"><SoundOutlined /></Tooltip>
                 <Slider className="music-volume-slider" min={0} max={100} value={volume} onChange={setVolume} />
               </div>
               <Space className="music-transport-controls" size={6}>
-                <Tooltip title="上一线路"><Button type="text" aria-label="上一线路" icon={<StepBackwardOutlined />} onClick={() => changeSource(Math.max(0, sourceIndex - 1))} disabled={sourceIndex === 0} /></Tooltip>
+                <Tooltip title="上一音质"><Button type="text" aria-label="上一音质" icon={<StepBackwardOutlined />} onClick={() => hasQualitySelector ? void changeQuality(qualityOptions![Math.max(0, qualityOptions!.findIndex((option) => option.value === quality) - 1)].value) : changeSource(Math.max(0, sourceIndex - 1))} disabled={qualityLoading || (hasQualitySelector ? qualityOptions!.findIndex((option) => option.value === quality) <= 0 : sourceIndex === 0)} /></Tooltip>
                 <Button type="primary" aria-label={playing ? '暂停' : '播放'} shape="circle" size="large" className="music-player-play" icon={playing ? <PauseCircleFilled /> : <PlayCircleFilled />} onClick={toggle} />
-                <Tooltip title="下一线路"><Button type="text" aria-label="下一线路" icon={<StepForwardOutlined />} onClick={() => changeSource(Math.min(sources.length - 1, sourceIndex + 1))} disabled={sourceIndex >= sources.length - 1} /></Tooltip>
+                <Tooltip title="下一音质"><Button type="text" aria-label="下一音质" icon={<StepForwardOutlined />} onClick={() => hasQualitySelector ? void changeQuality(qualityOptions![Math.min(qualityOptions!.length - 1, qualityOptions!.findIndex((option) => option.value === quality) + 1)].value) : changeSource(Math.min(sources.length - 1, sourceIndex + 1))} disabled={qualityLoading || (hasQualitySelector ? qualityOptions!.findIndex((option) => option.value === quality) >= qualityOptions!.length - 1 : sourceIndex >= sources.length - 1)} /></Tooltip>
               </Space>
               <div className="music-playback-settings">
                 <Select aria-label="播放速度" value={speed} onChange={setSpeed} options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => ({ value, label: `${value}x` }))} />
@@ -263,10 +363,15 @@ export default function MusicPlayerPage({ data, sources, compact = false }: Musi
             </div>
             {!compact && <div className="music-player-source-row">
               <div className="music-source-selector">
-                <Typography.Text>播放线路</Typography.Text>
-                <Select value={sourceIndex} onChange={changeSource} options={sources.map((_, index) => ({ value: index, label: sourceLabel(index, sources.length) }))} />
+                <Typography.Text>播放音质</Typography.Text>
+                {hasQualitySelector
+                  ? <Select value={quality} loading={qualityLoading} disabled={qualityLoading} onChange={(value) => void changeQuality(value)} options={qualityOptions} />
+                  : <Select value={sourceIndex} onChange={changeSource} options={sources.map((_, index) => ({ value: index, label: sourceLabel(index, sources.length, sourceLabels) }))} />}
               </div>
-              <Space className="music-source-actions"><Button icon={<CopyOutlined />} onClick={() => void copySource()}>复制地址</Button>{src && <Button icon={<DownloadOutlined />} href={src} target="_blank" rel="noreferrer">打开源地址</Button>}</Space>
+              <Space className="music-source-actions">
+                <Button icon={<ShareAltOutlined />} onClick={() => void copyShareLink()}>分享链接</Button>
+                {downloadSrc && <Button icon={<DownloadOutlined />} href={downloadSrc}>下载</Button>}
+              </Space>
             </div>}
           </Col>
         </Row>

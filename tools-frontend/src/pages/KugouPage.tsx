@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
+import { collectKugouPlaybackOptions, saveMusicPlayback } from '../services/musicPlayback'
 import { resolveKugouMusic, searchKugou, type KugouSearchPayload, type KugouSearchType } from '../services/kugou'
 import type { JsonRecord } from '../types'
 
@@ -136,23 +137,6 @@ function resultUrl(item: JsonRecord, type: KugouSearchType) {
   const id = resultId(item, type)
   if (!id) return ''
   return type === 'mv' ? `https://www.kugou.com/mv/${id}/` : `https://www.kugou.com/mixsong/${id}.html`
-}
-
-function frontendPath(value: string) {
-  try {
-    const url = new URL(value, window.location.origin)
-    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : value
-  } catch {
-    return value
-  }
-}
-
-function openPlayer(path: string, navigate: ReturnType<typeof useNavigate>) {
-  if (/^https?:\/\//i.test(path)) {
-    window.location.assign(path)
-    return
-  }
-  navigate(path)
 }
 
 interface KugouHistoryCardProps {
@@ -356,12 +340,9 @@ export default function KugouPage() {
     setResolvingId(hash)
     try {
       const data = await resolveKugouMusic(hash, albumId)
-      const preview = data.mock_preview_path?.default
-      if (typeof preview === 'string' && preview.trim()) {
-        openPlayer(frontendPath(preview), navigate)
-        return
-      }
-      message.warning('歌曲已解析，但接口没有返回可播放线路')
+      const options = await collectKugouPlaybackOptions(data)
+      const key = saveMusicPlayback('kugou', data, options.map((option) => option.source), options.map((option) => option.label))
+      navigate(`/music/player?key=${encodeURIComponent(key)}&from=kugou`)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '酷狗歌曲解析失败')
     } finally {

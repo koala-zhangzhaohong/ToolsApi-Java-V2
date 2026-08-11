@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
+import { collectNeteasePlaybackSources, saveMusicPlayback } from '../services/musicPlayback'
 import { resolveNeteaseMusic, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
 import type { JsonRecord } from '../types'
 
@@ -101,10 +102,6 @@ function recordList(value: unknown): JsonRecord[] {
   }) : []
 }
 
-function firstRecord(value: unknown) {
-  return recordList(value)[0]
-}
-
 function names(value: unknown) {
   return recordList(value).map((item) => text(item.name)).filter(Boolean).join(' / ')
 }
@@ -173,23 +170,6 @@ function resultUrl(item: JsonRecord, type: NeteaseSearchType) {
   if (type === '10') return `https://music.163.com/#/album?id=${id}`
   if (type === '1004') return `https://music.163.com/#/mv?id=${id}`
   return `https://music.163.com/#/song?id=${id}`
-}
-
-function frontendPath(value: string) {
-  try {
-    const url = new URL(value, window.location.origin)
-    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : value
-  } catch {
-    return value
-  }
-}
-
-function openPlayer(path: string, navigate: ReturnType<typeof useNavigate>) {
-  if (/^https?:\/\//i.test(path)) {
-    window.location.assign(path)
-    return
-  }
-  navigate(path)
 }
 
 interface SearchTemplateProps {
@@ -396,12 +376,9 @@ export default function NeteasePage() {
     setResolvingId(id)
     try {
       const data = await resolveNeteaseMusic(id)
-      const preview = firstRecord(data.item_info?.data)?.mock_preview_path
-      if (typeof preview === 'string' && preview.trim()) {
-        openPlayer(frontendPath(preview), navigate)
-        return
-      }
-      message.warning('歌曲已解析，但接口没有返回可播放线路')
+      const sources = collectNeteasePlaybackSources(data)
+      const key = saveMusicPlayback('netease', data, sources)
+      navigate(`/music/player?key=${encodeURIComponent(key)}&from=netease`)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '网易云歌曲解析失败')
     } finally {

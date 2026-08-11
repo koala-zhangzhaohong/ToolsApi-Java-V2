@@ -137,13 +137,18 @@ public class FrontendPageDataController {
             mediaError(servletResponse, HttpStatus.BAD_REQUEST, "INVALID_KEY");
             return;
         }
-        String mediaUrl = redisService.get(SHORT_KEY_PREFIX + decodedKey);
-        if (!StringUtils.hasText(mediaUrl)) {
+        String storedMediaUrl = redisService.get(SHORT_KEY_PREFIX + decodedKey);
+        if (!StringUtils.hasText(storedMediaUrl)) {
             mediaError(servletResponse, HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND");
             return;
         }
         try {
-            URI uri = URI.create(mediaUrl);
+            URI uri = resolveMediaTarget(storedMediaUrl, 0);
+            if (uri == null) {
+                mediaError(servletResponse, HttpStatus.FORBIDDEN, "MEDIA_TARGET_NOT_ALLOWED");
+                return;
+            }
+            String mediaUrl = uri.toString();
             boolean trustedDouyinMedia = StringUtils.hasText(
                     redisService.get(TIKTOK_MEDIA_KEY_PREFIX + decodedKey));
             if (trustedDouyinMedia ? !isPublicMediaUri(uri) : !isAllowedMediaUri(uri)) {
@@ -154,12 +159,24 @@ public class FrontendPageDataController {
                 relayHlsPlaylist(mediaUrl, uri, servletRequest, servletResponse);
                 return;
             }
+            String destination = "audio".equalsIgnoreCase(mimeType)
+                    ? "audio" : mediaDestination(servletRequest, false);
+            Map<String, String> relayHeaders = new HashMap<>(
+                    HeaderUtil.getMediaRelayHeader(mediaUrl, destination));
+            if ("audio".equalsIgnoreCase(mimeType)
+                    && !StringUtils.hasText(servletRequest.getHeader(HttpHeaders.RANGE))) {
+                relayHeaders.put(HttpHeaders.RANGE, "bytes=0-");
+                relayHeaders.put(HttpHeaders.ACCEPT_ENCODING, "identity");
+            }
             HttpClientUtil.doRelay(
                     mediaUrl,
-                    HeaderUtil.getMediaRelayHeader(mediaUrl, mediaDestination(servletRequest, false)),
+                    relayHeaders,
                     null,
                     206,
-                    Map.of(HttpHeaders.CACHE_CONTROL, "no-store"),
+                    Map.of(
+                            HttpHeaders.CACHE_CONTROL, "no-store",
+                            HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
+                            "Accept-Ranges, Content-Length, Content-Range, Content-Type"),
                     servletRequest,
                     servletResponse);
         } catch (Exception exception) {
@@ -168,18 +185,42 @@ public class FrontendPageDataController {
         }
     }
 
+    @GetMapping("media-url")
+    public ResponseEntity<Object> mediaUrl(@RequestParam String url) {
+        if (!StringUtils.hasText(url)) {
+            return error(HttpStatus.BAD_REQUEST, "MEDIA_URL_REQUIRED");
+        }
+        try {
+            URI uri = URI.create(url.trim());
+            URI target = resolveMediaTarget(uri.toString(), 0);
+            if (target == null || !isAllowedMediaUri(target)) {
+                return error(HttpStatus.FORBIDDEN, "MEDIA_HOST_NOT_ALLOWED");
+            }
+            String shortKey = ShortKeyGenerator.getKey(uri.toString());
+            redisService.set(SHORT_KEY_PREFIX + shortKey, uri.toString(), TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
+            String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.ok(Map.of(
+                    "url", "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=audio"
+            ));
+        } catch (Exception exception) {
+            logger.warn("[frontendPageData] invalid media url={}", url);
+            return error(HttpStatus.BAD_REQUEST, "INVALID_MEDIA_URL");
+        }
+    }
+
     @GetMapping("/{*segmentPath}")
-    public void hlsSegment(@RequestParam(required = false) String vhost,
+    public void hlsSegment(@RequestParam(name = "vhost", required = false) String vhost,
                            HttpServletRequest servletRequest,
                            HttpServletResponse servletResponse) {
         String segmentName = null;
         try {
             segmentName = normalizeHlsSegmentPath(servletRequest);
-            if (!StringUtils.hasText(segmentName) || !segmentName.endsWith(".ts")) {
+            if (!StringUtils.hasText(segmentName) || !segmentName.toLowerCase().endsWith(".ts")) {
                 mediaError(servletResponse, HttpStatus.NOT_FOUND, "HLS_SEGMENT_NOT_FOUND");
                 return;
             }
-            String segmentUrl = hlsSegmentUrl(segmentName, vhost, servletRequest.getQueryString());
+            String requestVhost = StringUtils.hasText(vhost) ? vhost : servletRequest.getParameter("host");
+            String segmentUrl = hlsSegmentUrl(segmentName, requestVhost, servletRequest.getQueryString());
             if (!StringUtils.hasText(segmentUrl)) {
                 mediaError(servletResponse, HttpStatus.BAD_REQUEST, "INVALID_HLS_SEGMENT");
                 return;
@@ -220,14 +261,34 @@ public class FrontendPageDataController {
     }
 
     private String hlsSegmentUrl(String segmentName, String vhost, String rawQuery) throws URISyntaxException {
-        if (!StringUtils.hasText(segmentName) || !StringUtils.hasText(vhost)) {
+        String normalizedVhost = normalizeVhost(vhost);
+        if (!StringUtils.hasText(segmentName) || !StringUtils.hasText(normalizedVhost)) {
             return null;
         }
-        URI hostUri = new URI("https://" + vhost);
-        if (!isAllowedMediaUri(hostUri)) {
+        URI hostUri = new URI("https://" + normalizedVhost);
+        // Douyin may return different CDN domains by region and stream session.
+        // HLS segment hosts are therefore validated as public media hosts instead
+        // of being limited to a hard-coded CDN suffix list.
+        if (!isPublicMediaUri(hostUri)) {
             return null;
         }
-        return new URI("https", vhost, "/" + segmentName, hlsSegmentQuery(rawQuery), null).toString();
+        return new URI("https", hostUri.getRawAuthority(), "/" + segmentName, hlsSegmentQuery(rawQuery), null).toString();
+    }
+
+    private String normalizeVhost(String value) {
+        if (!StringUtils.hasText(value)) return null;
+        try {
+            String decoded = URLDecoder.decode(value.trim(), StandardCharsets.UTF_8).trim();
+            URI uri = decoded.startsWith("//")
+                    ? URI.create("https:" + decoded)
+                    : decoded.matches("(?i)^https?://.*")
+                        ? URI.create(decoded)
+                        : URI.create("https://" + decoded);
+            String authority = uri.getRawAuthority();
+            return StringUtils.hasText(authority) ? authority : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private String hlsSegmentQuery(String rawQuery) {
@@ -237,7 +298,8 @@ public class FrontendPageDataController {
             if (!StringUtils.hasText(item)) continue;
             int separator = item.indexOf('=');
             String name = separator >= 0 ? item.substring(0, separator) : item;
-            if ("vhost".equals(URLDecoder.decode(name, StandardCharsets.UTF_8))) {
+            if ("vhost".equalsIgnoreCase(URLDecoder.decode(name, StandardCharsets.UTF_8))
+                    || "host".equalsIgnoreCase(URLDecoder.decode(name, StandardCharsets.UTF_8))) {
                 continue;
             }
             if (!builder.isEmpty()) builder.append('&');
@@ -253,6 +315,26 @@ public class FrontendPageDataController {
                 && (normalizedMimeType.contains("hls")
                 || normalizedMimeType.contains("mpegurl")
                 || path.endsWith(".m3u8"));
+    }
+
+    private URI resolveMediaTarget(String value, int depth) throws URISyntaxException {
+        if (depth > 3 || !StringUtils.hasText(value)) return null;
+        URI uri = URI.create(value);
+        String path = Objects.toString(uri.getPath(), "");
+        if ("/short".equals(path)) {
+            String nestedKey = queryParameter(uri, "key");
+            String decodedNestedKey = decodeKey(nestedKey);
+            return StringUtils.hasText(decodedNestedKey)
+                    ? resolveMediaTarget(redisService.get(SHORT_KEY_PREFIX + decodedNestedKey), depth + 1)
+                    : null;
+        }
+        if (path.endsWith("/doProxy")) {
+            String host = queryParameter(uri, "host");
+            String proxyPath = queryParameter(uri, "path");
+            if (!StringUtils.hasText(host) || !StringUtils.hasText(proxyPath)) return null;
+            return URI.create(host + proxyPath);
+        }
+        return uri;
     }
 
     private void relayHlsPlaylist(String mediaUrl,
@@ -477,11 +559,17 @@ public class FrontendPageDataController {
         String host = uri.getHost();
         if (!StringUtils.hasText(host)) return false;
         String normalized = host.toLowerCase();
-        return normalized.endsWith(".douyincdn.com")
+        return normalized.equals("douyincdn.com")
+                || normalized.endsWith(".douyincdn.com")
+                || normalized.equals("douyinpic.com")
                 || normalized.endsWith(".douyinpic.com")
+                || normalized.equals("byteimg.com")
                 || normalized.endsWith(".byteimg.com")
+                || normalized.equals("music.126.net")
                 || normalized.endsWith(".music.126.net")
+                || normalized.equals("kugou.com")
                 || normalized.endsWith(".kugou.com")
+                || normalized.equals("kugou.net")
                 || normalized.endsWith(".kugou.net");
     }
 

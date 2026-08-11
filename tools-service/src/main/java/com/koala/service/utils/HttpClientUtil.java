@@ -622,11 +622,12 @@ public final class HttpClientUtil {
         Map<String, String> headers = new LinkedHashMap<>();
         if (!ObjectUtils.isEmpty(configured)) headers.putAll(configured);
         String range = request.getHeader("Range");
-        if (ObjectUtils.isEmpty(range)) headers.remove("Range");
-        else {
+        if (!ObjectUtils.isEmpty(range)) {
             headers.put("Range", range);
             // Compressed transfer coding makes byte offsets ambiguous and breaks chunk merging.
             headers.put("Accept-Encoding", "identity");
+        } else if (!headers.containsKey("Range")) {
+            headers.remove("Range");
         }
         for (String name : List.of("Accept", "Accept-Language", "Cache-Control", "If-Match",
                 "If-Modified-Since", "If-None-Match", "If-Range", "If-Unmodified-Since", "User-Agent")) {

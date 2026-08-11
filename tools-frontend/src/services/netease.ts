@@ -2,6 +2,7 @@ import type { JsonRecord } from '../types'
 import { getJson } from './http'
 
 export type NeteaseSearchType = '1' | '10' | '100' | '1000' | '1002' | '1004' | '1006' | '1009'
+export type NeteaseQuality = 'default' | 'standard' | 'exhigh' | 'lossless' | 'hires'
 
 export interface NeteaseSearchPayload extends JsonRecord {
   page?: number
@@ -47,10 +48,12 @@ export async function searchNetease(keyword: string, type: NeteaseSearchType, pa
   return assertSuccess(response, '网易云搜索失败')
 }
 
-export async function resolveNeteaseMusic(id: string) {
+export async function resolveNeteaseMusic(id: string, quality: NeteaseQuality = 'standard') {
   const query = new URLSearchParams({
     id,
     type: 'info',
+    lyric: 'true',
+    quality,
     toWebPlayer: 'true',
   })
   const response = await getJson<ApiResponse<NeteaseMusicPayload>>(`/tools/Netease/api?${query.toString()}`)

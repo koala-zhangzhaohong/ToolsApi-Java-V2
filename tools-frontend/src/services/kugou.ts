@@ -46,6 +46,9 @@ export async function resolveKugouMusic(hash: string, albumId: string) {
     hash,
     albumId,
     type: 'info',
+    albumInfo: 'true',
+    musicInfo: 'true',
+    lyricInfo: 'true',
   })
   const response = await getJson<ApiResponse<KugouMusicPayload>>(`/tools/Kugou/api?${query.toString()}`)
   return assertSuccess(response, '酷狗歌曲解析失败')
