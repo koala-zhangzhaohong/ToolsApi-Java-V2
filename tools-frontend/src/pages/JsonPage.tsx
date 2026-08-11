@@ -76,7 +76,7 @@ export default function JsonPage() {
 
   return (
     <div className="page-container">
-      <PageHeader eyebrow="JSON WORKBENCH" title="JSON 工作台" description="替代原 JSON Printer 模板，支持本地编辑和远程接口读取。" />
+      <PageHeader eyebrow="JSON WORKBENCH" title="JSON 工作台" />
       <Card className="url-card">
         <Input.Search
           value={url}

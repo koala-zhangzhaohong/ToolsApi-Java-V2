@@ -11,7 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ObjectUtils;
 
+import java.net.URI;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static com.koala.base.enums.LanZouResponseEnums.GET_FILE_SUCCESS;
 
@@ -33,8 +38,12 @@ public class LanZouApiV2Product {
     private String htmlData;
     private ArrayList<String> htmlCookies = new ArrayList<>();
     private String acw;
+    private Map<String, String> downloadRelayHeaders = Map.of();
     private static final ArrayList<String> HOST_LIST = new ArrayList<>();
     private static final HashMap<Integer, List<String>> INVALID_LIST = new HashMap<>();
+    private static final int FOLDER_FILE_WORKERS = 4;
+    private static final String DOWNLOAD_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro Build/TQ3A.230805.001; wv) "
+            + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
     static {
         HOST_LIST.add("https://wwwx.lanzoux.com");
         HOST_LIST.add("https://www.lanzoui.com");
@@ -185,20 +194,57 @@ public class LanZouApiV2Product {
             ArrayList<FileInfoModel> fileInfoList = new ArrayList<>(0);
             Object folderFileData = folderData.getText();
             if (folderFileData instanceof ArrayList) {
-                ((ArrayList<?>) folderFileData).forEach(item -> {
-                    try {
-                        String singleFileHtmlData = getSingleFileHtmlData(0, GsonUtil.toBean(GsonUtil.toString(item), FolderFileInfoRespModel.class));
-                        FileInfoModel fileInfo = getFileInfo(singleFileHtmlData);
-                        fileInfoList.add(fileInfo);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                List<FolderFileInfoRespModel> folderFiles = ((ArrayList<?>) folderFileData).stream()
+                        .map(item -> GsonUtil.toBean(GsonUtil.toString(item), FolderFileInfoRespModel.class))
+                        .filter(item -> !ObjectUtils.isEmpty(item.getId()))
+                        .toList();
+                int workerCount = Math.min(FOLDER_FILE_WORKERS, folderFiles.size());
+                if (workerCount == 0) {
+                    return fileInfoList;
+                }
+                ExecutorService executor = Executors.newFixedThreadPool(workerCount);
+                try {
+                    List<Callable<FileInfoModel>> tasks = folderFiles.stream()
+                            .map(this::loadFolderFileInfo)
+                            .toList();
+                    for (Future<FileInfoModel> future : executor.invokeAll(tasks)) {
+                        try {
+                            FileInfoModel fileInfo = future.get();
+                            if (fileInfo != null) {
+                                fileInfoList.add(fileInfo);
+                            }
+                        } catch (Exception e) {
+                            logger.warn("[LanZouApiProduct]({}) unable to load one folder file", id, e);
+                        }
                     }
-                });
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.warn("[LanZouApiProduct]({}) folder file loading interrupted", id);
+                } finally {
+                    executor.shutdownNow();
+                }
             }
             return fileInfoList;
         } else {
             return null;
         }
+    }
+
+    private Callable<FileInfoModel> loadFolderFileInfo(FolderFileInfoRespModel folderFile) {
+        return () -> {
+            try {
+                // Each file gets its own product to avoid sharing mutable cookies and ACW state across workers.
+                LanZouApiV2Product fileProduct = new LanZouApiV2Product();
+                fileProduct.setUrl(this.host + "/" + folderFile.getId());
+                fileProduct.setPassword(this.password);
+                fileProduct.getIdByUrl();
+                fileProduct.init();
+                return fileProduct.getInfo(fileProduct.getHtmlData()) instanceof FileInfoModel fileInfo ? fileInfo : null;
+            } catch (Exception e) {
+                logger.warn("[LanZouApiProduct]({}) unable to load folder file {}", id, folderFile.getId(), e);
+                return null;
+            }
+        };
     }
 
     private String getSingleFileHtmlData(int mode, FolderFileInfoRespModel fileInfo) {
@@ -271,11 +317,138 @@ public class LanZouApiV2Product {
         }
         fileInfo.setDownloadHost(downloadInfo.getDownloadHost());
         fileInfo.setDownloadPath(downloadInfo.getDownloadPath());
-        HttpClientUtil.HttpResult redirectResponseEntity = get(downloadInfo.getDownloadHost() + "/file/" + downloadInfo.getDownloadPath(), HeaderUtil.getLanZouInfoHeader(this.url, getCookiesStr()));
-        String redirectResponse = redirectResponseEntity.body();
-        fileInfo.setDownloadUrl(PatternUtil.matchData("<a href=\"(.*?)\" class=\"d_pclink2\">", redirectResponse));
         logger.info("[LanZouApiProduct]({}) get file info, info: {}", id, GsonUtil.toString(fileInfo));
         return fileInfo;
+    }
+
+    /**
+     * Resolves the current anti-abuse download page into the real CDN URL.
+     * This is intentionally deferred until download time so normal parsing and
+     * folder listing do not pay the verification delay.
+     */
+    public String resolveDownloadUrl(FileInfoModel fileInfo) {
+        if (fileInfo == null) {
+            return null;
+        }
+        if (!ObjectUtils.isEmpty(fileInfo.getRedirectUrl())) {
+            return fileInfo.getRedirectUrl();
+        }
+        if (!ObjectUtils.isEmpty(fileInfo.getDownloadUrl())) {
+            return fileInfo.getDownloadUrl();
+        }
+        if (ObjectUtils.isEmpty(fileInfo.getDownloadHost()) || ObjectUtils.isEmpty(fileInfo.getDownloadPath())) {
+            return null;
+        }
+
+        String verificationUrl = fileInfo.getDownloadHost().replaceAll("/$", "")
+                + "/file/" + fileInfo.getDownloadPath().replaceFirst("^/", "");
+        Map<String, String> headers = getDownloadVerificationHeaders(verificationUrl);
+        HttpClientUtil.HttpResult verificationPage = getWithoutRedirects(verificationUrl, headers);
+        String verificationCookies = cookieHeader(verificationPage.headerValues("Set-Cookie"));
+        if (!ObjectUtils.isEmpty(verificationCookies)) {
+            headers.put("Cookie", verificationCookies);
+        }
+
+        String verificationRedirect = verificationPage.firstHeader("Location");
+        if (!ObjectUtils.isEmpty(verificationRedirect)) {
+            String resolvedUrl = URI.create(verificationUrl).resolve(verificationRedirect).toString();
+            fileInfo.setDownloadUrl(resolvedUrl);
+            downloadRelayHeaders = relayHeaders(headers);
+            return resolvedUrl;
+        }
+
+        String directUrl = PatternUtil.matchData("<a href=\"(.*?)\" class=\"d_pclink2\">", verificationPage.body());
+        if (!ObjectUtils.isEmpty(directUrl)) {
+            fileInfo.setDownloadUrl(directUrl);
+            downloadRelayHeaders = Map.copyOf(headers);
+            return directUrl;
+        }
+
+        String verificationFile = PatternUtil.matchData("'file':'(.*?)'", verificationPage.body());
+        String verificationSign = PatternUtil.matchData("'sign':'(.*?)'", verificationPage.body());
+        if (ObjectUtils.isEmpty(verificationFile) || ObjectUtils.isEmpty(verificationSign)) {
+            logger.warn("[LanZouApiProduct]({}) download verification parameters missing, status={}, body={}",
+                    id, verificationPage.statusCode(), responseSummary(verificationPage));
+            return null;
+        }
+
+        URI verificationUri = URI.create(verificationUrl);
+        String origin = verificationUri.getScheme() + "://" + verificationUri.getAuthority();
+        headers.put("Origin", origin);
+        headers.put("X-Requested-With", "XMLHttpRequest");
+        HashMap<String, String> params = new HashMap<>();
+        params.put("file", verificationFile);
+        params.put("el", "2");
+        params.put("sign", verificationSign);
+
+        try {
+            Thread.sleep(2100L);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+
+        HttpClientUtil.HttpResult verificationResult = postWithoutRedirects(origin + "/file/ajax.php", params, headers);
+        String redirectUrl = verificationResult.firstHeader("Location");
+        if (!ObjectUtils.isEmpty(redirectUrl)) {
+            String resolvedUrl = verificationUri.resolve(redirectUrl).toString();
+            fileInfo.setDownloadUrl(resolvedUrl);
+            downloadRelayHeaders = relayHeaders(headers);
+            return resolvedUrl;
+        }
+        LanZouFileInfoRespModel resolved = GsonUtil.toBean(verificationResult.body(), LanZouFileInfoRespModel.class);
+        if (resolved == null || resolved.getZt() != 1 || ObjectUtils.isEmpty(resolved.getDownloadPath())
+                || resolved.getDownloadPath().startsWith("?")) {
+            logger.warn("[LanZouApiProduct]({}) download verification failed, status={}, body={}",
+                    id, verificationResult.statusCode(), responseSummary(verificationResult));
+            return null;
+        }
+
+        String resolvedUrl = resolved.getDownloadPath();
+        if (!resolvedUrl.startsWith("http://") && !resolvedUrl.startsWith("https://")) {
+            resolvedUrl = origin + "/" + resolvedUrl.replaceFirst("^/", "");
+        }
+        fileInfo.setDownloadUrl(resolvedUrl);
+        downloadRelayHeaders = relayHeaders(headers);
+        return resolvedUrl;
+    }
+
+    public Map<String, String> getDownloadRelayHeaders() {
+        return downloadRelayHeaders;
+    }
+
+    private Map<String, String> getDownloadVerificationHeaders(String verificationUrl) {
+        HashMap<String, String> headers = new HashMap<>();
+        headers.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+        headers.put("Accept-Encoding", "gzip, deflate");
+        headers.put("Accept-Language", "zh-CN,zh;q=0.9");
+        headers.put("Referer", verificationUrl);
+        headers.put("User-Agent", DOWNLOAD_USER_AGENT);
+        return headers;
+    }
+
+    private String cookieHeader(List<String> cookies) {
+        if (cookies == null || cookies.isEmpty()) {
+            return "";
+        }
+        return cookies.stream()
+                .map(cookie -> cookie.split(";", 2)[0])
+                .filter(cookie -> !cookie.isBlank())
+                .reduce((left, right) -> left + "; " + right)
+                .orElse("");
+    }
+
+    private Map<String, String> relayHeaders(Map<String, String> headers) {
+        HashMap<String, String> relayHeaders = new HashMap<>(headers);
+        relayHeaders.remove("Origin");
+        relayHeaders.remove("X-Requested-With");
+        return Map.copyOf(relayHeaders);
+    }
+
+    private String responseSummary(HttpClientUtil.HttpResult response) {
+        String body = response == null ? "" : response.body();
+        int limit = 1000;
+        return body.length() <= limit ? body : body.substring(0, limit) + "... (" + body.length() + " chars)";
     }
 
     public Map<Integer, String> checkStatus() {
@@ -337,9 +510,27 @@ public class LanZouApiV2Product {
         }
     }
 
+    private HttpClientUtil.HttpResult getWithoutRedirects(String url, Map<String, String> headers) {
+        try {
+            return HttpClientUtil.getResponseWithoutRedirects(url, headers, null);
+        } catch (Exception exception) {
+            throw new IllegalStateException("LanZou GET request failed: " + url, exception);
+        }
+    }
+
     private HttpClientUtil.HttpResult post(String url, Map<String, ?> params, Map<String, String> headers) {
         try {
             return HttpClientUtil.postFormResponse(url, headers, params);
+        } catch (Exception exception) {
+            throw new IllegalStateException("LanZou POST request failed: " + url, exception);
+        }
+    }
+
+
+    private HttpClientUtil.HttpResult postWithoutRedirects(String url, Map<String, ?> params,
+                                                           Map<String, String> headers) {
+        try {
+            return HttpClientUtil.postFormResponseWithoutRedirects(url, headers, params);
         } catch (Exception exception) {
             throw new IllegalStateException("LanZou POST request failed: " + url, exception);
         }

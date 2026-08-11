@@ -143,6 +143,7 @@ function resultUrl(item: JsonRecord, type: KugouSearchType) {
 interface KugouHistoryCardProps {
   history: string[]
   className?: string
+  onSelectHistoryItem: (value: string) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
 }
@@ -150,6 +151,7 @@ interface KugouHistoryCardProps {
 function KugouHistoryCard({
   history,
   className = 'legacy-section-card netease-template-card',
+  onSelectHistoryItem,
   onSearchHistoryItem,
   onClearHistory,
 }: KugouHistoryCardProps) {
@@ -164,7 +166,19 @@ function KugouHistoryCard({
           className="netease-history-list"
           dataSource={history}
           renderItem={(item) => (
-            <List.Item actions={[<Button type="link" onClick={() => onSearchHistoryItem(item)}>再次搜索</Button>]}>
+            <List.Item
+              className="search-history-item"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectHistoryItem(item)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelectHistoryItem(item)
+                }
+              }}
+              actions={[<Button type="link" onClick={(event) => { event.stopPropagation(); onSearchHistoryItem(item) }}>再次搜索</Button>]}
+            >
               <Typography.Text ellipsis>{item}</Typography.Text>
             </List.Item>
           )}
@@ -184,6 +198,7 @@ interface SearchTemplateProps {
   resolvingId: string
   onLoadMore: () => void
   onPlay: (item: JsonRecord) => void
+  onSelectHistoryItem: (value: string) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
 }
@@ -198,6 +213,7 @@ function KugouSearchTemplate({
   resolvingId,
   onLoadMore,
   onPlay,
+  onSelectHistoryItem,
   onSearchHistoryItem,
   onClearHistory,
 }: SearchTemplateProps) {
@@ -208,7 +224,7 @@ function KugouSearchTemplate({
 
   return (
     <Space direction="vertical" size={20} className="full-width">
-      <KugouHistoryCard history={history} onSearchHistoryItem={onSearchHistoryItem} onClearHistory={onClearHistory} />
+      <KugouHistoryCard history={history} onSelectHistoryItem={onSelectHistoryItem} onSearchHistoryItem={onSearchHistoryItem} onClearHistory={onClearHistory} />
 
       <Card
         title={<Space>{type === 'mv' ? <VideoCameraOutlined /> : <CustomerServiceOutlined />} 搜索结果</Space>}
@@ -334,6 +350,10 @@ export default function KugouPage() {
     void search(value, 1, limit)
   }, [limit, search])
 
+  const selectHistoryItem = useCallback((value: string) => {
+    setKeyword(value)
+  }, [])
+
   const playMusic = async (item: JsonRecord) => {
     const hash = resultHash(item, 'song')
     const albumId = resultAlbumId(item)
@@ -416,6 +436,7 @@ export default function KugouPage() {
             resolvingId={resolvingId}
             onLoadMore={loadMore}
             onPlay={(item) => void (type === 'mv' ? playMv(item) : playMusic(item))}
+            onSelectHistoryItem={selectHistoryItem}
             onSearchHistoryItem={searchFromHistory}
             onClearHistory={clearHistory}
           />
@@ -425,6 +446,7 @@ export default function KugouPage() {
         <KugouHistoryCard
           history={history}
           className="history-card netease-template-card"
+          onSelectHistoryItem={selectHistoryItem}
           onSearchHistoryItem={searchFromHistory}
           onClearHistory={clearHistory}
         />

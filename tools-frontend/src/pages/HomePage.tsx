@@ -1,4 +1,4 @@
-import { CodeOutlined, CustomerServiceOutlined, LinkOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { CloudDownloadOutlined, CodeOutlined, CustomerServiceOutlined, LinkOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { Button, Card, Col, Row, Space, Tag, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
@@ -13,7 +13,7 @@ const tools = [
   },
   {
     title: '网易云音乐搜索',
-    description: '搜索单曲、歌单、歌手、专辑、MV 与歌词，单曲结果可继续解析播放。',
+    description: '搜索网易云单曲与 MV，搜索结果可继续解析播放。',
     path: '/netease',
     icon: <CustomerServiceOutlined />,
     color: 'red',
@@ -24,6 +24,13 @@ const tools = [
     path: '/kugou',
     icon: <CustomerServiceOutlined />,
     color: 'cyan',
+  },
+  {
+    title: '蓝奏云解析',
+    description: '解析蓝奏云文件与文件夹分享链接，支持带提取密码的分享内容。',
+    path: '/lanzou',
+    icon: <CloudDownloadOutlined />,
+    color: 'blue',
   },
   {
     title: 'JSON 工作台',

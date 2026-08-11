@@ -8,7 +8,8 @@ import com.koala.factory.builder.LanZouApiV2Builder;
 import com.koala.factory.director.LanZouApiV2Manager;
 import com.koala.factory.product.LanZouApiV2Product;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
-import jakarta.annotation.Resource;
+import com.koala.service.utils.HttpClientUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -52,9 +56,9 @@ public class LanZouToolsController {
      * @throws URISyntaxException
      */
     @HttpRequestRecorder
-    @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
-    public Object getLanZouInfos(@RequestParam(value = "url", required = false) String url, @RequestParam(value = "password", required = false) String password, @RequestParam(value = "type", required = false, defaultValue = "info") String type, HttpServletResponse response) throws IOException, URISyntaxException {
-        logger.info("LanZouApi: params: {url={}, password={}, type={}}", url, password, type);
+    @GetMapping("api")
+    public Object getLanZouInfos(@RequestParam(value = "url", required = false) String url, @RequestParam(value = "password", required = false) String password, @RequestParam(value = "type", required = false, defaultValue = "info") String type, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
+        logger.info("LanZouApi: params: {url={}, hasPassword={}, type={}}", url, !ObjectUtils.isEmpty(password), type);
         if (Boolean.FALSE.equals(checkLanZouUrl(url))) {
             return formatRespData(LanZouResponseEnums.INVALID_URL, null);
         }
@@ -88,16 +92,18 @@ public class LanZouToolsController {
             if (fileInfo instanceof FileInfoModel) {
                 switch (Objects.requireNonNull(LanZouTypeEnums.getEnumsByType(type))) {
                     case DOWNLOAD:
-                        if (ObjectUtils.isEmpty(((FileInfoModel) fileInfo).getDownloadUrl())) {
+                        FileInfoModel downloadFile = (FileInfoModel) fileInfo;
+                        String downloadUrl = product.resolveDownloadUrl(downloadFile);
+                        if (ObjectUtils.isEmpty(downloadUrl)) {
                             return formatRespData(LanZouResponseEnums.FAILURE, fileInfo);
-                        } else {
-                            if (!Objects.isNull(((FileInfoModel) fileInfo).getRedirectUrl())) {
-                                response.sendRedirect(((FileInfoModel) fileInfo).getRedirectUrl());
-                            } else if (!Objects.isNull(((FileInfoModel) fileInfo).getDownloadUrl())) {
-                                response.sendRedirect(((FileInfoModel) fileInfo).getDownloadUrl());
-                            }
-                            return formatRespData(LanZouResponseEnums.REDIRECT_TO_DOWNLOAD, fileInfo);
                         }
+                        HashMap<String, String> responseHeaders = new HashMap<>();
+                        String encodedName = URLEncoder.encode(downloadFile.getFileName(), StandardCharsets.UTF_8)
+                                .replace("+", "%20");
+                        responseHeaders.put("Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
+                        HttpClientUtil.doRelay(downloadUrl, product.getDownloadRelayHeaders(), null, 206,
+                                responseHeaders, request, response);
+                        return null;
                     case INFO:
                         return formatRespData(LanZouResponseEnums.GET_FILE_SUCCESS, fileInfo);
                     default:

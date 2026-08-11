@@ -1,5 +1,5 @@
 import type { JsonRecord } from '../types'
-import { getJson } from './http'
+import { apiUrl, getJson } from './http'
 
 export type NeteaseSearchType = '1' | '10' | '100' | '1000' | '1002' | '1004' | '1006' | '1009'
 export type NeteaseQuality = 'default' | 'standard' | 'exhigh' | 'lossless' | 'hires'
@@ -105,4 +105,14 @@ export async function resolveNeteaseMv(id: string) {
   const query = new URLSearchParams({ mid: id, type: 'info' })
   const response = await getJson<ApiResponse<NeteaseMvPayload>>(`/tools/Netease/api/mv?${query.toString()}`)
   return assertSuccess(response, '网易云 MV 解析失败')
+}
+
+export async function resetNeteaseCookie(cookie: string) {
+  const query = new URLSearchParams({ lock: 'false', cookie })
+  const response = await fetch(apiUrl(`/tools/Netease/reset/cookie?${query.toString()}`), {
+    headers: { Accept: 'text/plain' },
+  })
+  const output = await response.text()
+  if (!response.ok) throw new Error(`刷新 Cookie 失败（${response.status}）${output ? `：${output.slice(0, 160)}` : ''}`)
+  return output
 }

@@ -156,7 +156,7 @@ export default function DouyinPage() {
           title={<Space><HistoryOutlined /> 最近解析</Space>}
           extra={history.length > 0 && <Button type="text" danger icon={<ClearOutlined />} onClick={clearHistory}>清空</Button>}
         >
-          {history.length ? <List dataSource={history} renderItem={(item) => <List.Item actions={[<Button type="link" onClick={() => { setInput(item); void search(item) }}>再次解析</Button>]}><Typography.Text ellipsis>{item}</Typography.Text></List.Item>} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无解析记录" />}
+          {history.length ? <List dataSource={history} renderItem={(item) => <List.Item className="search-history-item" role="button" tabIndex={0} onClick={() => setInput(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setInput(item) } }} actions={[<Button type="link" onClick={(event) => { event.stopPropagation(); setInput(item); void search(item) }}>再次解析</Button>]}><Typography.Text ellipsis>{item}</Typography.Text></List.Item>} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无解析记录" />}
         </Card>
       )}
     </div>

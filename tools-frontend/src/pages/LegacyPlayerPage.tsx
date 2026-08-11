@@ -1,11 +1,12 @@
 import { ArrowLeftOutlined, HomeOutlined, PictureOutlined, ReloadOutlined } from '@ant-design/icons'
 import { Alert, Badge, Button, Card, Carousel, Image, Result, Select, Space, Spin, Tag, Typography } from 'antd'
 import flvjs from 'flv.js'
-import Hls from 'hls.js'
+import Hls, { ErrorTypes, Events } from 'hls.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { apiUrl, getJson } from '../services/http'
 import type { JsonRecord, PlayerPageData } from '../types'
+import { attachManagedFlv } from '../utils/flvPlayback'
 import { decodeUrlSafeBase64, firstNonEmpty } from '../utils/query'
 import MusicPlayerPage from './MusicPlayerPage'
 import { musicMeta } from './musicMeta'
@@ -187,8 +188,103 @@ function qualityName(index: number, total: number) {
   return (total >= 4 ? fourLevels[index] : total === 2 ? twoLevels[index] : undefined) || `线路 ${index + 1}`
 }
 
+const liveWatchdogInterval = 5_000
+const liveStallTimeout = 15_000
+
+function attachManagedHls(
+  video: HTMLVideoElement,
+  playbackUrl: string,
+  live: boolean,
+  onError: (message: string) => void,
+  onReady: () => void,
+  onRecreate: () => void,
+) {
+  const stream = new Hls({
+    lowLatencyMode: live,
+    liveDurationInfinity: live,
+    liveSyncDurationCount: 3,
+    liveMaxLatencyDurationCount: 8,
+    backBufferLength: live ? 30 : 90,
+    maxBufferLength: live ? 30 : 60,
+    manifestLoadingMaxRetry: 6,
+    manifestLoadingRetryDelay: 1_000,
+    manifestLoadingMaxRetryTimeout: 12_000,
+    levelLoadingMaxRetry: 6,
+    levelLoadingRetryDelay: 1_000,
+    levelLoadingMaxRetryTimeout: 12_000,
+    fragLoadingMaxRetry: 6,
+    fragLoadingRetryDelay: 1_000,
+    fragLoadingMaxRetryTimeout: 12_000,
+  })
+  let disposed = false
+  let watchdog: number | undefined
+  let lastPlaybackTime = video.currentTime
+  let lastProgressAt = Date.now()
+
+  const resumeLive = () => {
+    if (disposed) return
+    const liveEdge = stream.liveSyncPosition
+    if (live && typeof liveEdge === 'number' && Number.isFinite(liveEdge) && liveEdge > video.currentTime + 1) {
+      video.currentTime = liveEdge
+    }
+    stream.startLoad(-1)
+    void video.play().catch(() => undefined)
+  }
+
+  stream.on(Events.ERROR, (_, event) => {
+    if (!event.fatal) return
+    if (event.type === ErrorTypes.NETWORK_ERROR) {
+      onError('直播网络波动，正在自动恢复')
+      resumeLive()
+    } else if (event.type === ErrorTypes.MEDIA_ERROR) {
+      onError('直播解码中断，正在自动恢复')
+      stream.recoverMediaError()
+    } else {
+      onError(`HLS 播放失败：${event.details}`)
+      window.setTimeout(onRecreate, 500)
+    }
+  })
+  stream.on(Events.FRAG_BUFFERED, () => {
+    onReady()
+    onError('')
+  })
+  stream.on(Events.LEVEL_UPDATED, () => onError(''))
+  stream.loadSource(playbackUrl)
+  stream.attachMedia(video)
+  video.muted = live
+  void video.play().catch(() => undefined)
+
+  if (live) {
+    watchdog = window.setInterval(() => {
+      if (disposed || video.paused || video.ended) {
+        lastPlaybackTime = video.currentTime
+        lastProgressAt = Date.now()
+        return
+      }
+      if (video.currentTime > lastPlaybackTime + 0.1) {
+        lastPlaybackTime = video.currentTime
+        lastProgressAt = Date.now()
+        return
+      }
+      if (Date.now() - lastProgressAt < liveStallTimeout) return
+      onError('直播流已停滞，正在追赶最新画面')
+      stream.stopLoad()
+      resumeLive()
+      lastPlaybackTime = video.currentTime
+      lastProgressAt = Date.now()
+    }, liveWatchdogInterval)
+  }
+
+  return () => {
+    disposed = true
+    window.clearInterval(watchdog)
+    stream.destroy()
+  }
+}
+
 function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { sources: string[]; live: boolean; transport: VideoTransport; useCdnProxy: boolean; onError: (message: string) => void }) {
   const elementId = useRef(`zw-player-${Math.random().toString(36).slice(2)}`)
+  const [playerLoading, setPlayerLoading] = useState(true)
   useEffect(() => {
     const playerElementId = elementId.current
     let disposed = false
@@ -197,37 +293,48 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
     let streamTimer: number | undefined
     let activeSourceIndex = sources.length > 1 ? 1 : 0
     let removeQualityListener: (() => void) | undefined
+    let firstFramePending = true
+    const beginFirstFrameLoading = () => {
+      firstFramePending = true
+      setPlayerLoading(true)
+    }
+    const finishFirstFrameLoading = () => {
+      if (!firstFramePending) return
+      firstFramePending = false
+      setPlayerLoading(false)
+    }
     const attachStream = (sourceIndex = activeSourceIndex) => {
       activeSourceIndex = sourceIndex
       streamCleanup?.()
       const video = document.getElementById(playerElementId)?.querySelector('video')
       if (!video || transport === 'native') return
+      beginFirstFrameLoading()
       const selectedSource = sources[activeSourceIndex]
       const playbackUrl = playerMediaUrl(selectedSource, transport, useCdnProxy)
       if (transport === 'flv' && flvjs.isSupported()) {
-        const stream = flvjs.createPlayer({ type: 'flv', isLive: live, url: playbackUrl }, { enableStashBuffer: !live })
-        stream.on(flvjs.Events.ERROR, (_, detail) => onError(`FLV 播放失败：${String(detail)}`))
-        video.removeAttribute('src')
-        video.load()
-        stream.attachMediaElement(video)
-        stream.load()
-        video.muted = live
-        void stream.play().catch(() => undefined)
-        streamCleanup = () => { stream.pause(); stream.unload(); stream.detachMediaElement(); stream.destroy() }
+        streamCleanup = attachManagedFlv({
+          video,
+          url: playbackUrl,
+          live,
+          onReady: finishFirstFrameLoading,
+          onStatus: onError,
+          onReconnect: () => {
+            window.clearTimeout(streamTimer)
+            streamTimer = window.setTimeout(() => attachStream(activeSourceIndex), 500)
+          },
+        })
       } else if (transport === 'hls' && Hls.isSupported()) {
-        const stream = new Hls({ lowLatencyMode: live })
-        stream.on(Hls.Events.ERROR, (_, event) => { if (event.fatal) onError(`HLS 播放失败：${event.details}`) })
         video.removeAttribute('src')
         video.load()
-        stream.loadSource(playbackUrl)
-        stream.attachMedia(video)
-        video.muted = live
-        void video.play().catch(() => undefined)
-        streamCleanup = () => stream.destroy()
+        streamCleanup = attachManagedHls(video, playbackUrl, live, onError, finishFirstFrameLoading, () => {
+          window.clearTimeout(streamTimer)
+          streamTimer = window.setTimeout(() => attachStream(activeSourceIndex), 500)
+        })
       }
     }
     loadZwPlayer().then((ZWPlayer) => {
       if (disposed) return
+      beginFirstFrameLoading()
       player = new ZWPlayer({
         playerElm: playerElementId,
         url: sources.map((source, index) => ({
@@ -244,10 +351,15 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
         isLive: live,
         onready: () => onError(''),
         onmediaevent: (event) => {
+          if (['loadeddata', 'canplay', 'playing', 'timeupdate'].includes(event.type)) finishFirstFrameLoading()
+          if (['pause', 'ended'].includes(event.type)) setPlayerLoading(false)
           if (event.type === 'error') {
+            setPlayerLoading(false)
             onError('媒体播放失败，正在重新连接')
-            window.clearTimeout(streamTimer)
-            streamTimer = window.setTimeout(attachStream, 500)
+            if (transport !== 'native') {
+              window.clearTimeout(streamTimer)
+              streamTimer = window.setTimeout(attachStream, 500)
+            }
           }
         },
       })
@@ -267,13 +379,17 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
         const label = target?.closest('li,button,div')?.textContent?.trim()
         const sourceIndex = sources.findIndex((_, index) => qualityName(index, sources.length) === label)
         if (sourceIndex < 0 || sourceIndex === activeSourceIndex) return
+        beginFirstFrameLoading()
         window.clearTimeout(streamTimer)
         streamTimer = window.setTimeout(() => attachStream(sourceIndex), 300)
       }
       playerElement?.addEventListener('click', handleQualityClick, true)
       removeQualityListener = () => playerElement?.removeEventListener('click', handleQualityClick, true)
       streamTimer = window.setTimeout(attachStream, 500)
-    }).catch((reason) => onError(reason instanceof Error ? reason.message : '播放器加载失败'))
+    }).catch((reason) => {
+      setPlayerLoading(false)
+      onError(reason instanceof Error ? reason.message : '播放器加载失败')
+    })
     return () => {
       disposed = true
       window.clearTimeout(streamTimer)
@@ -286,7 +402,13 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
       document.getElementById(playerElementId)?.replaceChildren()
     }
   }, [live, onError, sources, transport, useCdnProxy])
-  return <div id={elementId.current} className="zw-video-player-custom legacy-original-player" />
+  return <div className="legacy-original-player-stage">
+    <div id={elementId.current} className="zw-video-player-custom legacy-original-player" />
+    <div className={`zw-player-loading ${playerLoading ? 'is-visible' : ''}`} role="status" aria-live="polite" aria-label="播放器加载中">
+      <span className="zw-player-loading-spinner" />
+      <span>正在加载画面</span>
+    </div>
+  </div>
 }
 
 function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: string; live: boolean; transport: VideoTransport; useCdnProxy: boolean; onError: (message: string) => void }) {
@@ -298,11 +420,13 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
     const useHls = transport === 'hls' || /\.m3u8(?:\?|$)/i.test(src) || /mime_type=video_hls/i.test(playbackUrl)
     const useFlv = transport === 'flv' || /\.flv(?:\?|$)/i.test(src) || /mime_type=video_flv/i.test(playbackUrl)
     if (useHls && Hls.isSupported()) {
-      const player = new Hls({ lowLatencyMode: live })
-      player.on(Hls.Events.ERROR, (_, event) => { if (event.fatal) onError(`HLS 播放失败：${event.details}`) })
-      player.loadSource(playbackUrl)
-      player.attachMedia(video)
-      return () => player.destroy()
+      let cleanup: () => void = () => undefined
+      const recreate = () => {
+        cleanup()
+        cleanup = attachManagedHls(video, playbackUrl, live, onError, () => onError(''), recreate)
+      }
+      recreate()
+      return () => cleanup()
     }
     if (useHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = playbackUrl
@@ -310,12 +434,13 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
       return
     }
     if (useFlv && flvjs.isSupported()) {
-      const player = flvjs.createPlayer({ type: 'flv', isLive: live, url: playbackUrl }, { enableStashBuffer: !live })
-      player.on(flvjs.Events.ERROR, (_, detail) => onError(`FLV 播放失败：${detail}`))
-      player.attachMediaElement(video)
-      player.load()
-      void player.play().catch(() => undefined)
-      return () => { player.pause(); player.unload(); player.detachMediaElement(); player.destroy() }
+      let cleanup: () => void = () => undefined
+      const recreate = () => {
+        cleanup()
+        cleanup = attachManagedFlv({ video, url: playbackUrl, live, onReady: () => onError(''), onStatus: onError, onReconnect: recreate })
+      }
+      recreate()
+      return () => cleanup()
     }
     video.src = playbackUrl
     video.load()

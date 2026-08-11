@@ -48,8 +48,57 @@
     transform: translate(-50%, 0);
 }
 
-.dk-video-player-custom, .zw-video-player-custom {
+.dk-video-player-custom, .zw-video-player-custom, .zw-player-stage {
     height: 100vh;
+}
+
+.zw-player-stage {
+    position: relative;
+    overflow: hidden;
+    background: #050505;
+}
+
+.zw-player-stage .zw-video-player-custom {
+    height: 100%;
+}
+
+.zw-player-loading {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: rgba(255, 255, 255, 0.86);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: 0;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    background: #050505;
+    transition: opacity 0.18s ease, visibility 0.18s ease;
+}
+
+.zw-player-loading.is-visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.zw-player-loading-spinner {
+    width: 38px;
+    height: 38px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #8b7cff;
+    border-radius: 50%;
+    animation: zw-player-loading-spin 0.78s linear infinite;
+}
+
+@keyframes zw-player-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /*iphone X 适配*/

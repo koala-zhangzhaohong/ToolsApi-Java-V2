@@ -65,6 +65,15 @@ function formatTime(value: number) {
   return `${Math.floor(value / 60).toString().padStart(2, '0')}:${Math.floor(value % 60).toString().padStart(2, '0')}`
 }
 
+function mediaDuration(media: HTMLMediaElement, fallback = 0) {
+  if (Number.isFinite(media.duration) && media.duration > 0) return media.duration
+  if (media.seekable.length) {
+    const seekableEnd = media.seekable.end(media.seekable.length - 1)
+    if (Number.isFinite(seekableEnd) && seekableEnd > 0) return seekableEnd
+  }
+  return fallback
+}
+
 async function copyText(value: string) {
   if (navigator.clipboard?.writeText) {
     try {
@@ -152,6 +161,7 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
   const lyricBoxRef = useRef<HTMLDivElement>(null)
   const resumeAfterSourceChange = useRef(false)
   const resumeTimeAfterSourceChange = useRef(0)
+  const knownDuration = useRef(0)
   const [sourceIndex, setSourceIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -165,7 +175,14 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
   const [qualitySource, setQualitySource] = useState('')
   const [qualityLoading, setQualityLoading] = useState(false)
   const hasQualitySelector = Boolean(qualityOptions?.length && initialQuality && onQualityChange)
+  const selectedQualityIndex = hasQualitySelector
+    ? Math.max(0, qualityOptions?.findIndex((option) => option.value === quality) ?? 0)
+    : 0
   const src = qualitySource || sources[sourceIndex] || sources[0]
+  const displayDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
+  const displayCurrentTime = displayDuration > 0
+    ? Math.min(Math.max(0, currentTime), displayDuration)
+    : 0
   const downloadSrc = useMemo(() => {
     if (!src) return ''
     try {
@@ -184,11 +201,16 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
     setSourceIndex(0)
     setCurrentTime(0)
     setDuration(0)
+    knownDuration.current = 0
     setLyricIndex(-1)
     setPlaybackError('')
     setQuality(initialQuality || '')
     setQualitySource('')
-  }, [sources])
+  }, [initialQuality, sources])
+
+  useEffect(() => {
+    if (Number.isFinite(duration) && duration > 0) knownDuration.current = duration
+  }, [duration])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -241,7 +263,6 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
     if (shouldResume) audio?.pause()
     setPlaying(false)
     setCurrentTime(resumeTimeAfterSourceChange.current)
-    setDuration(0)
     setLyricIndex(-1)
     setSourceIndex(next)
     setPlaybackError('')
@@ -261,7 +282,6 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
       resumeAfterSourceChange.current = shouldResume
       resumeTimeAfterSourceChange.current = resumeTime
       setCurrentTime(resumeTime)
-      setDuration(0)
       setLyricIndex(-1)
       setQuality(next)
       setQualitySource(nextSource)
@@ -279,9 +299,10 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
   const seek = (value: number) => {
     const audio = audioRef.current
     if (!audio) return
-    audio.currentTime = value
-    setCurrentTime(value)
-    setLyricIndex(activeLyricIndex(lines, value))
+    const nextTime = displayDuration > 0 ? Math.min(Math.max(0, value), displayDuration) : 0
+    audio.currentTime = nextTime
+    setCurrentTime(nextTime)
+    setLyricIndex(activeLyricIndex(lines, nextTime))
   }
 
   const copyShareLink = async () => {
@@ -311,25 +332,30 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
           </Col>}
           <Col xs={24} md={compact ? 24 : 15} className="music-player-main-column">
             {compact ? <Typography.Title level={2} className="music-player-compact-title">{meta.title}</Typography.Title> : <>
-              <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{hasQualitySelector ? qualityOptions?.findIndex((option) => option.value === quality)! + 1 : sourceIndex + 1}/{Math.max(1, hasQualitySelector ? qualityOptions?.length || 0 : sources.length)} 音质</span></div>
+              <div className="music-player-topline"><Typography.Text>NOW PLAYING</Typography.Text><span>{hasQualitySelector ? selectedQualityIndex + 1 : sourceIndex + 1}/{Math.max(1, hasQualitySelector ? qualityOptions?.length || 0 : sources.length)} 音质</span></div>
               <div className="music-player-current-lyric">{lines[lyricIndex]?.text || (lines.length ? '准备播放' : '暂无歌词')}</div>
             </>}
             {!compact && showLyrics && <div className="music-lyrics-panel" ref={lyricBoxRef} aria-label="歌词">
               {lines.length ? lines.map((line) => <button key={`${line.time}-${line.index}`} data-lyric-index={line.index} className={line.index === lyricIndex ? 'active' : ''} onClick={() => seek(line.time)}>{line.text}</button>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌词" />}
             </div>}
             {playbackError && <Typography.Text type="danger" className="music-player-error">{playbackError}</Typography.Text>}
-            <Waveform title={`${meta.title}-${meta.artist}`} currentTime={currentTime} duration={duration} playing={playing} onSeek={seek} />
-            <Slider className="music-progress-slider" min={0} max={duration || 1} value={Math.min(currentTime, duration || 1)} onChange={seek} tooltip={{ formatter: (value) => formatTime(Number(value)) }} />
-            <div className="music-time-row"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+            <Waveform title={`${meta.title}-${meta.artist}`} currentTime={displayCurrentTime} duration={displayDuration} playing={playing} onSeek={seek} />
+            <Slider className="music-progress-slider" min={0} max={displayDuration || 1} value={displayCurrentTime} disabled={!displayDuration} onChange={seek} tooltip={{ formatter: (value) => formatTime(Number(value)) }} />
+            <div className="music-time-row"><span>{formatTime(displayCurrentTime)}</span><span>{formatTime(displayDuration)}</span></div>
             <audio
               key={src}
               ref={audioRef}
               src={src}
               preload="metadata"
               onCanPlay={(event) => {
+                const nextDuration = mediaDuration(event.currentTarget, knownDuration.current)
+                if (nextDuration > 0) setDuration(nextDuration)
                 const resumeTime = resumeTimeAfterSourceChange.current
                 if (resumeTime > 0 && Number.isFinite(resumeTime)) {
-                  event.currentTarget.currentTime = resumeTime
+                  const nextTime = nextDuration > 0 ? Math.min(resumeTime, nextDuration) : resumeTime
+                  event.currentTarget.currentTime = nextTime
+                  setCurrentTime(nextTime)
+                  setLyricIndex(activeLyricIndex(lines, nextTime))
                 }
                 const shouldResume = resumeAfterSourceChange.current
                 resumeAfterSourceChange.current = false
@@ -346,15 +372,28 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
               onEnded={() => setPlaying(false)}
               onLoadedMetadata={(event) => {
                 setPlaybackError('')
-                setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)
+                const nextDuration = mediaDuration(event.currentTarget, knownDuration.current)
+                if (nextDuration > 0) setDuration(nextDuration)
                 if (resumeTimeAfterSourceChange.current > 0) {
-                  event.currentTarget.currentTime = Math.min(resumeTimeAfterSourceChange.current, event.currentTarget.duration || resumeTimeAfterSourceChange.current)
+                  const nextTime = nextDuration > 0
+                    ? Math.min(resumeTimeAfterSourceChange.current, nextDuration)
+                    : resumeTimeAfterSourceChange.current
+                  event.currentTarget.currentTime = nextTime
+                  setCurrentTime(nextTime)
+                  setLyricIndex(activeLyricIndex(lines, nextTime))
                 }
+              }}
+              onDurationChange={(event) => {
+                const nextDuration = mediaDuration(event.currentTarget, knownDuration.current)
+                if (nextDuration > 0) setDuration(nextDuration)
               }}
               onTimeUpdate={(event) => {
                 const time = event.currentTarget.currentTime
-                setCurrentTime(time)
-                setLyricIndex(activeLyricIndex(lines, time))
+                const nextDuration = mediaDuration(event.currentTarget, knownDuration.current)
+                if (nextDuration > 0) setDuration(nextDuration)
+                const nextTime = nextDuration > 0 ? Math.min(time, nextDuration) : Math.max(0, time)
+                setCurrentTime(nextTime)
+                setLyricIndex(activeLyricIndex(lines, nextTime))
               }}
               onError={(event) => {
                 if (event.currentTarget.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {

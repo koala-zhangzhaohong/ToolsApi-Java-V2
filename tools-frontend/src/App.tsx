@@ -8,6 +8,7 @@ const ErrorPage = lazy(() => import('./pages/ErrorPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
 const JsonPage = lazy(() => import('./pages/JsonPage'))
 const KugouPage = lazy(() => import('./pages/KugouPage'))
+const LanzouPage = lazy(() => import('./pages/LanzouPage'))
 const LegacyResultPage = lazy(() => import('./pages/LegacyResultPage'))
 const LegacyPlayerPage = lazy(() => import('./pages/LegacyPlayerPage'))
 const LegacySearchPage = lazy(() => import('./pages/LegacySearchPage'))
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="douyin" element={<DouyinPage />} />
             <Route path="netease" element={<NeteasePage />} />
             <Route path="kugou" element={<KugouPage />} />
+            <Route path="lanzou" element={<LanzouPage />} />
             <Route path="json" element={<JsonPage />} />
             <Route path="player" element={<MediaPage />} />
             <Route path="music/player" element={<MusicPlaybackPage />} />

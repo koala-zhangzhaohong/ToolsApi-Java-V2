@@ -7,6 +7,7 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { getJson } from '../services/http'
 import type { PlayerPageData } from '../types'
+import { attachManagedFlv } from '../utils/flvPlayback'
 import { decodeUrlSafeBase64, firstNonEmpty } from '../utils/query'
 
 type MediaType = 'video' | 'audio' | 'live' | 'image'
@@ -31,11 +32,13 @@ function VideoPlayer({ src, live }: { src: string; live: boolean }) {
       return () => hls.destroy()
     }
     if (/\.flv(\?|$)/i.test(src) && flvjs.isSupported()) {
-      const player = flvjs.createPlayer({ type: 'flv', isLive: live, url: src })
-      player.attachMediaElement(video)
-      player.load()
-      void player.play().catch(() => undefined)
-      return () => { player.pause(); player.unload(); player.detachMediaElement(); player.destroy() }
+      let cleanup: () => void = () => undefined
+      const recreate = () => {
+        cleanup()
+        cleanup = attachManagedFlv({ video, url: src, live, onReconnect: recreate })
+      }
+      recreate()
+      return () => cleanup()
     }
     video.src = src
   }, [src, live])

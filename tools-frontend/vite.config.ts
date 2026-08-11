@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         '/tools/Bing': backend,
         '/tools/DouYin/api': backend,
         '/tools/Kugou/api': backend,
-        '/tools/Netease/api': backend,
+        '/tools/Netease': backend,
         '/tools/LanZou/api': backend,
       },
     },

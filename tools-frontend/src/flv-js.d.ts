@@ -21,7 +21,15 @@ declare module 'flv.js' {
       ERROR: string
     }
     isSupported(): boolean
-    createPlayer(source: MediaDataSource, config?: { enableStashBuffer?: boolean }): Player
+    createPlayer(source: MediaDataSource, config?: {
+      enableStashBuffer?: boolean
+      stashInitialSize?: number
+      lazyLoad?: boolean
+      autoCleanupSourceBuffer?: boolean
+      autoCleanupMaxBackwardDuration?: number
+      autoCleanupMinBackwardDuration?: number
+      fixAudioTimestampGap?: boolean
+    }): Player
   }
   export default flvjs
 }

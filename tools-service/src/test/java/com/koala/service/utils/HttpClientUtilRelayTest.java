@@ -66,6 +66,41 @@ class HttpClientUtilRelayTest {
     }
 
     @Test
+    void preservesConfiguredUpstreamIdentityHeaders() throws Exception {
+        byte[] source = "protected-download".getBytes(StandardCharsets.UTF_8);
+        HttpServer upstream = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        upstream.createContext("/protected", exchange -> {
+            assertEquals("verification-agent", exchange.getRequestHeaders().getFirst("User-Agent"));
+            assertEquals("session=authorized", exchange.getRequestHeaders().getFirst("Cookie"));
+            exchange.sendResponseHeaders(200, source.length);
+            exchange.getResponseBody().write(source);
+            exchange.close();
+        });
+        upstream.start();
+
+        try {
+            MockHttpServletRequest request = new MockHttpServletRequest();
+            request.addHeader("User-Agent", "browser-agent");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            HttpClientUtil.doRelay(
+                    "http://127.0.0.1:" + upstream.getAddress().getPort() + "/protected",
+                    Map.of("User-Agent", "verification-agent", "Cookie", "session=authorized"),
+                    null,
+                    206,
+                    Map.of("Content-Disposition", "attachment; filename=test.bin"),
+                    request,
+                    response
+            );
+
+            assertEquals(200, response.getStatus());
+            assertArrayEquals(source, response.getContentAsByteArray());
+        } finally {
+            upstream.stop(0);
+        }
+    }
+
+    @Test
     void relaysConcurrentDownloadRangesIndependently() throws Exception {
         byte[] source = new byte[2 * 1024 * 1024];
         for (int index = 0; index < source.length; index++) source[index] = (byte) (index % 251);

@@ -5,14 +5,18 @@ import {
   LinkOutlined,
   PlayCircleOutlined,
   SearchOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
-import { Alert, App, Button, Card, Empty, Input, List, Segmented, Space, Spin, Tag, Typography } from 'antd'
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
+import { Alert, App, Button, Card, Empty, Form, Input, List, Modal, Segmented, Space, Spin, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
 import { collectNeteasePlaybackSources, saveMusicPlayback } from '../services/musicPlayback'
-import { resolveNeteaseMusic, resolveNeteaseMv, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
+import { resetNeteaseCookie, resolveNeteaseMusic, resolveNeteaseMv, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
 import type { JsonRecord } from '../types'
 import { legacyPreviewRoute } from '../utils/legacyPreview'
 
@@ -22,15 +26,15 @@ const maxHistorySize = 8
 
 const searchTypes: Array<{ label: string; value: NeteaseSearchType; listKey: string; countKey: string }> = [
   { label: '单曲', value: '1', listKey: 'songs', countKey: 'songCount' },
-  { label: '歌单', value: '1000', listKey: 'playlists', countKey: 'playlistCount' },
-  { label: '歌手', value: '100', listKey: 'artists', countKey: 'artistCount' },
-  { label: '专辑', value: '10', listKey: 'albums', countKey: 'albumCount' },
   { label: 'MV', value: '1004', listKey: 'mvs', countKey: 'mvCount' },
-  { label: '歌词', value: '1006', listKey: 'songs', countKey: 'songCount' },
 ]
 
 const examples = ['周杰伦', '晴天', '林俊杰', '起风了']
 const pageSize = 20
+const cookieSuffix = ' __remember_me=true; appver=8.9.75;'
+const settingsPasswordSalt = 'toolsapi-netease-cookie-settings-v1'
+const settingsPasswordIterations = 210_000
+const settingsPasswordHash = '5a6815d135a467532d1b0095bd55720446450e1ceda6bd76a8a7273de0ff8f66'
 
 function uniqueHistory(values: string[]) {
   return [...new Set(values.map((item) => item.trim()).filter(Boolean))].slice(0, maxHistorySize)
@@ -183,6 +187,7 @@ interface SearchTemplateProps {
   resolvingId: string
   onLoadMore: () => void
   onPlay: (item: JsonRecord) => void
+  onSelectHistoryItem: (value: string) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
 }
@@ -190,6 +195,7 @@ interface SearchTemplateProps {
 interface NeteaseHistoryCardProps {
   history: string[]
   className?: string
+  onSelectHistoryItem: (value: string) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
 }
@@ -197,6 +203,7 @@ interface NeteaseHistoryCardProps {
 function NeteaseHistoryCard({
   history,
   className = 'legacy-section-card netease-template-card',
+  onSelectHistoryItem,
   onSearchHistoryItem,
   onClearHistory,
 }: NeteaseHistoryCardProps) {
@@ -211,7 +218,19 @@ function NeteaseHistoryCard({
           className="netease-history-list"
           dataSource={history}
           renderItem={(item) => (
-            <List.Item actions={[<Button type="link" onClick={() => onSearchHistoryItem(item)}>再次搜索</Button>]}>
+            <List.Item
+              className="search-history-item"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectHistoryItem(item)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelectHistoryItem(item)
+                }
+              }}
+              actions={[<Button type="link" onClick={(event) => { event.stopPropagation(); onSearchHistoryItem(item) }}>再次搜索</Button>]}
+            >
               <Typography.Text ellipsis>{item}</Typography.Text>
             </List.Item>
           )}
@@ -231,6 +250,7 @@ function NeteaseSearchTemplate({
   resolvingId,
   onLoadMore,
   onPlay,
+  onSelectHistoryItem,
   onSearchHistoryItem,
   onClearHistory,
 }: SearchTemplateProps) {
@@ -243,6 +263,7 @@ function NeteaseSearchTemplate({
     <Space direction="vertical" size={20} className="full-width">
       <NeteaseHistoryCard
         history={history}
+        onSelectHistoryItem={onSelectHistoryItem}
         onSearchHistoryItem={onSearchHistoryItem}
         onClearHistory={onClearHistory}
       />
@@ -306,6 +327,13 @@ export default function NeteasePage() {
   const [rows, setRows] = useState<JsonRecord[]>([])
   const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [settingsPassword, setSettingsPassword] = useState('')
+  const [passwordChecking, setPasswordChecking] = useState(false)
+  const [cookieKey, setCookieKey] = useState('')
+  const [cookieSubmitting, setCookieSubmitting] = useState(false)
+  const [cookieResult, setCookieResult] = useState<{ input: string; output: string } | null>(null)
   const { history, addHistory, clearHistory } = useNeteaseSearchHistory()
   const searchSessionRef = useRef(0)
   const selectedTypeRef = useRef<NeteaseSearchType>('1')
@@ -374,6 +402,62 @@ export default function NeteasePage() {
     void search(value, 1, limit)
   }, [limit, search])
 
+  const selectHistoryItem = useCallback((value: string) => {
+    setKeyword(value)
+  }, [])
+
+  const closeCookieSettings = useCallback(() => {
+    if (cookieSubmitting) return
+    setSettingsOpen(false)
+    setCookieKey('')
+  }, [cookieSubmitting])
+
+  const closePasswordModal = useCallback(() => {
+    if (passwordChecking) return
+    setPasswordOpen(false)
+    setSettingsPassword('')
+  }, [passwordChecking])
+
+  const verifySettingsPassword = useCallback(async () => {
+    if (!settingsPassword) { message.warning('请输入密码'); return }
+    setPasswordChecking(true)
+    try {
+      const derived = await pbkdf2Async(sha256, settingsPassword, settingsPasswordSalt, {
+        c: settingsPasswordIterations,
+        dkLen: 32,
+        asyncTick: 8,
+      })
+      if (bytesToHex(derived) !== settingsPasswordHash) {
+        setSettingsPassword('')
+        message.error('密码错误')
+        return
+      }
+      setPasswordOpen(false)
+      setSettingsPassword('')
+      setCookieKey('')
+      setSettingsOpen(true)
+    } finally {
+      setPasswordChecking(false)
+    }
+  }, [message, settingsPassword])
+
+  const submitCookie = useCallback(async () => {
+    const key = cookieKey.trim()
+    if (!key) { message.warning('请输入 key'); return }
+    const input = `${key}${cookieSuffix}`
+    setCookieSubmitting(true)
+    try {
+      const output = await resetNeteaseCookie(input)
+      setSettingsOpen(false)
+      setCookieKey('')
+      setCookieResult({ input, output })
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : '刷新 Cookie 失败')
+    } finally {
+      setCookieSubmitting(false)
+    }
+  }, [cookieKey, message])
+
   const playMusic = async (item: JsonRecord) => {
     const id = idText(item.id)
     if (!id || resolvingId) return
@@ -408,7 +492,12 @@ export default function NeteasePage() {
 
   return (
     <div className="page-container">
-      <PageHeader eyebrow="NETEASE MUSIC" title="网易云音乐搜索" description="搜索单曲、歌单、歌手、专辑、MV 与歌词，单曲和 MV 均可继续解析播放。" />
+      <PageHeader
+        eyebrow="NETEASE MUSIC"
+        title="网易云音乐搜索"
+        description="搜索网易云单曲与 MV，并支持继续解析播放。"
+        extra={<Button icon={<SettingOutlined />} onClick={() => { setSettingsPassword(''); setPasswordOpen(true) }}>设置</Button>}
+      />
       <Card className="search-panel netease-search-panel">
         <Segmented
           className="netease-type-tabs"
@@ -432,7 +521,7 @@ export default function NeteasePage() {
           onChange={(event) => setKeyword(event.target.value)}
           onSearch={(value) => void search(value, 1, limit, selectedTypeRef.current)}
           enterButton={loading ? <span className="search-button-label">搜索</span> : <><SearchOutlined /><span className="search-button-label">搜索</span></>}
-          placeholder="输入歌名、歌手、专辑或歌单关键词"
+          placeholder="输入歌曲或 MV 关键词"
           loading={loading}
           allowClear
         />
@@ -456,6 +545,7 @@ export default function NeteasePage() {
             resolvingId={resolvingId}
             onLoadMore={loadMore}
             onPlay={(item) => void (type === '1004' ? playMv(item) : playMusic(item))}
+            onSelectHistoryItem={selectHistoryItem}
             onSearchHistoryItem={searchFromHistory}
             onClearHistory={clearHistory}
           />
@@ -465,10 +555,40 @@ export default function NeteasePage() {
         <NeteaseHistoryCard
           history={history}
           className="history-card netease-template-card"
+          onSelectHistoryItem={selectHistoryItem}
           onSearchHistoryItem={searchFromHistory}
           onClearHistory={clearHistory}
         />
       )}
+
+      <Modal title="验证密码" open={passwordOpen} footer={null} onCancel={closePasswordModal} maskClosable={!passwordChecking} closable={!passwordChecking}>
+        <Form layout="vertical" onFinish={() => void verifySettingsPassword()}>
+          <Form.Item label="密码" required>
+            <Input.Password value={settingsPassword} onChange={(event) => setSettingsPassword(event.target.value)} disabled={passwordChecking} autoComplete="current-password" autoFocus />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={passwordChecking}>确认</Button>
+        </Form>
+      </Modal>
+
+      <Modal title="网易云 Cookie 设置" open={settingsOpen} footer={null} onCancel={closeCookieSettings} maskClosable={!cookieSubmitting} closable={!cookieSubmitting}>
+        <Form layout="vertical" className="netease-cookie-form" onFinish={() => void submitCookie()}>
+          <Form.Item label="key" required>
+            <Input.TextArea value={cookieKey} onChange={(event) => setCookieKey(event.target.value)} autoSize={{ minRows: 6, maxRows: 12 }} disabled={cookieSubmitting} autoComplete="off" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={cookieSubmitting}>提交</Button>
+        </Form>
+      </Modal>
+
+      <Modal title="网易云 Cookie 刷新结果" open={Boolean(cookieResult)} onCancel={() => setCookieResult(null)} footer={<Button type="primary" onClick={() => setCookieResult(null)}>关闭</Button>}>
+        <Form layout="vertical" className="netease-cookie-result">
+          <Form.Item label="input">
+            <Input.TextArea value={cookieResult?.input || ''} autoSize={{ minRows: 4, maxRows: 10 }} readOnly />
+          </Form.Item>
+          <Form.Item label="output">
+            <Input.TextArea value={cookieResult?.output || ''} autoSize={{ minRows: 4, maxRows: 10 }} readOnly />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

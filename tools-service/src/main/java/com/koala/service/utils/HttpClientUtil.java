@@ -139,6 +139,13 @@ public final class HttpClientUtil {
         return execute("GET", url, headers, params, null, null, TimeoutMode.DEFAULT, true);
     }
 
+    public static HttpResult getResponseWithoutRedirects(String url,
+                                                         Map<String, String> headers,
+                                                         Map<String, ?> params)
+            throws IOException, URISyntaxException {
+        return execute("GET", url, headers, params, null, null, TimeoutMode.DEFAULT, false);
+    }
+
     public static HttpResult getResponseWithoutTimeout(String url, Map<String, String> headers, Map<String, ?> params)
             throws IOException, URISyntaxException {
         return execute("GET", url, headers, params, null, null, TimeoutMode.NONE, true);
@@ -155,6 +162,17 @@ public final class HttpClientUtil {
                                               TimeoutMode timeoutMode) throws IOException {
         try {
             return executeWithEntity("POST", url, headers, null, formEntity(params), timeoutMode, true);
+        } catch (URISyntaxException exception) {
+            throw new IOException("Invalid request URI: " + url, exception);
+        }
+    }
+
+    public static HttpResult postFormResponseWithoutRedirects(String url,
+                                                              Map<String, String> headers,
+                                                              Map<String, ?> params) throws IOException {
+        try {
+            return executeWithEntity("POST", url, headers, null, formEntity(params),
+                    TimeoutMode.DEFAULT, false);
         } catch (URISyntaxException exception) {
             throw new IOException("Invalid request URI: " + url, exception);
         }
@@ -632,7 +650,7 @@ public final class HttpClientUtil {
         for (String name : List.of("Accept", "Accept-Language", "Cache-Control", "If-Match",
                 "If-Modified-Since", "If-None-Match", "If-Range", "If-Unmodified-Since", "User-Agent")) {
             String value = request.getHeader(name);
-            if (!ObjectUtils.isEmpty(value)) headers.put(name, value);
+            if (!ObjectUtils.isEmpty(value)) headers.putIfAbsent(name, value);
         }
         return headers;
     }
