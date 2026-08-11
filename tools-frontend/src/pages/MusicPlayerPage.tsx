@@ -206,7 +206,11 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
   const toggle = () => {
     const audio = audioRef.current
     if (!audio) return
-    if (audio.paused) void audio.play().catch(() => setPlaybackError('媒体地址不可播放，链接可能已过期'))
+    if (audio.paused) void audio.play().catch(() => {
+      audio.pause()
+      setPlaying(false)
+      setPlaybackError('媒体地址不可播放，链接可能已过期')
+    })
     else audio.pause()
   }
 
@@ -218,7 +222,11 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
       const audio = audioRef.current
       if (!audio || !src) return
       event.preventDefault()
-      if (audio.paused) void audio.play().catch(() => setPlaybackError('媒体地址不可播放，链接可能已过期'))
+      if (audio.paused) void audio.play().catch(() => {
+        audio.pause()
+        setPlaying(false)
+        setPlaybackError('媒体地址不可播放，链接可能已过期')
+      })
       else audio.pause()
     }
     window.addEventListener('keydown', handleSpacePlayback)
@@ -231,6 +239,7 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
     resumeAfterSourceChange.current = shouldResume
     resumeTimeAfterSourceChange.current = audio?.currentTime || 0
     if (shouldResume) audio?.pause()
+    setPlaying(false)
     setCurrentTime(resumeTimeAfterSourceChange.current)
     setDuration(0)
     setLyricIndex(-1)
@@ -244,6 +253,7 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
     const shouldResume = Boolean(audio && !audio.paused)
     const resumeTime = audio?.currentTime || 0
     if (shouldResume) audio?.pause()
+    setPlaying(false)
     setQualityLoading(true)
     setPlaybackError('')
     try {
@@ -257,7 +267,10 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
       setQualitySource(nextSource)
     } catch (error) {
       setPlaybackError(error instanceof Error ? error.message : '音质切换失败')
-      if (shouldResume && audio) void audio.play().catch(() => undefined)
+      if (shouldResume && audio) void audio.play().catch(() => {
+        audio.pause()
+        setPlaying(false)
+      })
     } finally {
       setQualityLoading(false)
     }
@@ -318,13 +331,15 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
                 if (resumeTime > 0 && Number.isFinite(resumeTime)) {
                   event.currentTarget.currentTime = resumeTime
                 }
-                if (!resumeAfterSourceChange.current) {
-                  resumeTimeAfterSourceChange.current = 0
-                  return
-                }
+                const shouldResume = resumeAfterSourceChange.current
                 resumeAfterSourceChange.current = false
                 resumeTimeAfterSourceChange.current = 0
-                void event.currentTarget.play().catch(() => setPlaybackError('浏览器阻止了自动播放，请点击播放按钮'))
+                if (!shouldResume) return
+                void event.currentTarget.play().catch(() => {
+                  event.currentTarget.pause()
+                  setPlaying(false)
+                  setPlaybackError('')
+                })
               }}
               onPlay={() => { setPlaying(true); setPlaybackError('') }}
               onPause={() => setPlaying(false)}

@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -54,7 +55,8 @@ public class FrontendPageDataController {
             "/tools/DouYin/api/ranklist/audience",
             "/tools/DouYin/api/user/profile/other"
     );
-    private static final long TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS = 12 * 60 * 60L;
+    private static final long TRUSTED_MEDIA_EXPIRE_SECONDS = 12 * 60 * 60L;
+    private static final Set<String> TRUSTED_MEDIA_PLATFORMS = Set.of("douyin", "netease", "kugou");
 
     @Resource(name = "RedisService")
     private RedisService redisService;
@@ -121,8 +123,8 @@ public class FrontendPageDataController {
             return error(HttpStatus.BAD_REQUEST, "UNSUPPORTED_PLAYER");
         }
         ResponseEntity<Object> response = read(prefix, key, true);
-        if ("douyin".equalsIgnoreCase(platform) && response.getStatusCode().is2xxSuccessful()) {
-            markTrustedDouyinMedia(response.getBody());
+        if (isTrustedMediaPlatform(platform) && response.getStatusCode().is2xxSuccessful()) {
+            markTrustedProviderMedia(response.getBody());
         }
         return response;
     }
@@ -149,9 +151,9 @@ public class FrontendPageDataController {
                 return;
             }
             String mediaUrl = uri.toString();
-            boolean trustedDouyinMedia = StringUtils.hasText(
+            boolean trustedProviderMedia = StringUtils.hasText(
                     redisService.get(TIKTOK_MEDIA_KEY_PREFIX + decodedKey));
-            if (trustedDouyinMedia ? !isPublicMediaUri(uri) : !isAllowedMediaUri(uri)) {
+            if (trustedProviderMedia ? !isPublicMediaUri(uri) : !isAllowedMediaUri(uri)) {
                 mediaError(servletResponse, HttpStatus.FORBIDDEN, "MEDIA_HOST_NOT_ALLOWED");
                 return;
             }
@@ -186,18 +188,23 @@ public class FrontendPageDataController {
     }
 
     @GetMapping("media-url")
-    public ResponseEntity<Object> mediaUrl(@RequestParam String url) {
+    public ResponseEntity<Object> mediaUrl(@RequestParam String url,
+                                           @RequestParam(required = false) String platform) {
         if (!StringUtils.hasText(url)) {
             return error(HttpStatus.BAD_REQUEST, "MEDIA_URL_REQUIRED");
         }
         try {
             URI uri = URI.create(url.trim());
             URI target = resolveMediaTarget(uri.toString(), 0);
-            if (target == null || !isAllowedMediaUri(target)) {
+            boolean trustedProviderMedia = isTrustedMediaPlatform(platform);
+            if (target == null || (trustedProviderMedia ? !isPublicMediaUri(target) : !isAllowedMediaUri(target))) {
                 return error(HttpStatus.FORBIDDEN, "MEDIA_HOST_NOT_ALLOWED");
             }
             String shortKey = ShortKeyGenerator.getKey(uri.toString());
-            redisService.set(SHORT_KEY_PREFIX + shortKey, uri.toString(), TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
+            redisService.set(SHORT_KEY_PREFIX + shortKey, uri.toString(), TRUSTED_MEDIA_EXPIRE_SECONDS);
+            if (trustedProviderMedia) {
+                redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TRUSTED_MEDIA_EXPIRE_SECONDS);
+            }
             String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
             return ResponseEntity.ok(Map.of(
                     "url", "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=audio"
@@ -393,8 +400,8 @@ public class FrontendPageDataController {
     private String proxyMediaUrl(URI mediaUri, HttpServletRequest servletRequest, String mimeType) {
         String mediaUrl = mediaUri.toString();
         String shortKey = ShortKeyGenerator.getKey(mediaUrl);
-        redisService.set(SHORT_KEY_PREFIX + shortKey, mediaUrl, TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
-        redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
+        redisService.set(SHORT_KEY_PREFIX + shortKey, mediaUrl, TRUSTED_MEDIA_EXPIRE_SECONDS);
+        redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TRUSTED_MEDIA_EXPIRE_SECONDS);
         String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
         String contextPath = Objects.toString(servletRequest.getContextPath(), "");
         return contextPath + "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=" + mimeType;
@@ -567,6 +574,8 @@ public class FrontendPageDataController {
                 || normalized.endsWith(".byteimg.com")
                 || normalized.equals("music.126.net")
                 || normalized.endsWith(".music.126.net")
+                || normalized.equals("126.net")
+                || normalized.endsWith(".126.net")
                 || normalized.equals("kugou.com")
                 || normalized.endsWith(".kugou.com")
                 || normalized.equals("kugou.net")
@@ -597,23 +606,28 @@ public class FrontendPageDataController {
         return bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc;
     }
 
-    private void markTrustedDouyinMedia(Object value) {
+    private boolean isTrustedMediaPlatform(String platform) {
+        return StringUtils.hasText(platform)
+                && TRUSTED_MEDIA_PLATFORMS.contains(platform.toLowerCase(Locale.ROOT));
+    }
+
+    private void markTrustedProviderMedia(Object value) {
         if (value instanceof String text) {
             String encodedKey = shortUrlKey(text);
             if (!StringUtils.hasText(encodedKey)) return;
             String decodedKey = decodeKey(encodedKey);
             if (StringUtils.hasText(decodedKey)
                     && StringUtils.hasText(redisService.get(SHORT_KEY_PREFIX + decodedKey))) {
-                redisService.set(TIKTOK_MEDIA_KEY_PREFIX + decodedKey, "1", TIKTOK_MEDIA_TRUST_EXPIRE_SECONDS);
+                redisService.set(TIKTOK_MEDIA_KEY_PREFIX + decodedKey, "1", TRUSTED_MEDIA_EXPIRE_SECONDS);
             }
             return;
         }
         if (value instanceof Map<?, ?> map) {
-            map.values().forEach(this::markTrustedDouyinMedia);
+            map.values().forEach(this::markTrustedProviderMedia);
             return;
         }
         if (value instanceof Iterable<?> iterable) {
-            iterable.forEach(this::markTrustedDouyinMedia);
+            iterable.forEach(this::markTrustedProviderMedia);
         }
     }
 

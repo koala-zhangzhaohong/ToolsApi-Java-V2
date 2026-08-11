@@ -48,10 +48,10 @@ function loadZwPlayer() {
     zwPlayerLoader = new Promise((resolve, reject) => {
       const stylesheet = document.createElement('link')
       stylesheet.rel = 'stylesheet'
-      stylesheet.href = '/legacy-assets/js/zwplayer/css/zwplayer.css?v=2026'
+      stylesheet.href = '/legacy-assets/js/zwplayer/css/zwplayer.css?v=3.3.1'
       document.head.appendChild(stylesheet)
       const script = document.createElement('script')
-      script.src = '/legacy-assets/js/zwplayer/zwplayer.js?v=2026'
+      script.src = '/legacy-assets/js/zwplayer/zwplayer.js?v=3.3.1'
       script.onload = () => window.ZWPlayer ? resolve(window.ZWPlayer) : reject(new Error('ZWPlayer 初始化失败'))
       script.onerror = () => reject(new Error('ZWPlayer 资源加载失败'))
       document.head.appendChild(script)
@@ -68,6 +68,10 @@ function routeInfo(pathname: string) {
   const platform = /\/DouYin\//i.test(pathname) ? 'douyin' : /\/Netease\//i.test(pathname) ? 'netease' : 'kugou'
   const media: LegacyMedia = /picture/i.test(pathname) ? 'picture' : /music/i.test(pathname) ? 'music' : /live/i.test(pathname) ? 'live' : 'video'
   return { platform, media }
+}
+
+function isMusicMvRoute(pathname: string) {
+  return /\/tools\/(?:Netease|Kugou)\/pro\/player\/mv(?:\/|$)/i.test(pathname)
 }
 
 function isAppleMobileBrowser() {
@@ -121,7 +125,8 @@ function sourceList(data: PlayerPageData, media: LegacyMedia, params: URLSearchP
     const proxySources = proxyVideoSources(data, params)
     if (proxySources.length) return proxySources
     if (data.multiVideoQualityInfo || data.multiMvQualityInfo) return objectUrls(data.multiVideoQualityInfo || data.multiMvQualityInfo)
-    if (Array.isArray(data.mvInfo)) return data.mvInfo.flatMap((value) => objectUrls(record(value)?.path))
+    const mvInfo = data.mvInfo || data.mv_info
+    if (Array.isArray(mvInfo)) return mvInfo.flatMap((value) => objectUrls(record(value)?.path))
     return objectUrls(data.path || data.proxyPath)
   }
   const web = record(data.web_player_info || data.webPlayerInfo)
@@ -323,12 +328,15 @@ export default function LegacyPlayerPage() {
   const [params] = useSearchParams()
   const embedded = params.get('embed') === '1'
   const info = useMemo(() => routeInfo(location.pathname), [location.pathname])
+  const musicMvRoute = useMemo(() => isMusicMvRoute(location.pathname), [location.pathname])
   const appleMobile = useMemo(isAppleMobileBrowser, [])
   const defaultVersion = info.platform === 'douyin' && info.media === 'video' && /\/short\/?$/i.test(location.pathname)
     ? '4'
-    : info.platform === 'douyin' && info.media === 'live' && /\/short\/?$/i.test(location.pathname)
-      ? appleMobile ? '2' : '3'
-      : '2'
+    : musicMvRoute
+      ? '3'
+      : info.platform === 'douyin' && info.media === 'live' && /\/short\/?$/i.test(location.pathname)
+        ? appleMobile ? '2' : '3'
+        : '2'
   const version = params.get('version') || defaultVersion
   const direct = firstNonEmpty(decodeUrlSafeBase64(params.get('path')), params.get('path'), params.get('src'))
   const [data, setData] = useState<PlayerPageData>({})
@@ -383,7 +391,11 @@ export default function LegacyPlayerPage() {
   }, [flvPlayable, info.media, info.platform, params, requestedLiveTransport, version])
 
   const title = firstNonEmpty(decodeUrlSafeBase64(params.get('title')), params.get('title'), data.title, musicMeta(data).title)
-  const variant = info.media === 'video' ? (version === '1' ? 'videojs' : version === '2' ? 'plyr' : version === '3' ? 'dplayer' : 'zwplayer') : info.media === 'live' ? (version === '1' ? 'flvjs' : version === '2' ? 'dplayer' : 'zwplayer') : version === '2' ? 'h5' : 'plyr'
+  const variant = info.media === 'video'
+    ? musicMvRoute
+      ? version === '3' ? 'zwplayer' : version === '1' ? 'videojs' : 'plyr'
+      : version === '1' ? 'videojs' : version === '2' ? 'plyr' : version === '3' ? 'dplayer' : 'zwplayer'
+    : info.media === 'live' ? (version === '1' ? 'flvjs' : version === '2' ? 'dplayer' : 'zwplayer') : version === '2' ? 'h5' : 'plyr'
   const useCdnProxy = info.platform === 'douyin' && info.media === 'video' && proxyVideoSources(data, params).length > 0
   const musicSources = useMemo(() => sources.map((source) => proxiedMediaUrl(source)), [sources])
 

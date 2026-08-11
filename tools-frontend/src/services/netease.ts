@@ -23,6 +23,11 @@ export interface NeteaseMusicPayload extends JsonRecord {
   web_player_info?: JsonRecord
 }
 
+export interface NeteaseMvPayload extends JsonRecord {
+  mock_preview_path?: string
+  mock_multi_download_path?: Record<string, string>
+}
+
 interface ApiResponse<T> extends JsonRecord {
   code?: number
   message?: string
@@ -37,7 +42,31 @@ function assertSuccess<T>(response: ApiResponse<T>, fallback: string): T {
   return response.data
 }
 
-export async function searchNetease(keyword: string, type: NeteaseSearchType, page = 1, limit = 20) {
+const chineseDigits: Record<string, number> = {
+  '零': 0,
+  '〇': 0,
+  '一': 1,
+  '二': 2,
+  '两': 2,
+  '三': 3,
+  '四': 4,
+  '五': 5,
+  '六': 6,
+  '七': 7,
+  '八': 8,
+  '九': 9,
+}
+
+function normalizeChineseNumbers(value: string) {
+  return value.replace(/[零〇一二两三四五六七八九十]+/g, (token) => {
+    if (!token.includes('十')) return [...token].map((item) => chineseDigits[item]).join('')
+    const [tens, units = ''] = token.split('十')
+    if (tens.length > 1 || units.length > 1) return token
+    return String((tens ? chineseDigits[tens] : 1) * 10 + (units ? chineseDigits[units] : 0))
+  })
+}
+
+async function requestNeteaseSearch(keyword: string, type: NeteaseSearchType, page: number, limit: number) {
   const query = new URLSearchParams({
     text: keyword,
     type,
@@ -46,6 +75,18 @@ export async function searchNetease(keyword: string, type: NeteaseSearchType, pa
   })
   const response = await getJson<ApiResponse<NeteaseSearchPayload>>(`/tools/Netease/api/search?${query.toString()}`)
   return assertSuccess(response, '网易云搜索失败')
+}
+
+export async function searchNetease(keyword: string, type: NeteaseSearchType, page = 1, limit = 20) {
+  const data = await requestNeteaseSearch(keyword, type, page, limit)
+  if (type !== '1004') return data
+
+  const result = data.response?.result
+  const mvRows = result && typeof result === 'object' ? (result as JsonRecord).mvs : undefined
+  const hasMvResults = Array.isArray(mvRows) && mvRows.length > 0
+  const normalizedKeyword = normalizeChineseNumbers(keyword)
+  if (hasMvResults || normalizedKeyword === keyword) return data
+  return requestNeteaseSearch(normalizedKeyword, type, page, limit)
 }
 
 export async function resolveNeteaseMusic(id: string, quality: NeteaseQuality = 'standard') {
@@ -58,4 +99,10 @@ export async function resolveNeteaseMusic(id: string, quality: NeteaseQuality = 
   })
   const response = await getJson<ApiResponse<NeteaseMusicPayload>>(`/tools/Netease/api?${query.toString()}`)
   return assertSuccess(response, '网易云歌曲解析失败')
+}
+
+export async function resolveNeteaseMv(id: string) {
+  const query = new URLSearchParams({ mid: id, type: 'info' })
+  const response = await getJson<ApiResponse<NeteaseMvPayload>>(`/tools/Netease/api/mv?${query.toString()}`)
+  return assertSuccess(response, '网易云 MV 解析失败')
 }

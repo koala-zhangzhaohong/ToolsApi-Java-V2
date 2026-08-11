@@ -29,8 +29,8 @@
 | `video/dplayer/kugou/index.html` | `LegacyPlayerPage` Kugou video v1 |
 | `video/dplayer/netease/index.html` | `LegacyPlayerPage` Netease video v1 |
 | `video/dplayer/tiktok/index.html` | `LegacyPlayerPage` DouYin video v3 |
-| `video/zwplayer/kugou/index.html` | `LegacyPlayerPage` Kugou video v2 |
-| `video/zwplayer/netease/index.html` | `LegacyPlayerPage` Netease video v2 |
+| `video/zwplayer/kugou/index.html` | `LegacyPlayerPage` Kugou video v3 |
+| `video/zwplayer/netease/index.html` | `LegacyPlayerPage` Netease video v3 |
 | `video/zwplayer/tiktok/index.html` | `LegacyPlayerPage` DouYin video v4 |
 
 新前端只通过 HTTP API 读取数据，不再依赖 Thymeleaf model 注入。后端旧 URL 可以继续生成，Vite/生产网关需把以上页面路由回退到 `index.html`。

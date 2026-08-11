@@ -56,7 +56,8 @@ function qualitySources(data: PlayerPageData, media: string, params: URLSearchPa
   if (media === 'live') return Object.values(data.multiLiveQualityInfo?.[params.get('type') || 'flv'] || {}).filter(Boolean)
   if (data.multiVideoQualityInfo) return Object.values(data.multiVideoQualityInfo).filter(Boolean)
   if (data.multiMvQualityInfo) return Object.values(data.multiMvQualityInfo).filter(Boolean)
-  if (media === 'video' && Array.isArray(data.mvInfo)) return data.mvInfo.map((item) => item.path).filter((value): value is string => typeof value === 'string' && value.length > 0)
+  const mvInfo = data.mvInfo || data.mv_info
+  if (media === 'video' && Array.isArray(mvInfo)) return mvInfo.map((item) => item.path).filter((value): value is string => typeof value === 'string' && value.length > 0)
   if (media === 'music') {
     const webPlayer = data.web_player_info as Record<string, unknown> | undefined
     const playerUrls = webPlayer?.player_url_list as Record<string, string> | undefined

@@ -43,9 +43,11 @@ export default function MusicPlaybackPage() {
       }
     })()
     if (shortKey) return `/api/frontend/pages/media?key=${encodeURIComponent(shortKey)}&mime_type=audio`
-    const response = await getJson<{ url?: string }>(`/api/frontend/pages/media-url?url=${encodeURIComponent(source)}`)
+    const query = new URLSearchParams({ url: source })
+    if (payload?.platform) query.set('platform', payload.platform)
+    const response = await getJson<{ url?: string }>(`/api/frontend/pages/media-url?${query.toString()}`)
     return response.url || ''
-  }, [])
+  }, [payload?.platform])
 
   useEffect(() => {
     let active = true

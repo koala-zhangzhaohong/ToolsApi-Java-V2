@@ -124,7 +124,7 @@ public class KugouPlayerController {
 
     @HttpRequestRecorder
     @GetMapping("/mv/short")
-    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "2") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
+    public String videoWithShortKey(@RequestParam(value = "key", required = false, defaultValue = "") String key, @RequestParam(value = "version", required = false, defaultValue = "3") String version, Model model, HttpServletRequest request, HttpServletResponse response) {
         try {
             String itemKey = "".equals(key) ? "" : new String(Base64Utils.decodeFromUrlSafeString(key));
             logger.info("[videoPlayer] itemKey: {}, Sec-Fetch-Dest: {}", itemKey, request.getHeader("Sec-Fetch-Dest"));
@@ -132,9 +132,9 @@ public class KugouPlayerController {
                 ShortKugouItemDataModel tmp = GsonUtil.toBean(redisService.get(KUGOU_DATA_KEY_PREFIX + itemKey), ShortKugouItemDataModel.class);
                 model.addAttribute("title", StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() : "VideoPlayer");
                 model.addAttribute("media", GsonUtil.toString(tmp.getMvInfo()));
-                if ("2".equals(version)) {
+                if ("3".equals(version)) {
                     return "video/zwplayer/kugou/index";
-                } else if ("1".equals(version)) {
+                } else if ("1".equals(version) || "2".equals(version)) {
                     return "video/dplayer/kugou/index";
                 }
             }

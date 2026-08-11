@@ -13,8 +13,9 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
 import { collectKugouPlaybackOptions, saveMusicPlayback } from '../services/musicPlayback'
-import { resolveKugouMusic, searchKugou, type KugouSearchPayload, type KugouSearchType } from '../services/kugou'
+import { resolveKugouMusic, resolveKugouMv, searchKugou, type KugouSearchPayload, type KugouSearchType } from '../services/kugou'
 import type { JsonRecord } from '../types'
+import { legacyPreviewRoute } from '../utils/legacyPreview'
 
 const historyKey = 'tools-frontend:kugou-search-history'
 const historyChangedEvent = 'tools-frontend:kugou-search-history-change'
@@ -182,7 +183,7 @@ interface SearchTemplateProps {
   loadingMore: boolean
   resolvingId: string
   onLoadMore: () => void
-  onPlayMusic: (item: JsonRecord) => void
+  onPlay: (item: JsonRecord) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
 }
@@ -196,7 +197,7 @@ function KugouSearchTemplate({
   loadingMore,
   resolvingId,
   onLoadMore,
-  onPlayMusic,
+  onPlay,
   onSearchHistoryItem,
   onClearHistory,
 }: SearchTemplateProps) {
@@ -225,11 +226,11 @@ function KugouSearchTemplate({
                 const cover = resultCover(item, type)
                 const external = resultUrl(item, type)
                 const id = resultId(item, type)
-                const canPlay = type === 'song' && hash && albumId
+                const canPlay = Boolean(hash && (type === 'mv' || albumId))
                 return (
                   <List.Item
                     actions={[
-                      canPlay ? <Button key="play" type="primary" icon={<PlayCircleOutlined />} loading={resolvingId === hash} onClick={() => onPlayMusic(item)}>解析播放</Button> : null,
+                      canPlay ? <Button key="play" type="primary" icon={<PlayCircleOutlined />} loading={resolvingId === hash} onClick={() => onPlay(item)}>解析播放</Button> : null,
                       external ? <Button key="external" icon={<LinkOutlined />} href={external} target="_blank">酷狗</Button> : null,
                       hash ? <Button key="api" href={`/json?url=${encodeURIComponent(type === 'mv' ? `/tools/Kugou/api/mv/detail?hash=${encodeURIComponent(hash)}&generateInfo=true` : `/tools/Kugou/api?hash=${encodeURIComponent(hash)}&albumId=${encodeURIComponent(albumId)}&type=info`)}`}>接口数据</Button> : null,
                     ].filter(Boolean)}
@@ -350,9 +351,25 @@ export default function KugouPage() {
     }
   }
 
+  const playMv = async (item: JsonRecord) => {
+    const hash = resultHash(item, 'mv')
+    if (!hash || resolvingId) return
+    setResolvingId(hash)
+    try {
+      const data = await resolveKugouMv(hash)
+      const route = legacyPreviewRoute(data.mock_preview_path)
+      if (!route) throw new Error('酷狗 MV 未返回可播放地址')
+      navigate(route)
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : '酷狗 MV 解析失败')
+    } finally {
+      setResolvingId('')
+    }
+  }
+
   return (
     <div className="page-container">
-      <PageHeader eyebrow="KUGOU MUSIC" title="酷狗音乐搜索" description="搜索酷狗单曲与 MV，单曲结果可继续解析播放。" />
+      <PageHeader eyebrow="KUGOU MUSIC" title="酷狗音乐搜索" description="搜索酷狗单曲与 MV，单曲和 MV 均可继续解析播放。" />
       <Card className="search-panel netease-search-panel">
         <Segmented
           className="netease-type-tabs"
@@ -398,7 +415,7 @@ export default function KugouPage() {
             loadingMore={loadingMore}
             resolvingId={resolvingId}
             onLoadMore={loadMore}
-            onPlayMusic={(item) => void playMusic(item)}
+            onPlay={(item) => void (type === 'mv' ? playMv(item) : playMusic(item))}
             onSearchHistoryItem={searchFromHistory}
             onClearHistory={clearHistory}
           />

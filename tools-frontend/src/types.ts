@@ -45,6 +45,7 @@ export interface PlayerPageData extends JsonRecord {
   multiMvQualityInfo?: Record<string, string>
   musicInfo?: JsonRecord
   mvInfo?: Array<JsonRecord>
+  mv_info?: Array<JsonRecord>
   authorName?: string
   artist?: string
   type?: string

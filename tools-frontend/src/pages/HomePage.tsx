@@ -58,7 +58,7 @@ export default function HomePage() {
       </section>
 
       <PageHeader eyebrow="TOOLKIT" title="工具集合" description="迁移后的核心页面均从这里进入。" />
-      <Row gutter={[18, 18]}>
+      <Row gutter={[18, 18]} className="tool-grid">
         {tools.map((tool) => (
           <Col xs={24} md={12} xl={6} key={tool.path}>
             <Card className="tool-card" hoverable onClick={() => navigate(tool.path)}>

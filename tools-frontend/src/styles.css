@@ -42,14 +42,17 @@ button, input, textarea { font: inherit; }
 .hero-panel h1.ant-typography { color: white; max-width: 720px; font-size: clamp(36px, 6vw, 64px); line-height: 1.07; letter-spacing: -.055em; margin: 22px 0 18px; }
 .hero-panel .hero-description { color: rgba(255,255,255,.76); font-size: 17px; max-width: 680px; line-height: 1.8; }
 .hero-panel .ant-space { position: relative; z-index: 1; margin-top: 18px; }
-.tool-card { min-height: 260px; border: 1px solid #e9eaf1; box-shadow: 0 10px 30px rgba(30, 41, 59, .04); }
-.tool-card .ant-card-body { padding: 28px; }
+.tool-grid > .ant-col { display: flex; }
+.tool-card { width: 100%; min-height: 320px; border: 1px solid #e9eaf1; box-shadow: 0 10px 30px rgba(30, 41, 59, .04); }
+.tool-card .ant-card-body { display: flex; flex-direction: column; width: 100%; height: 100%; padding: 28px; }
+.tool-card h3.ant-typography { margin-top: 0; }
+.tool-card .ant-typography-secondary { flex: 1; margin-bottom: 18px; }
 .tool-icon { display: inline-grid; place-items: center; width: 50px; height: 50px; margin-bottom: 18px; border-radius: 15px; font-size: 23px; }
 .tool-icon-purple { color: #654ef0; background: #eeeaff; }
 .tool-icon-red { color: #d92d4f; background: #fff0f3; }
 .tool-icon-blue { color: #2879e8; background: #e8f2ff; }
 .tool-icon-cyan { color: #008ba3; background: #e2f8fb; }
-.card-link { padding: 0; }
+.card-link { align-self: flex-start; height: auto; margin-top: auto; padding: 0; }
 
 .search-panel, .history-card, .url-card, .player-config { border: 1px solid #e8eaf1; box-shadow: 0 12px 36px rgba(30, 41, 59, .05); }
 .search-panel .ant-card-body { padding: clamp(20px, 4vw, 36px); }

@@ -115,7 +115,8 @@ public class HeaderUtil {
                     || isHost(host, "bytedance.com") || isHost(host, "snssdk.com")) {
                 return "https://www.douyin.com";
             }
-            if (isHost(host, "music.163.com") || isHost(host, "music.126.net")) {
+            if (isHost(host, "music.163.com") || isHost(host, "music.126.net")
+                    || isHost(host, "126.net")) {
                 return "https://music.163.com";
             }
             if (isHost(host, "kugou.com") || isHost(host, "kugou.net")) {

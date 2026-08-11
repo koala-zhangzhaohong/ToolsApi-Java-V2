@@ -12,8 +12,9 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
 import { collectNeteasePlaybackSources, saveMusicPlayback } from '../services/musicPlayback'
-import { resolveNeteaseMusic, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
+import { resolveNeteaseMusic, resolveNeteaseMv, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
 import type { JsonRecord } from '../types'
+import { legacyPreviewRoute } from '../utils/legacyPreview'
 
 const historyKey = 'tools-frontend:netease-search-history'
 const historyChangedEvent = 'tools-frontend:netease-search-history-change'
@@ -181,7 +182,7 @@ interface SearchTemplateProps {
   loadingMore: boolean
   resolvingId: string
   onLoadMore: () => void
-  onPlayMusic: (item: JsonRecord) => void
+  onPlay: (item: JsonRecord) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
 }
@@ -229,7 +230,7 @@ function NeteaseSearchTemplate({
   loadingMore,
   resolvingId,
   onLoadMore,
-  onPlayMusic,
+  onPlay,
   onSearchHistoryItem,
   onClearHistory,
 }: SearchTemplateProps) {
@@ -263,9 +264,9 @@ function NeteaseSearchTemplate({
                 return (
                   <List.Item
                     actions={[
-                      (type === '1' || type === '1006') && id ? <Button key="play" type="primary" icon={<PlayCircleOutlined />} loading={resolvingId === id} onClick={() => onPlayMusic(item)}>解析播放</Button> : null,
+                      (type === '1' || type === '1006' || type === '1004') && id ? <Button key="play" type="primary" icon={<PlayCircleOutlined />} loading={resolvingId === id} onClick={() => onPlay(item)}>解析播放</Button> : null,
                       external ? <Button key="external" icon={<LinkOutlined />} href={external} target="_blank">网易云</Button> : null,
-                      id ? <Button key="api" href={`/json?url=${encodeURIComponent(`/tools/Netease/api?id=${encodeURIComponent(id)}&type=info&toWebPlayer=true`)}`}>接口数据</Button> : null,
+                      id ? <Button key="api" href={`/json?url=${encodeURIComponent(type === '1004' ? `/tools/Netease/api/mv?mid=${encodeURIComponent(id)}&type=info` : `/tools/Netease/api?id=${encodeURIComponent(id)}&type=info&toWebPlayer=true`)}`}>接口数据</Button> : null,
                     ].filter(Boolean)}
                   >
                     <List.Item.Meta
@@ -307,10 +308,11 @@ export default function NeteasePage() {
   const [hasMore, setHasMore] = useState(false)
   const { history, addHistory, clearHistory } = useNeteaseSearchHistory()
   const searchSessionRef = useRef(0)
+  const selectedTypeRef = useRef<NeteaseSearchType>('1')
   const latestParamsRef = useRef({ keyword: '', type: '1' as NeteaseSearchType, page: 1, limit: pageSize })
   const loadingMoreRef = useRef(false)
 
-  const search = useCallback(async (value = keyword, nextPage = 1, nextLimit = limit, nextType = type, append = false) => {
+  const search = useCallback(async (value = keyword, nextPage = 1, nextLimit = limit, nextType = selectedTypeRef.current, append = false) => {
     const input = value.trim()
     if (!input) { message.warning('请先输入网易云搜索关键词'); return }
     const typeMeta = searchTypes.find((item) => item.value === nextType) || searchTypes[0]
@@ -320,6 +322,8 @@ export default function NeteasePage() {
       loadingMoreRef.current = true
       setLoadingMore(true)
     } else {
+      selectedTypeRef.current = nextType
+      setType(nextType)
       setLoading(true)
       setLoadingMore(false)
       setError('')
@@ -357,7 +361,7 @@ export default function NeteasePage() {
       }
       if (append && sessionId === searchSessionRef.current) loadingMoreRef.current = false
     }
-  }, [addHistory, keyword, limit, loading, message, type])
+  }, [addHistory, keyword, limit, loading, message])
 
   const loadMore = useCallback(() => {
     if (loading || loadingMoreRef.current || !hasMore) return
@@ -386,15 +390,32 @@ export default function NeteasePage() {
     }
   }
 
+  const playMv = async (item: JsonRecord) => {
+    const id = idText(item.id)
+    if (!id || resolvingId) return
+    setResolvingId(id)
+    try {
+      const data = await resolveNeteaseMv(id)
+      const route = legacyPreviewRoute(data.mock_preview_path)
+      if (!route) throw new Error('网易云 MV 未返回可播放地址')
+      navigate(route)
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : '网易云 MV 解析失败')
+    } finally {
+      setResolvingId('')
+    }
+  }
+
   return (
     <div className="page-container">
-      <PageHeader eyebrow="NETEASE MUSIC" title="网易云音乐搜索" description="搜索单曲、歌单、歌手、专辑、MV 与歌词，并可对单曲继续解析播放。" />
+      <PageHeader eyebrow="NETEASE MUSIC" title="网易云音乐搜索" description="搜索单曲、歌单、歌手、专辑、MV 与歌词，单曲和 MV 均可继续解析播放。" />
       <Card className="search-panel netease-search-panel">
         <Segmented
           className="netease-type-tabs"
           value={type}
           onChange={(value) => {
             const nextType = value as NeteaseSearchType
+            selectedTypeRef.current = nextType
             setType(nextType)
             setRows([])
             setTotal(0)
@@ -409,7 +430,7 @@ export default function NeteasePage() {
           size="large"
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          onSearch={(value) => void search(value, 1, limit)}
+          onSearch={(value) => void search(value, 1, limit, selectedTypeRef.current)}
           enterButton={loading ? <span className="search-button-label">搜索</span> : <><SearchOutlined /><span className="search-button-label">搜索</span></>}
           placeholder="输入歌名、歌手、专辑或歌单关键词"
           loading={loading}
@@ -434,7 +455,7 @@ export default function NeteasePage() {
             loadingMore={loadingMore}
             resolvingId={resolvingId}
             onLoadMore={loadMore}
-            onPlayMusic={(item) => void playMusic(item)}
+            onPlay={(item) => void (type === '1004' ? playMv(item) : playMusic(item))}
             onSearchHistoryItem={searchFromHistory}
             onClearHistory={clearHistory}
           />
