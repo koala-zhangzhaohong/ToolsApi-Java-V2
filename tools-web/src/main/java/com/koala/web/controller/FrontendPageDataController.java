@@ -6,6 +6,7 @@ import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HeaderUtil;
 import com.koala.service.utils.HttpClientUtil;
 import com.koala.service.utils.ShortKeyGenerator;
+import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -63,6 +64,9 @@ public class FrontendPageDataController {
 
     @Resource
     private Environment environment;
+
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
 
     @GetMapping("json")
     public ResponseEntity<Object> json(@RequestParam(required = false) String key,
@@ -161,26 +165,9 @@ public class FrontendPageDataController {
                 relayHlsPlaylist(mediaUrl, uri, servletRequest, servletResponse);
                 return;
             }
-            String destination = "audio".equalsIgnoreCase(mimeType)
-                    ? "audio" : mediaDestination(servletRequest, false);
-            Map<String, String> relayHeaders = new HashMap<>(
-                    HeaderUtil.getMediaRelayHeader(mediaUrl, destination));
-            if ("audio".equalsIgnoreCase(mimeType)
-                    && !StringUtils.hasText(servletRequest.getHeader(HttpHeaders.RANGE))) {
-                relayHeaders.put(HttpHeaders.RANGE, "bytes=0-");
-                relayHeaders.put(HttpHeaders.ACCEPT_ENCODING, "identity");
-            }
-            HttpClientUtil.doRelay(
-                    mediaUrl,
-                    relayHeaders,
-                    null,
-                    206,
-                    Map.of(
-                            HttpHeaders.CACHE_CONTROL, "no-store",
-                            HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
-                            "Accept-Ranges, Content-Length, Content-Range, Content-Type"),
-                    servletRequest,
-                    servletResponse);
+            cdnResourceProxyService.redirect(
+                    servletResponse,
+                    cdnResourceProxyService.mediaUrl(mediaUrl, null));
         } catch (Exception exception) {
             logger.error("[frontendPageData] failed to relay media key={}", decodedKey, exception);
             if (!servletResponse.isCommitted()) mediaError(servletResponse, HttpStatus.BAD_GATEWAY, "MEDIA_PROXY_ERROR");
@@ -201,15 +188,14 @@ public class FrontendPageDataController {
                 return error(HttpStatus.FORBIDDEN, "MEDIA_HOST_NOT_ALLOWED");
             }
             String targetUrl = target.toString();
-            String shortKey = ShortKeyGenerator.getKey(targetUrl);
-            redisService.set(SHORT_KEY_PREFIX + shortKey, targetUrl, TRUSTED_MEDIA_EXPIRE_SECONDS);
-            if (trustedProviderMedia) {
-                redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TRUSTED_MEDIA_EXPIRE_SECONDS);
+            String mediaUrl = cdnResourceProxyService.mediaUrl(targetUrl, null);
+            String downloadUrl = cdnResourceProxyService.downloadUrl(targetUrl, null, null, null);
+            if (!StringUtils.hasText(mediaUrl) || !StringUtils.hasText(downloadUrl)) {
+                return error(HttpStatus.BAD_GATEWAY, "CDN_PROXY_URL_UNAVAILABLE");
             }
-            String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
             return ResponseEntity.ok(Map.of(
-                    "url", "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=audio",
-                    "downloadUrl", "/api/frontend/pages/download?key=" + encodedKey
+                    "url", mediaUrl,
+                    "downloadUrl", downloadUrl
             ));
         } catch (Exception exception) {
             logger.warn("[frontendPageData] invalid media url={}", url);
@@ -239,14 +225,9 @@ public class FrontendPageDataController {
                 mediaError(servletResponse, HttpStatus.FORBIDDEN, "HLS_SEGMENT_HOST_NOT_ALLOWED");
                 return;
             }
-            HttpClientUtil.doRelay(
-                    segmentUrl,
-                    HeaderUtil.getMediaRelayHeader(segmentUrl, "video"),
-                    null,
-                    206,
-                    Map.of(HttpHeaders.CACHE_CONTROL, "no-store"),
-                    servletRequest,
-                    servletResponse);
+            cdnResourceProxyService.redirect(
+                    servletResponse,
+                    cdnResourceProxyService.mediaUrl(segmentUrl, null));
         } catch (Exception exception) {
             logger.error("[frontendPageData] failed to relay hls segment={}", segmentName, exception);
             if (!servletResponse.isCommitted()) {
@@ -407,13 +388,7 @@ public class FrontendPageDataController {
     }
 
     private String proxyMediaUrl(URI mediaUri, HttpServletRequest servletRequest, String mimeType) {
-        String mediaUrl = mediaUri.toString();
-        String shortKey = ShortKeyGenerator.getKey(mediaUrl);
-        redisService.set(SHORT_KEY_PREFIX + shortKey, mediaUrl, TRUSTED_MEDIA_EXPIRE_SECONDS);
-        redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TRUSTED_MEDIA_EXPIRE_SECONDS);
-        String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
-        String contextPath = Objects.toString(servletRequest.getContextPath(), "");
-        return contextPath + "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=" + mimeType;
+        return cdnResourceProxyService.mediaUrl(mediaUri.toString(), null);
     }
 
     /**
@@ -446,21 +421,14 @@ public class FrontendPageDataController {
                 mediaError(servletResponse, HttpStatus.FORBIDDEN, "DOWNLOAD_HOST_NOT_ALLOWED");
                 return;
             }
-            Map<String, String> responseHeaders = new HashMap<>();
-            responseHeaders.put(HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; filename=\"" + safeDownloadName(target.fileName(), decodedKey) + "\"");
-            responseHeaders.put(HttpHeaders.CACHE_CONTROL, "no-store");
-            responseHeaders.put("X-Accel-Buffering", "no");
-            responseHeaders.put(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
-                    "Accept-Ranges, Content-Length, Content-Range, Content-Disposition");
-            HttpClientUtil.doRelay(
-                    target.uri().toString(),
-                    HeaderUtil.getMediaRelayHeader(target.uri().toString(), downloadDestination(target)),
-                    null,
-                    206,
-                    responseHeaders,
-                    servletRequest,
-                    servletResponse);
+            String targetUrl = target.uri().getPath() != null && target.uri().getPath().endsWith("/doProxy")
+                    ? target.uri().toString()
+                    : cdnResourceProxyService.downloadUrl(
+                            target.uri().toString(),
+                            null,
+                            safeDownloadName(target.fileName(), decodedKey),
+                            null);
+            cdnResourceProxyService.redirect(servletResponse, targetUrl);
         } catch (Exception exception) {
             logger.error("[frontendPageData] failed to relay download key={}", decodedKey, exception);
             if (!servletResponse.isCommitted()) {

@@ -19,6 +19,7 @@ import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
+import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -68,6 +69,9 @@ public class KugouToolsController {
 
     @Resource
     private KugouCustomParamsUtil customParams;
+
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
 
     @HttpRequestRecorder
     @GetMapping(value = "api/search", produces = {"application/json;charset=utf-8"})
@@ -329,7 +333,8 @@ public class KugouToolsController {
                 String fileName = (StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : UUID.randomUUID().toString().replace("-", "")) + "[" + quality + "]";
                 Optional<MvInfoModel> optional = tmp.getMvInfo().stream().filter(item -> quality.equals(item.getType())).findFirst();
                 if (optional.isPresent()) {
-                    HttpClientUtil.doRelay(optional.get().getPath(), HeaderUtil.getKugouMediaDownloadHeader(), null, 206, HeaderUtil.getMockDownloadKugouFileHeader(fileName, "mp4"), request, response);
+                    cdnResourceProxyService.redirect(response,
+                            cdnResourceProxyService.downloadUrl(optional.get().getPath(), null, fileName, "mp4"));
                 }
             }
         } catch (Exception e) {

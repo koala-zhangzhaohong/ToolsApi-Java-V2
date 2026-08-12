@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
 import { apiUrl } from '../services/http'
-import { lanzouApiPath, parseLanzouShare, type LanzouFileInfo, type LanzouResponse } from '../services/lanzou'
+import { parseLanzouShare, prepareLanzouDownload, type LanzouFileInfo, type LanzouResponse } from '../services/lanzou'
 
 const historyKey = 'tools-frontend:lanzou-history'
 const historyEvent = 'tools-frontend:lanzou-history-change'
@@ -78,23 +78,33 @@ function fileName(file: LanzouFileInfo, index: number) {
   return text(file.file_name, file.fileName) || `文件 ${index + 1}`
 }
 
-function directDownload(file: LanzouFileInfo) {
-  const directUrl = text(file.redirect_url, file.redirectUrl, file.download_url, file.downloadUrl)
-  if (directUrl) return directUrl
-
-  const host = text(file.download_host, file.downloadHost)
-  const path = text(file.download_path, file.downloadPath)
-  if (!host || !path) return ''
-  return `${host.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
-}
-
 function ResultFiles({ response, shareUrl, password }: { response: LanzouResponse; shareUrl: string; password: string }) {
+  const { message } = App.useApp()
+  const [downloading, setDownloading] = useState<string | null>(null)
   const files = useMemo(() => {
     if (Array.isArray(response.data)) return response.data
     return response.data && typeof response.data === 'object' ? [response.data] : []
   }, [response.data])
   const isFolder = Array.isArray(response.data)
   const { visibleRows, sentinelRef, hasHiddenRows } = useProgressiveRows(files, false, () => undefined)
+
+  const downloadFile = async (file: LanzouFileInfo, index: number) => {
+    const name = fileName(file, index)
+    setDownloading(`${name}-${index}`)
+    try {
+      const downloadUrl = await prepareLanzouDownload(shareUrl, password, file, name, isFolder)
+      const anchor = document.createElement('a')
+      anchor.href = apiUrl(downloadUrl)
+      anchor.download = name
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+    } catch (reason) {
+      message.error(reason instanceof Error ? reason.message : '下载地址生成失败')
+    } finally {
+      setDownloading(null)
+    }
+  }
 
   return (
     <Card
@@ -106,9 +116,7 @@ function ResultFiles({ response, shareUrl, password }: { response: LanzouRespons
         <>
           <Row gutter={[16, 16]}>
             {visibleRows.map((file, index) => {
-              const download = !isFolder
-                ? apiUrl(lanzouApiPath(shareUrl, password, 'download'))
-                : directDownload(file)
+              const itemKey = `${fileName(file, index)}-${index}`
               return (
                 <Col xs={24} md={12} key={`${fileName(file, index)}-${index}`}>
                   <Card className="lanzou-file-card" size="small">
@@ -120,9 +128,15 @@ function ResultFiles({ response, shareUrl, password }: { response: LanzouRespons
                         <Typography.Text type="secondary">时间：{text(file.update_time, file.updateTime) || '未知'}</Typography.Text>
                         {text(file.author) && <Typography.Text type="secondary">发布者：{text(file.author)}</Typography.Text>}
                       </Space>
-                      {download
-                        ? <Button type="primary" href={download} icon={<CloudDownloadOutlined />}>下载文件</Button>
-                        : <Button disabled icon={<CloudDownloadOutlined />}>暂无下载地址</Button>}
+                      <Button
+                        type="primary"
+                        icon={<CloudDownloadOutlined />}
+                        loading={downloading === itemKey}
+                        disabled={downloading !== null && downloading !== itemKey}
+                        onClick={() => void downloadFile(file, index)}
+                      >
+                        下载文件
+                      </Button>
                     </div>
                   </Card>
                 </Col>

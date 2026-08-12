@@ -21,6 +21,7 @@ import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
+import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -69,6 +70,9 @@ public class NeteaseToolsController {
 
     @Resource
     private BaseService baseService;
+
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
@@ -170,7 +174,8 @@ public class NeteaseToolsController {
                 ShortNeteaseItemDataModel tmp = GsonUtil.toBean(redisService.get(NETEASE_DATA_KEY_PREFIX + itemKey), ShortNeteaseItemDataModel.class);
                 String artist = StringUtils.hasLength(tmp.getArtist()) ? " - " + tmp.getArtist() : "";
                 String fileName = StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : UUID.randomUUID().toString().replace("-", "");
-                HttpClientUtil.doRelay(tmp.getPath(), HeaderUtil.getNeteaseAudioDownloadHeader(), null, 206, HeaderUtil.getMockDownloadNeteaseFileHeader(fileName, tmp.getType()), request, response);
+                cdnResourceProxyService.redirect(response,
+                        cdnResourceProxyService.downloadUrl(tmp.getPath(), null, fileName, tmp.getType()));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -212,8 +217,8 @@ public class NeteaseToolsController {
 
                     }
                 }
-                response.setDateHeader("Expires", 0);
-                HttpClientUtil.doRelay(redirect, HeaderUtil.getNeteaseVideoDownloadHeader(), null, 206, HeaderUtil.getMockDownloadNeteaseFileHeader(fileName, tmp.getType()), request, response);
+                cdnResourceProxyService.redirect(response,
+                        cdnResourceProxyService.downloadUrl(redirect, null, fileName, tmp.getType()));
             }
         } catch (Exception e) {
             e.printStackTrace();

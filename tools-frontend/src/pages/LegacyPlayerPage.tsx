@@ -4,7 +4,7 @@ import flvjs from 'flv.js'
 import Hls, { ErrorTypes, Events } from 'hls.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { apiUrl, getJson } from '../services/http'
+import { getJson } from '../services/http'
 import type { JsonRecord, PlayerPageData } from '../types'
 import { attachManagedFlv } from '../utils/flvPlayback'
 import { decodeUrlSafeBase64, firstNonEmpty } from '../utils/query'
@@ -159,19 +159,12 @@ async function kugouMusicSources(data: PlayerPageData) {
   return resolved.flat().filter(Boolean)
 }
 
-function proxiedMediaUrl(src: string, useCdnProxy = false) {
-  if (useCdnProxy) return src
-  try {
-    const url = new URL(src, window.location.origin)
-    const key = url.pathname === '/short' ? url.searchParams.get('key') : null
-    return key ? apiUrl(`/api/frontend/pages/media?key=${encodeURIComponent(key)}`) : src
-  } catch {
-    return src
-  }
+function proxiedMediaUrl(src: string) {
+  return src
 }
 
-function playerMediaUrl(src: string, transport: VideoTransport, useCdnProxy = false) {
-  const proxied = proxiedMediaUrl(src, useCdnProxy)
+function playerMediaUrl(src: string, transport: VideoTransport) {
+  const proxied = proxiedMediaUrl(src)
   if (transport === 'native') return proxied
   try {
     const url = new URL(proxied, window.location.origin)
@@ -310,7 +303,7 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
       if (!video || transport === 'native') return
       beginFirstFrameLoading()
       const selectedSource = sources[activeSourceIndex]
-      const playbackUrl = playerMediaUrl(selectedSource, transport, useCdnProxy)
+      const playbackUrl = playerMediaUrl(selectedSource, transport)
       if (transport === 'flv' && flvjs.isSupported()) {
         streamCleanup = attachManagedFlv({
           video,
@@ -339,7 +332,7 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
         playerElm: playerElementId,
         url: sources.map((source, index) => ({
           name: qualityName(index, sources.length),
-          url: playerMediaUrl(source, transport, useCdnProxy),
+          url: playerMediaUrl(source, transport),
           type: transport === 'native' ? undefined : 'mp4',
           default: index === (sources.length > 1 ? 1 : 0),
         })),
@@ -416,7 +409,7 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
   useEffect(() => {
     const video = ref.current
     if (!video || !src) return
-    const playbackUrl = playerMediaUrl(src, transport, useCdnProxy)
+    const playbackUrl = playerMediaUrl(src, transport)
     const useHls = transport === 'hls' || /\.m3u8(?:\?|$)/i.test(src) || /mime_type=video_hls/i.test(playbackUrl)
     const useFlv = transport === 'flv' || /\.flv(?:\?|$)/i.test(src) || /mime_type=video_flv/i.test(playbackUrl)
     if (useHls && Hls.isSupported()) {

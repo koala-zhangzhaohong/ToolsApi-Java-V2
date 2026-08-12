@@ -41,15 +41,6 @@ export default function MusicPlaybackPage() {
   }, [payload?.platform])
 
   const proxySource = useCallback(async (source: string) => {
-    const shortKey = (() => {
-      try {
-        const parsed = new URL(source, window.location.origin)
-        return parsed.pathname === '/short' ? parsed.searchParams.get('key') || '' : ''
-      } catch {
-        return ''
-      }
-    })()
-    if (shortKey) return `/api/frontend/pages/media?key=${encodeURIComponent(shortKey)}&mime_type=audio`
     const response = await registerSource(source)
     return response.url || ''
   }, [registerSource])

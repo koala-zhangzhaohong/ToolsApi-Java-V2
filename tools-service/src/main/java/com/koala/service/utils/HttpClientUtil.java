@@ -461,6 +461,7 @@ public final class HttpClientUtil {
                 copyResponseHeader(upstream, response, header);
             }
             if (!response.containsHeader("Accept-Ranges")) response.setHeader("Accept-Ranges", "bytes");
+            if (!response.containsHeader("X-Accel-Buffering")) response.setHeader("X-Accel-Buffering", "no");
             if (successful && !ObjectUtils.isEmpty(responseHeaders)) responseHeaders.forEach(response::setHeader);
             if (entity == null) return null;
 

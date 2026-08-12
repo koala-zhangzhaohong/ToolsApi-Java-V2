@@ -25,6 +25,12 @@ export interface LanzouResponse extends JsonRecord {
   data?: LanzouFileInfo | LanzouFileInfo[] | null
 }
 
+interface LanzouDownloadResponse extends JsonRecord {
+  code?: number
+  message?: string
+  data?: { downloadUrl?: string } | null
+}
+
 export function lanzouApiPath(url: string, password: string, type: 'info' | 'download' = 'info') {
   const params = new URLSearchParams({ url, type })
   if (password) params.set('password', password)
@@ -45,4 +51,26 @@ export async function parseLanzouShare(url: string, password: string) {
     throw new Error(messages[response.code ?? -1] || response.message || `解析失败（业务码 ${response.code ?? -1}）`)
   }
   return response
+}
+
+export async function prepareLanzouDownload(url: string, password: string, file?: LanzouFileInfo, fileName?: string, folder = false) {
+  const params = new URLSearchParams({ url })
+  if (password) params.set('password', password)
+  if (fileName) params.set('fileName', fileName)
+  if (folder) params.set('folder', 'true')
+  const metadata: Array<[string, unknown]> = [
+    ['downloadHost', file?.download_host ?? file?.downloadHost],
+    ['downloadPath', file?.download_path ?? file?.downloadPath],
+    ['downloadUrl', file?.download_url ?? file?.downloadUrl],
+    ['redirectUrl', file?.redirect_url ?? file?.redirectUrl],
+  ]
+  metadata.forEach(([key, value]) => {
+    if (typeof value === 'string' && value.trim()) params.set(key, value.trim())
+  })
+  const response = await getJson<LanzouDownloadResponse>(`/tools/LanZou/download-url?${params.toString()}`)
+  const downloadUrl = response.data?.downloadUrl
+  if (response.code !== 200 || !downloadUrl) {
+    throw new Error(response.message || '下载地址生成失败，请重新解析后重试。')
+  }
+  return downloadUrl
 }

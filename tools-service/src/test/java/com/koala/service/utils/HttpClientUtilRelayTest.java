@@ -56,6 +56,7 @@ class HttpClientUtilRelayTest {
 
             assertEquals(206, response.getStatus());
             assertEquals("bytes", response.getHeader("Accept-Ranges"));
+            assertEquals("no", response.getHeader("X-Accel-Buffering"));
             assertEquals("bytes 10-19/" + source.length, response.getHeader("Content-Range"));
             assertEquals("10", response.getHeader("Content-Length"));
             assertEquals("attachment; filename=test.bin", response.getHeader("Content-Disposition"));

@@ -43,15 +43,8 @@ export function downloadRoutes(media: MediaData): DownloadRoute[] {
 }
 
 export function localDownloadUrl(value: string): string {
-  try {
-    const url = new URL(value, window.location.origin)
-    if (url.pathname === '/short') {
-      const key = url.searchParams.get('key')
-      if (key) return `/api/frontend/pages/download?key=${encodeURIComponent(key)}`
-    }
-  } catch {
-    // Preserve the source value so callers retain their existing error behavior.
-  }
+  // CDN short links already point at video-middleware. Do not turn them back into
+  // an application-server download endpoint, otherwise large files consume app bandwidth.
   return value
 }
 
