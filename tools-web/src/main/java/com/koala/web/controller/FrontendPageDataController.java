@@ -200,14 +200,16 @@ public class FrontendPageDataController {
             if (target == null || (trustedProviderMedia ? !isPublicMediaUri(target) : !isAllowedMediaUri(target))) {
                 return error(HttpStatus.FORBIDDEN, "MEDIA_HOST_NOT_ALLOWED");
             }
-            String shortKey = ShortKeyGenerator.getKey(uri.toString());
-            redisService.set(SHORT_KEY_PREFIX + shortKey, uri.toString(), TRUSTED_MEDIA_EXPIRE_SECONDS);
+            String targetUrl = target.toString();
+            String shortKey = ShortKeyGenerator.getKey(targetUrl);
+            redisService.set(SHORT_KEY_PREFIX + shortKey, targetUrl, TRUSTED_MEDIA_EXPIRE_SECONDS);
             if (trustedProviderMedia) {
                 redisService.set(TIKTOK_MEDIA_KEY_PREFIX + shortKey, "1", TRUSTED_MEDIA_EXPIRE_SECONDS);
             }
             String encodedKey = Base64Utils.encodeToUrlSafeString(shortKey.getBytes(StandardCharsets.UTF_8));
             return ResponseEntity.ok(Map.of(
-                    "url", "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=audio"
+                    "url", "/api/frontend/pages/media?key=" + encodedKey + "&mime_type=audio",
+                    "downloadUrl", "/api/frontend/pages/download?key=" + encodedKey
             ));
         } catch (Exception exception) {
             logger.warn("[frontendPageData] invalid media url={}", url);
@@ -329,6 +331,13 @@ public class FrontendPageDataController {
         URI uri = URI.create(value);
         String path = Objects.toString(uri.getPath(), "");
         if ("/short".equals(path)) {
+            String nestedKey = queryParameter(uri, "key");
+            String decodedNestedKey = decodeKey(nestedKey);
+            return StringUtils.hasText(decodedNestedKey)
+                    ? resolveMediaTarget(redisService.get(SHORT_KEY_PREFIX + decodedNestedKey), depth + 1)
+                    : null;
+        }
+        if (path.endsWith("/api/frontend/pages/media")) {
             String nestedKey = queryParameter(uri, "key");
             String decodedNestedKey = decodeKey(nestedKey);
             return StringUtils.hasText(decodedNestedKey)
@@ -465,6 +474,13 @@ public class FrontendPageDataController {
         URI uri = URI.create(value);
 
         if ("/short".equals(uri.getPath())) {
+            String nestedKey = queryParameter(uri, "key");
+            String decodedNestedKey = decodeKey(nestedKey);
+            if (!StringUtils.hasText(decodedNestedKey)) return null;
+            return resolveDownloadTarget(redisService.get(SHORT_KEY_PREFIX + decodedNestedKey), depth + 1);
+        }
+
+        if (uri.getPath() != null && uri.getPath().endsWith("/api/frontend/pages/media")) {
             String nestedKey = queryParameter(uri, "key");
             String decodedNestedKey = decodeKey(nestedKey);
             if (!StringUtils.hasText(decodedNestedKey)) return null;

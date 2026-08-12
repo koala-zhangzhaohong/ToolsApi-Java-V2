@@ -33,6 +33,13 @@ export default function MusicPlaybackPage() {
   const qualityAddressCache = useRef(new Map<NeteaseQuality, string>())
   const neteaseInfo = useMemo(() => payload?.platform === 'netease' ? neteasePlaybackInfo(payload.data) : null, [payload])
 
+  const registerSource = useCallback(async (source: string) => {
+    const absoluteSource = new URL(source, window.location.origin).toString()
+    const query = new URLSearchParams({ url: absoluteSource })
+    if (payload?.platform) query.set('platform', payload.platform)
+    return getJson<{ url?: string; downloadUrl?: string }>(`/api/frontend/pages/media-url?${query.toString()}`)
+  }, [payload?.platform])
+
   const proxySource = useCallback(async (source: string) => {
     const shortKey = (() => {
       try {
@@ -43,11 +50,15 @@ export default function MusicPlaybackPage() {
       }
     })()
     if (shortKey) return `/api/frontend/pages/media?key=${encodeURIComponent(shortKey)}&mime_type=audio`
-    const query = new URLSearchParams({ url: source })
-    if (payload?.platform) query.set('platform', payload.platform)
-    const response = await getJson<{ url?: string }>(`/api/frontend/pages/media-url?${query.toString()}`)
+    const response = await registerSource(source)
     return response.url || ''
-  }, [payload?.platform])
+  }, [registerSource])
+
+  const prepareDownload = useCallback(async (source: string) => {
+    const response = await registerSource(source)
+    if (!response.downloadUrl) throw new Error('下载线路准备失败，请重新解析后再试')
+    return response.downloadUrl
+  }, [registerSource])
 
   useEffect(() => {
     let active = true
@@ -190,6 +201,7 @@ export default function MusicPlaybackPage() {
           qualityOptions={neteaseInfo ? availableQualityOptions : undefined}
           initialQuality={neteaseInfo?.currentQuality}
           onQualityChange={neteaseInfo ? resolveQualitySource : undefined}
+          onDownload={prepareDownload}
         />
       </Space>
     </div>

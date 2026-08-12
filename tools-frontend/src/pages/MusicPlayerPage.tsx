@@ -151,9 +151,10 @@ interface MusicPlayerPageProps {
   qualityOptions?: Array<{ value: string; label: string }>
   initialQuality?: string
   onQualityChange?: (quality: string) => Promise<string>
+  onDownload?: (source: string) => Promise<string>
 }
 
-export default function MusicPlayerPage({ data, sources, sourceLabels, compact = false, qualityOptions, initialQuality, onQualityChange }: MusicPlayerPageProps) {
+export default function MusicPlayerPage({ data, sources, sourceLabels, compact = false, qualityOptions, initialQuality, onQualityChange, onDownload }: MusicPlayerPageProps) {
   const { message } = App.useApp()
   const meta = useMemo(() => musicMeta(data), [data])
   const lines = useMemo(() => parseLyrics(meta.lyric), [meta.lyric])
@@ -174,6 +175,7 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
   const [quality, setQuality] = useState(initialQuality || '')
   const [qualitySource, setQualitySource] = useState('')
   const [qualityLoading, setQualityLoading] = useState(false)
+  const [downloadLoading, setDownloadLoading] = useState(false)
   const hasQualitySelector = Boolean(qualityOptions?.length && initialQuality && onQualityChange)
   const selectedQualityIndex = hasQualitySelector
     ? Math.max(0, qualityOptions?.findIndex((option) => option.value === quality) ?? 0)
@@ -314,6 +316,26 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
     }
   }
 
+  const download = async () => {
+    if (!src || downloadLoading) return
+    setDownloadLoading(true)
+    try {
+      const url = onDownload ? await onDownload(src) : downloadSrc
+      if (!url) throw new Error('当前音质没有可下载地址')
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = ''
+      anchor.style.display = 'none'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '下载失败，请稍后重试')
+    } finally {
+      setDownloadLoading(false)
+    }
+  }
+
   return (
     <main className={`music-player-page ${compact ? 'music-player-compact' : ''}`}>
       <Card className="music-player-shell" bordered={false}>
@@ -424,7 +446,7 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
               </div>
               <Space className="music-source-actions">
                 <Button icon={<ShareAltOutlined />} onClick={() => void copyShareLink()}>分享链接</Button>
-                {downloadSrc && <Button icon={<DownloadOutlined />} href={downloadSrc}>下载</Button>}
+                {downloadSrc && <Button icon={<DownloadOutlined />} loading={downloadLoading} onClick={() => void download()}>下载</Button>}
               </Space>
             </div>}
           </Col>
