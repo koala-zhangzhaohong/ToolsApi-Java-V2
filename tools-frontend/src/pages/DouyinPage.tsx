@@ -144,7 +144,6 @@ export default function DouyinPage() {
           <Typography.Text type="secondary">快捷输入</Typography.Text>
           {douyinExamples.map((item) => <Tag key={item.label} onClick={() => setInput(item.value)}>{item.label}</Tag>)}
         </Space>
-        <Alert className="usage-alert" type="info" showIcon message="说明" description="返回链接中含 preview 的为预览线路，含 download 的为下载线路，proxy 为代理线路。内容仅供学习使用。" />
       </Card>
 
       {loading && <div className="loading-panel"><Spin size="large" /><Typography.Text type="secondary">正在解析分享内容…</Typography.Text></div>}

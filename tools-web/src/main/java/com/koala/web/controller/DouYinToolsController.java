@@ -149,31 +149,49 @@ public class DouYinToolsController {
         } else {
             return formatRespData(INVALID_LINK, null);
         }
-        // 初始化product
-        DouYinApiBuilder builder = new ConcreteDouYinApiBuilder();
-        DouYinApiManager manager = new DouYinApiManager(builder);
-        DouYinApiProduct product = null;
+        PublicTiktokDataRespModel productData = null;
+        Exception parseFailure = null;
         try {
-            // 抖音接口偶发会在短时间内返回空响应或连接异常；重试一次可避免把瞬时网络抖动直接暴露成 UNKNOWN_ERROR。
+            // 上游偶发返回空响应或不完整结构。每次使用全新的 builder，并以最终数据可生成为成功条件。
             Exception lastFailure = null;
-            for (int attempt = 1; attempt <= 2 && product == null; attempt++) {
+            for (int attempt = 1; attempt <= 3 && productData == null; attempt++) {
                 try {
-                    product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), url, version, isMobile, tiktokCookieUtil.getTiktokCookie());
+                    DouYinApiBuilder builder = new ConcreteDouYinApiBuilder();
+                    DouYinApiManager manager = new DouYinApiManager(builder);
+                    DouYinApiProduct candidate = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), url, version, isMobile, tiktokCookieUtil.getTiktokCookie());
+                    PublicTiktokDataRespModel candidateData = candidate.generateData();
+                    if (candidateData != null) {
+                        productData = candidateData;
+                    } else {
+                        logger.warn("[DouYin] parse attempt {} returned empty data", attempt);
+                    }
                 } catch (Exception exception) {
                     lastFailure = exception;
-                    if (attempt < 2) {
-                        logger.warn("[DouYin] parse attempt {} failed, retrying once: {}", attempt, exception.getMessage());
+                    if (attempt < 3) {
+                        logger.warn("[DouYin] parse attempt {} failed, retrying: {}", attempt, exception.getMessage());
                     }
                 }
             }
-            if (product == null && lastFailure != null) {
+            if (productData == null && lastFailure != null) {
                 throw lastFailure;
             }
         } catch (Exception e) {
+            parseFailure = e;
             logger.error("[DouYin] parse failed for {}", url, e);
+        }
+        if (productData == null && Objects.equals(typeId, DouYinRequestTypeEnums.SIMPLE.getTypeId())) {
+            String cachedData = redisService.get(JSON_KEY_PREFIX + ShortKeyGenerator.getKey(url));
+            if (StringUtils.hasText(cachedData)) {
+                TiktokSimpleData cachedSimpleData = GsonUtil.toBean(cachedData, TiktokSimpleData.class);
+                if (cachedSimpleData != null) {
+                    logger.warn("[DouYin] all realtime attempts failed for {}, returning the latest successful result", url);
+                    return formatRespData(GET_DATA_SUCCESS, cachedSimpleData);
+                }
+            }
+        }
+        if (productData == null && parseFailure != null) {
             return formatRespData(FAILURE, null);
         }
-        PublicTiktokDataRespModel productData = product.generateData();
         if (!Objects.isNull(productData)) {
             try {
                 switch (Objects.requireNonNull(DouYinRequestTypeEnums.getEnumsByType(type))) {
