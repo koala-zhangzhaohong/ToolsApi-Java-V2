@@ -111,9 +111,9 @@
             isLive: false,
             onready: function () {
                 console.log('[ZW player]', 'on ready');
-                if (zw && qualityList.length > 1 && typeof zw.createQualitiesMenu === 'function') {
-                    zw.createQualitiesMenu(qualityList, false);
-                }
+                window.setTimeout(function () {
+                    if (zw && qualityList.length > 1 && typeof zw.createQualitiesMenu === 'function') zw.createQualitiesMenu(qualityList, false);
+                }, 0);
             },
             onmediaevent: function (event) {
                 console.log(event)

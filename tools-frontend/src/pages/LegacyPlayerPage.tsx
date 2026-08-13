@@ -439,6 +439,11 @@ function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { so
       const managedStream = transport !== 'native'
       let playerReady = false
       beginFirstFrameLoading()
+      const refreshQualityMenu = () => player?.createQualitiesMenu?.(sources.map((source, index) => ({
+        name: qualityName(index, sources.length),
+        qualityIndex: index,
+        url: playerMediaUrl(source, transport, bypassCdn),
+      })), false)
       player = new ZWPlayer({
         playerElm: playerElementId,
         url: sources.map((source, index) => ({
@@ -462,11 +467,7 @@ function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { so
           installPlaybackStateListeners()
           // ZWPlayer may defer the quality control until a playback state event.
           // Build it explicitly so the selector is available on first render.
-          player?.createQualitiesMenu?.(sources.map((source, index) => ({
-            name: qualityName(index, sources.length),
-            qualityIndex: index,
-            url: playerMediaUrl(source, transport, bypassCdn),
-          })), false)
+          refreshQualityMenu()
           if (managedStream) scheduleAttachStream(activeSourceIndex)
         },
         onmediaevent: (event) => {
@@ -478,6 +479,10 @@ function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { so
           }
         },
       })
+      // onready can fire synchronously while the assignment above is in progress.
+      // Refresh once after construction so the control is present on first render.
+      refreshQualityMenu()
+      window.setTimeout(refreshQualityMenu, 0)
       const playerElement = document.getElementById(playerElementId)
       const removeInternalConfirmToasts = () => {
         playerElement?.querySelectorAll('.zwp-toast.zwp-confirm').forEach((toast) => toast.remove())
