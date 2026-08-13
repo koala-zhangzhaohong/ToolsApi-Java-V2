@@ -40,8 +40,9 @@ async function downloadImage(url: string) {
 }
 
 export function imagePreviewToolbar(originalNode: ReactElement, info: { image: { url: string } }) {
-  const children = originalNode.props.children as ReactNode
-  return cloneElement(originalNode, {}, [
+  const toolbarNode = originalNode as ReactElement<{ children?: ReactNode }>
+  const children = toolbarNode.props.children
+  return cloneElement(toolbarNode, {}, [
     children,
     <li
       key="download"

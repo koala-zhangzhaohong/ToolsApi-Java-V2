@@ -20,7 +20,7 @@ const NeteasePage = lazy(() => import('./pages/NeteasePage'))
 
 export default function App() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter>
       <Suspense fallback={<div className="route-loading"><Spin size="large" /></div>}>
         <Routes>
           <Route element={<AppLayout />}>
