@@ -1,8 +1,10 @@
 import type { MediaData } from '../types'
+import { normalizeCdnProxyUrl } from '../services/http'
 
 export interface DownloadRoute {
   url: string
   label: string
+  origin?: boolean
 }
 
 function content(value: unknown): value is string {
@@ -35,14 +37,24 @@ export function downloadRoutes(media: MediaData): DownloadRoute[] {
     })
   })
   if (content(media.download_path)) {
-    routes.push({ url: media.download_path, label: '回源线路 · 原画' })
+    routes.push({ url: media.download_path, label: '回源线路 · 原画', origin: true })
   }
 
   const seen = new Set<string>()
   return routes.filter(({ url }) => !seen.has(url) && Boolean(seen.add(url)))
 }
 
-export function localDownloadUrl(value: string): string {
+export function localDownloadUrl(value: string, origin = false): string {
+  value = normalizeCdnProxyUrl(value)
+  if (origin) {
+    try {
+      const url = new URL(value, window.location.origin)
+      const key = url.searchParams.get('key')
+      if (key && (url.pathname === '/short' || url.pathname === '/api/frontend/pages/download')) {
+        return `/api/frontend/pages/download?key=${encodeURIComponent(key)}&origin=true`
+      }
+    } catch { /* retain the address returned by the API */ }
+  }
   // CDN short links already point at video-middleware. Do not turn them back into
   // an application-server download endpoint, otherwise large files consume app bandwidth.
   return value

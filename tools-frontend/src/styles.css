@@ -29,6 +29,7 @@ button, input, textarea { font: inherit; }
 .app-header { position: sticky; top: 0; z-index: 15; height: 64px; display: flex; align-items: center; justify-content: flex-end; padding: 0 34px; border-bottom: 1px solid rgba(229, 231, 235, .8); backdrop-filter: blur(16px); }
 .mobile-brand, .mobile-menu-button { display: none; }
 .app-content { min-width: 0; }
+.app-footer { padding: 14px 24px 22px; color: #98a2b3; font-size: 12px; text-align: center; background: transparent; }
 .route-loading { min-height: 100vh; display: grid; place-items: center; }
 .page-container { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 64px; }
 
@@ -87,6 +88,9 @@ button, input, textarea { font: inherit; }
 .netease-result-list .ant-list-item-meta { align-items: center; min-width: 0; }
 .netease-result-list .ant-list-item-meta-title,
 .netease-result-list .ant-list-item-meta-description { min-width: 0; }
+.netease-result-title { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.netease-result-title > .ant-typography { min-width: 0; }
+.netease-duration-tag { display: none; flex: 0 0 auto; margin: 0; padding-inline: 9px; color: #667085; border: 0; border-radius: 999px; background: #f0f2f7; font-size: 12px; line-height: 22px; }
 .netease-cover { display: block; width: 58px; height: 58px; object-fit: cover; border-radius: 12px; background: #f1f3f8; }
 .netease-cover-placeholder { display: inline-grid; place-items: center; color: #d92d4f; font-size: 22px; }
 .netease-template-card .ant-card-head-title { color: #5681f4; font-size: 20px; }
@@ -222,26 +226,20 @@ button, input, textarea { font: inherit; }
 .zw-player-loading { position: absolute; z-index: 20; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: rgba(255,255,255,.9); font-size: 14px; letter-spacing: 0; pointer-events: none; visibility: hidden; opacity: 0; background: #050505; transition: opacity .18s ease, visibility .18s ease; }
 .zw-player-loading.is-visible { visibility: visible; opacity: 1; }
 .zw-player-loading-spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,.2); border-top-color: #8b7cff; border-radius: 50%; animation: zw-player-loading-spin .78s linear infinite; }
-.legacy-original-player .zwp-toast.zwp-confirm.zwp-center {
-  top: calc(50% + clamp(76px, 14vh, 112px));
-  width: max-content;
-  max-width: calc(100% - 24px) !important;
-  white-space: normal;
-}
+.zw-player-muted-hint { position: absolute; z-index: 18; left: 50%; bottom: clamp(66px, 11%, 104px); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); padding: 11px 14px; color: rgba(255,255,255,.92); white-space: nowrap; transform: translateX(-50%); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: rgba(25,27,36,.88); box-shadow: 0 10px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); }
+.zw-player-muted-hint button { appearance: none; padding: 0; color: #ff4d4f; cursor: pointer; border: 0; background: transparent; font: inherit; }
+.zw-player-muted-hint button:hover { color: #ff7875; }
+.zw-player-muted-hint .zw-player-muted-close { width: 24px; height: 24px; color: rgba(255,255,255,.72); font-size: 22px; line-height: 20px; }
 @keyframes zw-player-loading-spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
   .zw-player-loading { gap: 8px; font-size: 13px; }
   .zw-player-loading-spinner { width: 26px; height: 26px; border-width: 2px; }
-  .legacy-original-player .zwp-toast.zwp-confirm.zwp-center { top: calc(50% + clamp(70px, 12vh, 92px)); }
+  .zw-player-muted-hint { bottom: clamp(58px, 10%, 78px); gap: 6px; padding: 9px 11px; font-size: 12px; }
 }
 @media (max-height: 480px) and (orientation: landscape) {
   .zw-player-loading { gap: 6px; font-size: 12px; }
   .zw-player-loading-spinner { width: 22px; height: 22px; border-width: 2px; }
-  .legacy-original-player .zwp-toast.zwp-confirm.zwp-center {
-    top: calc(50% + 60px);
-    padding: 7px 14px !important;
-  }
-  .legacy-original-player .zwp-toast.zwp-confirm .zwp-toast-text { font-size: 12px !important; }
+  .zw-player-muted-hint { bottom: 52px; padding: 7px 10px; font-size: 11px; }
 }
 .legacy-video-bar { min-height: 62px; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 18px; color: #e5e7eb; background: rgba(18,20,27,.96); }
 .legacy-video-bar .ant-typography { color: #e5e7eb; }
@@ -268,7 +266,7 @@ button, input, textarea { font: inherit; }
 .music-player-page { width: min(1120px, 100%); }
 .music-playback-page .music-player-page { width: 100%; }
 .music-playback-loading { display: grid; min-height: 260px; place-items: center; color: #667085; }
-.music-player-shell { position: relative; overflow: hidden; min-height: 620px; color: white; border: 1px solid rgba(255,255,255,.1); border-radius: 32px; background: #111421; box-shadow: 0 32px 90px rgba(7,10,20,.36); }
+.music-player-shell { position: relative; overflow: hidden; min-height: 620px; color: white; border: 1px solid rgba(255,255,255,.1); border-radius: 32px; background: #111421; box-shadow: 0 32px 90px rgba(7,10,20,.36); container-type: inline-size; }
 .music-player-shell > .ant-card-body { position: relative; min-height: 620px; padding: clamp(28px, 5vw, 62px); }
 .music-player-background { position: absolute; inset: 0; background: radial-gradient(circle at 15% 15%, rgba(112,84,255,.3), transparent 34%), linear-gradient(135deg, #11131e, #20213b); background-position: center; background-size: cover; }
 .music-player-grid { position: relative; min-height: 500px; align-items: center; }
@@ -319,10 +317,11 @@ button, input, textarea { font: inherit; }
 .music-volume-slider { width: min(150px, 100%); margin: 0; }
 .music-playback-settings { grid-area: settings; display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 8px; }
 .music-playback-settings .ant-select { flex: 0 1 82px; width: 82px; min-width: 0; max-width: 100%; }
-.music-player-source-row { margin-top: 14px; padding: 12px 16px; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; background: rgba(255,255,255,.035); }
-.music-source-selector { display: flex; align-items: center; gap: 12px; }
+.music-player-source-row { min-width: 0; flex-wrap: wrap; margin-top: 14px; padding: 12px 16px; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; background: rgba(255,255,255,.035); }
+.music-source-selector { display: flex; min-width: 0; flex: 0 1 auto; align-items: center; gap: 12px; }
 .music-source-selector .ant-typography { color: rgba(255,255,255,.5); white-space: nowrap; }
-.music-source-selector .ant-select { min-width: 135px; }
+.music-source-selector .ant-select { min-width: 0; width: 135px; max-width: 100%; }
+.music-source-actions { display: flex; min-width: max-content; flex: 0 0 auto; flex-wrap: nowrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
 .legacy-player-embedded { display: flex; align-items: center; width: 100%; height: 100vh; min-height: 0; overflow: hidden; padding: 0; }
 .legacy-player-embedded > .legacy-video-shell { width: 100%; height: 100%; margin: 0; border-radius: 0; box-shadow: none; }
 .legacy-player-embedded > .legacy-video-shell > .ant-card-body { display: flex; flex-direction: column; height: 100%; min-height: 0; }
@@ -375,6 +374,16 @@ button, input, textarea { font: inherit; }
 .music-player-compact .music-player-grid { width: 100%; min-height: 0; }
 .music-player-compact-title.ant-typography { overflow: hidden; margin: 0 0 20px; color: white; font-size: clamp(22px, 3vw, 34px); text-overflow: ellipsis; white-space: nowrap; }
 .music-player-compact .music-waveform { margin-top: 0; }
+
+/* The player can live inside a narrow modal/workspace even when the viewport
+   is wide. Switch columns based on the player width so the record is never
+   clipped by the desktop two-column layout. */
+@container (max-width: 900px) {
+  .music-player-grid > .ant-col-md-9,
+  .music-player-grid > .ant-col-md-15 { flex: 0 0 100%; max-width: 100%; }
+  .music-player-art-column { padding-bottom: 8px; }
+  .music-player-disc { width: min(250px, 62vw); }
+}
 
 @media (max-width: 800px) {
   .music-player-controls { grid-template-columns: 1fr 1fr; grid-template-areas: "transport transport" "volume settings"; }
@@ -488,9 +497,16 @@ button, input, textarea { font: inherit; }
   .json-workbench .ant-card-body { padding: 12px; }
   .player-config .ant-radio-group { display: grid; grid-template-columns: 1fr 1fr; }
   .player-config .ant-radio-button-wrapper { text-align: center; }
-  .netease-result-list .ant-list-item { align-items: flex-start; }
-  .netease-result-list .ant-list-item-action { margin-inline-start: 0; }
-  .netease-infinite-footer { justify-items: flex-start; }
+  .netease-result-list .ant-list-item { flex-wrap: wrap; align-items: flex-start; row-gap: 10px; }
+  .netease-result-list .ant-list-item-meta { flex: 1 1 calc(100% - 74px); width: calc(100% - 74px); }
+  .netease-result-list .ant-list-item-action { display: flex; flex: 0 0 100%; flex-wrap: wrap; width: 100%; margin-inline-start: 0; padding-left: 74px; justify-content: flex-end; gap: 8px; }
+  .netease-result-list .ant-list-item-action li { padding: 0; }
+  .netease-result-list .ant-list-item-action .ant-btn { max-width: 100%; }
+  .netease-result-title { width: 100%; }
+  .netease-result-title > .ant-typography { flex: 1 1 auto; }
+  .netease-duration-tag { display: inline-flex; }
+  .netease-duration-inline { display: none; }
+  .netease-infinite-footer { width: 100%; justify-items: center; text-align: center; }
   .netease-history-list { max-height: 220px; }
   .legacy-result-header { align-items: flex-start; }
   .legacy-action-grid { grid-template-columns: 1fr; }

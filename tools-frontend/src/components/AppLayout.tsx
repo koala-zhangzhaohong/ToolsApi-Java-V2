@@ -10,11 +10,11 @@ import {
   ThunderboltFilled,
 } from '@ant-design/icons'
 import { Button, Drawer, Layout, Menu, Space, Typography } from 'antd'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { readMusicPlayback } from '../services/musicPlayback'
 
-const { Header, Content, Sider } = Layout
+const { Header, Content, Footer, Sider } = Layout
 
 const menuItems = [
   { key: '/', icon: <HomeOutlined />, label: '工作台' },
@@ -40,6 +40,15 @@ export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const [serviceInfo, setServiceInfo] = useState({ version: __APP_VERSION__, buildTime: __COMPILE_DATE__ })
+  useEffect(() => {
+    fetch('/backend/info', { headers: { Accept: 'application/json' } })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+      .then((response: { data?: { version?: string; buildTime?: string } }) => {
+        if (response.data?.version && response.data?.buildTime) setServiceInfo(response.data as { version: string; buildTime: string })
+      })
+      .catch(() => undefined)
+  }, [])
   const selected = useMemo(
     () => {
       if (/^\/tools\/DouYin\/web|^\/tools\/json\/printer\/pro/.test(location.pathname)) return '/douyin'
@@ -86,6 +95,7 @@ export default function AppLayout() {
           <Typography.Text type="secondary" className="header-note">ToolsApi Java · 独立前端</Typography.Text>
         </Header>
         <Content className="app-content"><Outlet /></Content>
+        <Footer className="app-footer">© API Service {serviceInfo.version} CP{serviceInfo.buildTime}</Footer>
       </Layout>
       <Drawer placement="left" width={260} open={drawerOpen} onClose={() => setDrawerOpen(false)} styles={{ body: { padding: 12 } }}>
         <div className="drawer-brand"><Brand /></div>

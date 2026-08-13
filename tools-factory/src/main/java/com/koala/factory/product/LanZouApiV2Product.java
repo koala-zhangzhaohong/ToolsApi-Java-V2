@@ -330,18 +330,22 @@ public class LanZouApiV2Product {
         if (fileInfo == null) {
             return null;
         }
-        if (!ObjectUtils.isEmpty(fileInfo.getRedirectUrl())) {
-            return fileInfo.getRedirectUrl();
-        }
-        if (!ObjectUtils.isEmpty(fileInfo.getDownloadUrl())) {
-            return fileInfo.getDownloadUrl();
-        }
-        if (ObjectUtils.isEmpty(fileInfo.getDownloadHost()) || ObjectUtils.isEmpty(fileInfo.getDownloadPath())) {
+        boolean hasVerificationMetadata = hasVerificationMetadata(fileInfo);
+        // Folder entries commonly expose both host/path and a downloadUrl. The latter
+        // is often only an anti-abuse HTML page, not the file. Whenever verification
+        // metadata exists, complete that flow instead of returning the page URL early.
+        if (!hasVerificationMetadata) {
+            if (!ObjectUtils.isEmpty(fileInfo.getRedirectUrl())) {
+                return decodeHtmlUrl(fileInfo.getRedirectUrl());
+            }
+            if (!ObjectUtils.isEmpty(fileInfo.getDownloadUrl())) {
+                return decodeHtmlUrl(fileInfo.getDownloadUrl());
+            }
             return null;
         }
 
-        String verificationUrl = fileInfo.getDownloadHost().replaceAll("/$", "")
-                + "/file/" + fileInfo.getDownloadPath().replaceFirst("^/", "");
+        String verificationUrl = buildVerificationUrl(fileInfo.getDownloadHost(), fileInfo.getDownloadPath());
+        if (ObjectUtils.isEmpty(verificationUrl)) return null;
         Map<String, String> headers = getDownloadVerificationHeaders(verificationUrl);
         HttpClientUtil.HttpResult verificationPage = getWithoutRedirects(verificationUrl, headers);
         String verificationCookies = cookieHeader(verificationPage.headerValues("Set-Cookie"));
@@ -357,8 +361,19 @@ public class LanZouApiV2Product {
             return resolvedUrl;
         }
 
+        // 单文件接口在部分节点会直接返回文件流（而不是验证 HTML 页面）。
+        // 这类响应没有可供解析的 file/sign 参数，应保留原始 CDN 地址交给
+        // 后续 relay 下载；否则会被误判为 UNKNOWN_ERROR。
+        String contentType = verificationPage.firstHeader("Content-Type");
+        if (verificationPage.isSuccessful() && isBinaryFileResponse(contentType, verificationPage.body())) {
+            fileInfo.setDownloadUrl(verificationUrl);
+            downloadRelayHeaders = relayHeaders(headers);
+            return verificationUrl;
+        }
+
         String directUrl = PatternUtil.matchData("<a href=\"(.*?)\" class=\"d_pclink2\">", verificationPage.body());
         if (!ObjectUtils.isEmpty(directUrl)) {
+            directUrl = resolveDownloadAddress(verificationUrl, null, directUrl);
             fileInfo.setDownloadUrl(directUrl);
             downloadRelayHeaders = Map.copyOf(headers);
             return directUrl;
@@ -404,13 +419,74 @@ public class LanZouApiV2Product {
             return null;
         }
 
-        String resolvedUrl = resolved.getDownloadPath();
-        if (!resolvedUrl.startsWith("http://") && !resolvedUrl.startsWith("https://")) {
-            resolvedUrl = origin + "/" + resolvedUrl.replaceFirst("^/", "");
-        }
+        String resolvedUrl = resolveDownloadAddress(origin, resolved.getDownloadHost(), resolved.getDownloadPath());
         fileInfo.setDownloadUrl(resolvedUrl);
         downloadRelayHeaders = relayHeaders(headers);
         return resolvedUrl;
+    }
+
+    private static boolean isBinaryFileResponse(String contentType, String body) {
+        if (contentType == null || contentType.isBlank()) return false;
+        String normalized = contentType.toLowerCase(Locale.ROOT);
+        if (normalized.contains("text/") || normalized.contains("html")
+                || normalized.contains("json") || normalized.contains("xml")
+                || normalized.contains("javascript") || normalized.contains("urlencoded")) {
+            return false;
+        }
+        String trimmed = body == null ? "" : body.trim().toLowerCase(Locale.ROOT);
+        return !(trimmed.startsWith("{") || trimmed.startsWith("[")
+                || trimmed.contains("error") || trimmed.contains("not found")
+                || trimmed.contains("过期") || trimmed.contains("不存在"));
+    }
+
+    static boolean hasVerificationMetadata(FileInfoModel fileInfo) {
+        return fileInfo != null && !ObjectUtils.isEmpty(fileInfo.getDownloadHost())
+                && !ObjectUtils.isEmpty(fileInfo.getDownloadPath());
+    }
+
+    static String buildVerificationUrl(String downloadHost, String downloadPath) {
+        if (ObjectUtils.isEmpty(downloadHost) || ObjectUtils.isEmpty(downloadPath)) return null;
+        String host = decodeHtmlUrl(downloadHost.trim());
+        String path = decodeHtmlUrl(downloadPath.trim());
+        URI hostUri = URI.create(host);
+
+        // Folder item pages already expose a host ending in /file/ and a query-only
+        // token. Adding another /file/ produces /file/file/?token and a 404/403.
+        if (path.startsWith("?")) {
+            String hostPath = Objects.toString(hostUri.getPath(), "");
+            String base;
+            if (hostPath.endsWith("/file") || hostPath.endsWith("/file/")) {
+                base = host.endsWith("/") ? host : host + "/";
+            } else {
+                base = host.replaceAll("/+$", "") + "/file/";
+            }
+            return URI.create(base + path).toString();
+        }
+        String hostPath = Objects.toString(hostUri.getPath(), "");
+        if (hostPath.endsWith("/file") || hostPath.endsWith("/file/")) {
+            return resolveDownloadAddress(host, host, path);
+        }
+        String base = host.replaceAll("/+$", "") + "/file/";
+        return URI.create(base).resolve(path.replaceFirst("^/", "")).toString();
+    }
+
+    static String resolveDownloadAddress(String baseUrl, String downloadHost, String downloadPath) {
+        if (ObjectUtils.isEmpty(downloadPath)) return null;
+        String path = decodeHtmlUrl(downloadPath.trim());
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
+
+        boolean hasDownloadHost = !ObjectUtils.isEmpty(downloadHost);
+        String base = hasDownloadHost ? decodeHtmlUrl(downloadHost.trim()) : baseUrl;
+        if (ObjectUtils.isEmpty(base)) return null;
+        URI baseUri = URI.create(base);
+        if (hasDownloadHost && !base.endsWith("/")) {
+            baseUri = URI.create(base + "/");
+        }
+        return baseUri.resolve(hasDownloadHost ? path.replaceFirst("^/", "") : path).toString();
+    }
+
+    private static String decodeHtmlUrl(String value) {
+        return value.replace("&amp;", "&").replace("&#38;", "&");
     }
 
     public Map<String, String> getDownloadRelayHeaders() {

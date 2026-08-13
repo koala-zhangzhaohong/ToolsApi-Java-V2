@@ -135,9 +135,16 @@ function resultId(item: JsonRecord, type: KugouSearchType) {
 }
 
 function resultUrl(item: JsonRecord, type: KugouSearchType) {
-  const id = resultId(item, type)
-  if (!id) return ''
-  return type === 'mv' ? `https://www.kugou.com/mv/${id}/` : `https://www.kugou.com/mixsong/${id}.html`
+  if (type === 'mv') {
+    const id = resultId(item, type)
+    return id ? `https://www.kugou.com/mv/${id}/` : ''
+  }
+  const hash = resultHash(item, type)
+  if (!hash) return ''
+  const albumId = resultAlbumId(item)
+  const params = new URLSearchParams({ hash })
+  if (albumId) params.set('album_id', albumId)
+  return `https://www.kugou.com/song/#${params.toString()}`
 }
 
 interface KugouHistoryCardProps {

@@ -113,6 +113,7 @@ public final class HttpClientUtil {
     private static final Timeout RESPONSE_TIMEOUT = Timeout.ofMinutes(3);
     private static final Timeout POOL_TIMEOUT = Timeout.ofSeconds(30);
     private static final int STREAM_BUFFER_SIZE = 64 * 1024;
+    private static final long DEFAULT_RELAY_RANGE_WINDOW = 512L * 1024;
 
     private static final PoolingHttpClientConnectionManager CONNECTION_MANAGER =
             PoolingHttpClientConnectionManagerBuilder.create()
@@ -440,8 +441,20 @@ public final class HttpClientUtil {
                                Map<String, String> responseHeaders,
                                HttpServletRequest request,
                                HttpServletResponse response) throws IOException, URISyntaxException {
+        doRelay(url, headers, params, successCode, responseHeaders, request, response,
+                DEFAULT_RELAY_RANGE_WINDOW);
+    }
+
+    public static void doRelay(String url,
+                               Map<String, String> headers,
+                               Map<String, ?> params,
+                               Integer successCode,
+                               Map<String, String> responseHeaders,
+                               HttpServletRequest request,
+                               HttpServletResponse response,
+                               Long maxOpenRangeBytes) throws IOException, URISyntaxException {
         HttpUriRequestBase upstreamRequest = request(
-                "GET", buildUri(url, params), relayHeaders(headers, request), TimeoutMode.NONE, true, false);
+                "GET", buildUri(url, params), relayHeaders(headers, request, maxOpenRangeBytes), TimeoutMode.NONE, true, false);
 
         CLIENT.execute(upstreamRequest, upstream -> {
             HttpEntity entity = upstream.getEntity();
@@ -473,8 +486,18 @@ public final class HttpClientUtil {
                 int length;
                 while ((length = inputStream.read(buffer)) != -1) {
                     outputStream.write(buffer, 0, length);
+                    // Force the servlet container to touch the client socket for every
+                    // streamed chunk. Without this flush a cancelled segmented download
+                    // can remain hidden behind response buffering while the server keeps
+                    // draining the CDN response and wasting bandwidth.
+                    outputStream.flush();
                 }
-                outputStream.flush();
+            } catch (IOException | RuntimeException disconnected) {
+                // Cancelling the Apache request closes the upstream CDN connection at
+                // once. Do not consume the remaining entity after the downstream client
+                // has paused/cancelled the transfer.
+                upstreamRequest.cancel();
+                throw disconnected;
             }
             return null;
         });
@@ -606,7 +629,11 @@ public final class HttpClientUtil {
                 .setRedirectsEnabled(followRedirects)
                 .setContentCompressionEnabled(contentCompression);
         if (timeoutMode == TimeoutMode.NONE) {
-            builder.setConnectionRequestTimeout(Timeout.DISABLED).setResponseTimeout(Timeout.DISABLED);
+            // Timeout.DISABLED is represented as zero for connection-pool leasing in
+            // HttpClient 5, which makes concurrent Range requests fail immediately
+            // with ConnectionRequestTimeoutException. Streaming responses may have
+            // no read deadline, but they must still wait for an available connection.
+            builder.setConnectionRequestTimeout(POOL_TIMEOUT).setResponseTimeout(Timeout.DISABLED);
         } else {
             builder.setConnectionRequestTimeout(POOL_TIMEOUT).setResponseTimeout(RESPONSE_TIMEOUT);
         }
@@ -638,10 +665,25 @@ public final class HttpClientUtil {
     }
 
     private static Map<String, String> relayHeaders(Map<String, String> configured, HttpServletRequest request) {
+        return relayHeaders(configured, request, null);
+    }
+
+    private static Map<String, String> relayHeaders(Map<String, String> configured,
+                                                     HttpServletRequest request,
+                                                     Long maxOpenRangeBytes) {
         Map<String, String> headers = new LinkedHashMap<>();
         if (!ObjectUtils.isEmpty(configured)) headers.putAll(configured);
         String range = request.getHeader("Range");
         if (!ObjectUtils.isEmpty(range)) {
+            if (maxOpenRangeBytes != null && maxOpenRangeBytes > 0) {
+                java.util.regex.Matcher openRange = java.util.regex.Pattern
+                        .compile("^bytes=(\\d+)-$").matcher(range.trim());
+                if (openRange.matches()) {
+                    long start = Long.parseLong(openRange.group(1));
+                    long limitedEnd = Math.addExact(start, maxOpenRangeBytes - 1);
+                    range = "bytes=" + start + "-" + limitedEnd;
+                }
+            }
             headers.put("Range", range);
             // Compressed transfer coding makes byte offsets ambiguous and breaks chunk merging.
             headers.put("Accept-Encoding", "identity");

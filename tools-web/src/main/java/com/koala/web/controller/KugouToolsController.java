@@ -295,12 +295,10 @@ public class KugouToolsController {
                 if (Objects.isNull(respData) || respData.getUrl().isEmpty()) {
                     return;
                 }
-                StringBuilder cdnHostPrefix = new StringBuilder(hostManager.getCdnHost());
-                cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                 String url = CdnServiceGenerator.getCdnService(
                         respData.getUrl().getFirst(),
                         hostManager.getHost(),
-                        cdnHostPrefix.toString(),
+                        hostManager.getCdnHost(),
                         true,
                         null,
                         null,

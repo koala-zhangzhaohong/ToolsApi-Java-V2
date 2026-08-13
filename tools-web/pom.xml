@@ -81,6 +81,11 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -94,6 +99,12 @@
                     <layout>ZIP</layout>
                 </configuration>
                 <executions>
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <goals>
                             <goal>repackage</goal><!--可以把依赖的包都打包到生成的Jar包中-->

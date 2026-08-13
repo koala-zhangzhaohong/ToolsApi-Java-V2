@@ -129,7 +129,7 @@ public class DouYinToolsController {
     public void previewLiveStream(@RequestParam String path, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         String url = new String(Base64Utils.decodeFromUrlSafeString(path));
         logger.info("[previewLive] inputUrl: {}, Sec-Fetch-Dest: {}", url, request.getHeader("Sec-Fetch-Dest"));
-        cdnResourceProxyService.redirect(response, cdnResourceProxyService.mediaUrl(url, null));
+        cdnResourceProxyService.redirect(response, url);
     }
 
     @HttpRequestRecorder

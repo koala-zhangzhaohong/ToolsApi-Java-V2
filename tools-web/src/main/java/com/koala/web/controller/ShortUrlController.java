@@ -5,6 +5,7 @@ import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.ShortKeyGenerator;
 import com.koala.web.HostManager;
+import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -42,6 +43,9 @@ public class ShortUrlController {
     @Resource
     private HostManager hostManager;
 
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
+
     @HttpRequestRecorder
     @CrossOrigin(origins = "*")
     @GetMapping("/short")
@@ -56,7 +60,7 @@ public class ShortUrlController {
                         return "404/index";
                     }
                     logger.info("[shortUrl] itemKey: {}, url: {}, Sec-Fetch-Dest: {}", itemKey, url, request.getHeader("Sec-Fetch-Dest"));
-                    response.sendRedirect(url);
+                    response.sendRedirect(cdnResourceProxyService.normalizePublicCdnUrl(url));
                     return null;
                 }
             } catch (Exception e) {

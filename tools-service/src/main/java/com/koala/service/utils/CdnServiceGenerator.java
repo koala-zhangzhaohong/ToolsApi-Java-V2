@@ -19,13 +19,13 @@ public class CdnServiceGenerator {
 
     public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Boolean isDownload, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
         String inputHost = getRegHost(url);
-        if (inputHost == null || cdnHost == null) {
+        if (inputHost == null || isBlank(cdnHost)) {
             logger.info("[cdnService] generate failed, url: {}, cdnHost: {}", url, cdnHost);
             return null;
         }
         String inputPath = url.substring(inputHost.length());
         StringBuilder cdnPath = new StringBuilder();
-        String normalizedCdnHost = cdnHost.replaceAll("/+$", "");
+        String normalizedCdnHost = cdnHost.trim().replaceAll("/+$", "");
         if (!env.equals("test")) {
             if (Boolean.TRUE.equals(isHttps)) {
                 cdnPath.append(normalizedCdnHost.replaceFirst("^http://", "https://"));
@@ -37,9 +37,9 @@ public class CdnServiceGenerator {
                 }
             }
             cdnPath.append("/");
-            if (Boolean.TRUE.equals(isHttps)) {
-                cdnPath.append("proxy/");
-            }
+            // video-middleware is published by Traefik under /proxy; Traefik strips
+            // this prefix before forwarding /doProxy to the Node service.
+            cdnPath.append("proxy/");
         } else {
             cdnPath.append("http://127.0.0.1:3000").append("/");
         }
@@ -49,7 +49,7 @@ public class CdnServiceGenerator {
             hasParam = true;
             cdnPath.append("addReferer=").append(addReferer);
         }
-        if (referer != null) {
+        if (!isBlank(referer)) {
             if (hasParam) {
                 cdnPath.append("&");
             } else {
@@ -57,7 +57,7 @@ public class CdnServiceGenerator {
             }
             cdnPath.append("referer=").append(URLEncoder.encode(referer, StandardCharsets.UTF_8));
         }
-        if (fileName != null) {
+        if (!isBlank(fileName)) {
             if (hasParam) {
                 cdnPath.append("&");
             } else {
@@ -65,7 +65,7 @@ public class CdnServiceGenerator {
             }
             cdnPath.append("fileName=").append(URLEncoder.encode(fileName, StandardCharsets.UTF_8));
         }
-        if (extension != null) {
+        if (!isBlank(extension)) {
             if (hasParam) {
                 cdnPath.append("&");
             } else {
@@ -105,10 +105,18 @@ public class CdnServiceGenerator {
         }
         logger.info("[cdnService] generate success: {}", cdnPath);
         if (Boolean.TRUE.equals(toShortUrl)) {
+            if (isBlank(host) || redisService == null) {
+                logger.info("[cdnService] generate short url failed, host or redis service is unavailable");
+                return null;
+            }
             return ShortKeyGenerator.generateShortUrl(cdnPath.toString(), EXPIRE_TIME, host, redisService).getUrl();
         } else {
             return cdnPath.toString();
         }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     public static String getRegHost(String url) {

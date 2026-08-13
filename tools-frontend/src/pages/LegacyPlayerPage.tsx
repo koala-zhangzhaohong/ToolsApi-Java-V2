@@ -4,7 +4,7 @@ import flvjs from 'flv.js'
 import Hls, { ErrorTypes, Events } from 'hls.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { getJson } from '../services/http'
+import { getJson, normalizeCdnProxyUrl } from '../services/http'
 import type { JsonRecord, PlayerPageData } from '../types'
 import { attachManagedFlv } from '../utils/flvPlayback'
 import { decodeUrlSafeBase64, firstNonEmpty } from '../utils/query'
@@ -30,6 +30,9 @@ interface ZwPlayerConstructor {
     controlbar: boolean
     autoplay: boolean
     isLive: boolean
+    hideBigPlayButton?: boolean
+    muted?: boolean
+    disableMutedConfirm?: boolean
     onready?: () => void
     onmediaevent?: (event: Event) => void
   }): ZwPlayerInstance
@@ -159,17 +162,34 @@ async function kugouMusicSources(data: PlayerPageData) {
   return resolved.flat().filter(Boolean)
 }
 
-function proxiedMediaUrl(src: string) {
-  return src
+function proxiedMediaUrl(src: string, bypassCdn: boolean) {
+  const normalized = normalizeCdnProxyUrl(src)
+  try {
+    const url = new URL(normalized, window.location.origin)
+    const key = url.searchParams.get('key')
+    // "Origin" selects the provider's original quality/source. It must still go
+    // through our media endpoint because provider CDNs require relay headers and
+    // do not consistently allow direct browser playback/CORS.
+    if (key && url.pathname === '/short') {
+      const origin = bypassCdn ? '&origin=true' : ''
+      return `/api/frontend/pages/media?key=${encodeURIComponent(key)}${origin}`
+    }
+    if (url.origin === window.location.origin && url.pathname === '/api/frontend/pages/media') return `${url.pathname}${url.search}`
+    if (bypassCdn) return normalized
+    return normalized
+  } catch {
+    return normalized
+  }
 }
 
-function playerMediaUrl(src: string, transport: VideoTransport) {
-  const proxied = proxiedMediaUrl(src)
+function playerMediaUrl(src: string, transport: VideoTransport, bypassCdn: boolean) {
+  const proxied = proxiedMediaUrl(src, bypassCdn)
   if (transport === 'native') return proxied
   try {
     const url = new URL(proxied, window.location.origin)
+    if (url.origin !== window.location.origin) return url.toString()
     url.searchParams.set('mime_type', `video_${transport}`)
-    return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.toString()
+    return `${url.pathname}${url.search}`
   } catch {
     return proxied
   }
@@ -182,7 +202,16 @@ function qualityName(index: number, total: number) {
 }
 
 const liveWatchdogInterval = 5_000
-const liveStallTimeout = 15_000
+const liveStallTimeout = 30_000
+
+function bufferedAhead(video: HTMLVideoElement) {
+  for (let index = 0; index < video.buffered.length; index += 1) {
+    if (video.buffered.start(index) <= video.currentTime + 0.1 && video.buffered.end(index) >= video.currentTime) {
+      return video.buffered.end(index) - video.currentTime
+    }
+  }
+  return 0
+}
 
 function attachManagedHls(
   video: HTMLVideoElement,
@@ -193,12 +222,14 @@ function attachManagedHls(
   onRecreate: () => void,
 ) {
   const stream = new Hls({
-    lowLatencyMode: live,
+    lowLatencyMode: false,
     liveDurationInfinity: live,
-    liveSyncDurationCount: 3,
-    liveMaxLatencyDurationCount: 8,
-    backBufferLength: live ? 30 : 90,
-    maxBufferLength: live ? 30 : 60,
+    liveSyncDurationCount: 5,
+    liveMaxLatencyDurationCount: 12,
+    backBufferLength: live ? 45 : 90,
+    maxBufferLength: live ? 60 : 60,
+    maxMaxBufferLength: live ? 90 : 600,
+    maxBufferHole: 0.5,
     manifestLoadingMaxRetry: 6,
     manifestLoadingRetryDelay: 1_000,
     manifestLoadingMaxRetryTimeout: 12_000,
@@ -217,7 +248,7 @@ function attachManagedHls(
   const resumeLive = () => {
     if (disposed) return
     const liveEdge = stream.liveSyncPosition
-    if (live && typeof liveEdge === 'number' && Number.isFinite(liveEdge) && liveEdge > video.currentTime + 1) {
+    if (live && typeof liveEdge === 'number' && Number.isFinite(liveEdge) && liveEdge > video.currentTime + 15) {
       video.currentTime = liveEdge
     }
     stream.startLoad(-1)
@@ -259,9 +290,12 @@ function attachManagedHls(
         lastProgressAt = Date.now()
         return
       }
+      if (bufferedAhead(video) > 0.75) {
+        void video.play().catch(() => undefined)
+        return
+      }
       if (Date.now() - lastProgressAt < liveStallTimeout) return
       onError('直播流已停滞，正在追赶最新画面')
-      stream.stopLoad()
       resumeLive()
       lastPlaybackTime = video.currentTime
       lastProgressAt = Date.now()
@@ -275,9 +309,10 @@ function attachManagedHls(
   }
 }
 
-function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { sources: string[]; live: boolean; transport: VideoTransport; useCdnProxy: boolean; onError: (message: string) => void }) {
+function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { sources: string[]; live: boolean; transport: VideoTransport; bypassCdn: boolean; onError: (message: string) => void }) {
   const elementId = useRef(`zw-player-${Math.random().toString(36).slice(2)}`)
   const [playerLoading, setPlayerLoading] = useState(true)
+  const [showMutedHint, setShowMutedHint] = useState(false)
   useEffect(() => {
     const playerElementId = elementId.current
     let disposed = false
@@ -286,15 +321,90 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
     let streamTimer: number | undefined
     let activeSourceIndex = sources.length > 1 ? 1 : 0
     let removeQualityListener: (() => void) | undefined
+    let removeToastObserver: (() => void) | undefined
+    let removePlaybackStateListeners: (() => void) | undefined
     let firstFramePending = true
+    let firstFrameRendered = false
+    let mediaBuffering = true
+    const syncControlbarPlayButton = (video: HTMLVideoElement) => {
+      const playerElement = document.getElementById(playerElementId)
+      const playing = !video.paused && !video.ended
+      playerElement?.classList.toggle('zwp-playing', playing)
+      playerElement?.classList.toggle('zwp-pause', !playing)
+      const playButton = playerElement?.querySelector<HTMLElement>('.zwp-playbtn')
+      playButton?.setAttribute('data-action', playing ? 'pause' : 'play')
+      playButton?.setAttribute('aria-label', playing ? '暂停' : '播放')
+      playButton?.setAttribute('title', playing ? '暂停' : '播放')
+    }
+    const syncBigPlayButton = () => {
+      const playerElement = document.getElementById(playerElementId)
+      const video = playerElement?.querySelector('video')
+      const shouldShow = Boolean(video?.paused && !firstFramePending && !mediaBuffering)
+      playerElement?.querySelectorAll<HTMLElement>('.zwp__overlay-play, .zwp__overlay-button').forEach((element) => {
+        element.style.setProperty('display', shouldShow ? 'flex' : 'none', 'important')
+      })
+    }
+    const installPlaybackStateListeners = () => {
+      const video = document.getElementById(playerElementId)?.querySelector('video')
+      if (!video) return
+      const setBuffering = () => {
+        mediaBuffering = true
+        syncBigPlayButton()
+      }
+      const setReady = () => {
+        mediaBuffering = false
+        syncBigPlayButton()
+      }
+      const hideWhilePlaying = () => {
+        mediaBuffering = false
+        syncControlbarPlayButton(video)
+        syncBigPlayButton()
+      }
+      const showWhenPaused = () => {
+        syncControlbarPlayButton(video)
+        syncBigPlayButton()
+      }
+      const bufferingEvents = ['loadstart', 'waiting', 'stalled', 'seeking'] as const
+      const readyEvents = ['loadeddata', 'canplay', 'canplaythrough', 'seeked'] as const
+      const playingEvents = ['play', 'playing', 'timeupdate'] as const
+      bufferingEvents.forEach((event) => video.addEventListener(event, setBuffering))
+      readyEvents.forEach((event) => video.addEventListener(event, setReady))
+      playingEvents.forEach((event) => video.addEventListener(event, hideWhilePlaying))
+      video.addEventListener('pause', showWhenPaused)
+      video.addEventListener('ended', showWhenPaused)
+      syncControlbarPlayButton(video)
+      syncBigPlayButton()
+      removePlaybackStateListeners = () => {
+        bufferingEvents.forEach((event) => video.removeEventListener(event, setBuffering))
+        readyEvents.forEach((event) => video.removeEventListener(event, setReady))
+        playingEvents.forEach((event) => video.removeEventListener(event, hideWhilePlaying))
+        video.removeEventListener('pause', showWhenPaused)
+        video.removeEventListener('ended', showWhenPaused)
+      }
+    }
     const beginFirstFrameLoading = () => {
+      if (firstFrameRendered) return
       firstFramePending = true
+      mediaBuffering = true
       setPlayerLoading(true)
+      syncBigPlayButton()
     }
     const finishFirstFrameLoading = () => {
       if (!firstFramePending) return
       firstFramePending = false
+      firstFrameRendered = true
+      mediaBuffering = false
       setPlayerLoading(false)
+      syncBigPlayButton()
+      const video = document.getElementById(playerElementId)?.querySelector('video')
+      if (live && video?.muted) setShowMutedHint(true)
+    }
+    const scheduleAttachStream = (sourceIndex = activeSourceIndex, delay = 0) => {
+      window.clearTimeout(streamTimer)
+      streamTimer = window.setTimeout(() => {
+        if (disposed) return
+        attachStream(sourceIndex)
+      }, delay)
     }
     const attachStream = (sourceIndex = activeSourceIndex) => {
       activeSourceIndex = sourceIndex
@@ -303,7 +413,7 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
       if (!video || transport === 'native') return
       beginFirstFrameLoading()
       const selectedSource = sources[activeSourceIndex]
-      const playbackUrl = playerMediaUrl(selectedSource, transport)
+      const playbackUrl = playerMediaUrl(selectedSource, transport, bypassCdn)
       if (transport === 'flv' && flvjs.isSupported()) {
         streamCleanup = attachManagedFlv({
           video,
@@ -312,27 +422,27 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
           onReady: finishFirstFrameLoading,
           onStatus: onError,
           onReconnect: () => {
-            window.clearTimeout(streamTimer)
-            streamTimer = window.setTimeout(() => attachStream(activeSourceIndex), 500)
+            scheduleAttachStream(activeSourceIndex, 500)
           },
         })
       } else if (transport === 'hls' && Hls.isSupported()) {
         video.removeAttribute('src')
         video.load()
         streamCleanup = attachManagedHls(video, playbackUrl, live, onError, finishFirstFrameLoading, () => {
-          window.clearTimeout(streamTimer)
-          streamTimer = window.setTimeout(() => attachStream(activeSourceIndex), 500)
+          scheduleAttachStream(activeSourceIndex, 500)
         })
       }
     }
     loadZwPlayer().then((ZWPlayer) => {
       if (disposed) return
+      const managedStream = transport !== 'native'
+      let playerReady = false
       beginFirstFrameLoading()
       player = new ZWPlayer({
         playerElm: playerElementId,
         url: sources.map((source, index) => ({
           name: qualityName(index, sources.length),
-          url: playerMediaUrl(source, transport),
+          url: playerMediaUrl(source, transport, bypassCdn),
           type: transport === 'native' ? undefined : 'mp4',
           default: index === (sources.length > 1 ? 1 : 0),
         })),
@@ -340,45 +450,55 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
         optionButton: true,
         snapshotButton: true,
         controlbar: true,
-        autoplay: true,
+        autoplay: !managedStream,
         isLive: live,
-        onready: () => onError(''),
+        hideBigPlayButton: false,
+        muted: live,
+        disableMutedConfirm: true,
+        onready: () => {
+          playerReady = true
+          onError('')
+          installPlaybackStateListeners()
+          if (managedStream) scheduleAttachStream(activeSourceIndex)
+        },
         onmediaevent: (event) => {
           if (['loadeddata', 'canplay', 'playing', 'timeupdate'].includes(event.type)) finishFirstFrameLoading()
-          if (['pause', 'ended'].includes(event.type)) setPlayerLoading(false)
-          if (event.type === 'error') {
+          if (firstFrameRendered && ['pause', 'ended'].includes(event.type)) setPlayerLoading(false)
+          if (event.type === 'error' && !managedStream) {
             setPlayerLoading(false)
-            onError('媒体播放失败，正在重新连接')
-            if (transport !== 'native') {
-              window.clearTimeout(streamTimer)
-              streamTimer = window.setTimeout(attachStream, 500)
-            }
+            onError('媒体地址不可播放，链接可能已经过期')
           }
         },
       })
       const playerElement = document.getElementById(playerElementId)
+      const removeInternalConfirmToasts = () => {
+        playerElement?.querySelectorAll('.zwp-toast.zwp-confirm').forEach((toast) => toast.remove())
+      }
+      const toastObserver = new MutationObserver(removeInternalConfirmToasts)
+      if (playerElement) {
+        removeInternalConfirmToasts()
+        toastObserver.observe(playerElement, { childList: true, subtree: true })
+      }
+      removeToastObserver = () => toastObserver.disconnect()
       const handleQualityClick = (event: MouseEvent) => {
         const target = event.target as HTMLElement | null
         if (target?.closest('.zwp-playbtn')) {
           const video = playerElement?.querySelector('video')
-          const shouldPlay = Boolean(video?.paused)
-          window.setTimeout(() => {
-            if (!video) return
-            if (shouldPlay) void video.play().catch(() => undefined)
-            else video.pause()
-          })
+          if (!video) return
+          event.preventDefault()
+          event.stopPropagation()
+          if (video.paused || video.ended) void video.play().catch(() => undefined)
+          else video.pause()
           return
         }
         const label = target?.closest('li,button,div')?.textContent?.trim()
         const sourceIndex = sources.findIndex((_, index) => qualityName(index, sources.length) === label)
-        if (sourceIndex < 0 || sourceIndex === activeSourceIndex) return
-        beginFirstFrameLoading()
-        window.clearTimeout(streamTimer)
-        streamTimer = window.setTimeout(() => attachStream(sourceIndex), 300)
+        if (!managedStream || sourceIndex < 0 || sourceIndex === activeSourceIndex) return
+        scheduleAttachStream(sourceIndex, 300)
       }
       playerElement?.addEventListener('click', handleQualityClick, true)
       removeQualityListener = () => playerElement?.removeEventListener('click', handleQualityClick, true)
-      streamTimer = window.setTimeout(attachStream, 500)
+      if (managedStream && !playerReady) scheduleAttachStream(activeSourceIndex, 500)
     }).catch((reason) => {
       setPlayerLoading(false)
       onError(reason instanceof Error ? reason.message : '播放器加载失败')
@@ -388,28 +508,44 @@ function OriginalZwPlayer({ sources, live, transport, useCdnProxy, onError }: { 
       window.clearTimeout(streamTimer)
       streamCleanup?.()
       removeQualityListener?.()
+      removeToastObserver?.()
+      removePlaybackStateListeners?.()
       try {
         player?.pause?.()
         player?.destroy()
       } catch { /* player may already be disposed internally */ }
       document.getElementById(playerElementId)?.replaceChildren()
     }
-  }, [live, onError, sources, transport, useCdnProxy])
+  }, [bypassCdn, live, onError, sources, transport])
+  const enableSound = () => {
+    const video = document.getElementById(elementId.current)?.querySelector('video')
+    if (video) {
+      video.muted = false
+      if (video.volume === 0) video.volume = 1
+      void video.play().catch(() => undefined)
+    }
+    setShowMutedHint(false)
+  }
   return <div className="legacy-original-player-stage">
     <div id={elementId.current} className="zw-video-player-custom legacy-original-player" />
     <div className={`zw-player-loading ${playerLoading ? 'is-visible' : ''}`} role="status" aria-live="polite" aria-label="播放器加载中">
       <span className="zw-player-loading-spinner" />
       <span>正在加载画面</span>
     </div>
+    {showMutedHint && !playerLoading && <div className="zw-player-muted-hint" role="status">
+      <span>因浏览器限制，已静音播放</span>
+      <button type="button" onClick={enableSound}>打开声音</button>
+      <button type="button" className="zw-player-muted-close" aria-label="关闭静音提示" onClick={() => setShowMutedHint(false)}>×</button>
+    </div>}
   </div>
 }
 
-function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: string; live: boolean; transport: VideoTransport; useCdnProxy: boolean; onError: (message: string) => void }) {
+function NativeVideo({ src, live, transport, bypassCdn, onError }: { src: string; live: boolean; transport: VideoTransport; bypassCdn: boolean; onError: (message: string) => void }) {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     const video = ref.current
     if (!video || !src) return
-    const playbackUrl = playerMediaUrl(src, transport)
+    const playbackUrl = playerMediaUrl(src, transport, bypassCdn)
     const useHls = transport === 'hls' || /\.m3u8(?:\?|$)/i.test(src) || /mime_type=video_hls/i.test(playbackUrl)
     const useFlv = transport === 'flv' || /\.flv(?:\?|$)/i.test(src) || /mime_type=video_flv/i.test(playbackUrl)
     if (useHls && Hls.isSupported()) {
@@ -437,7 +573,7 @@ function NativeVideo({ src, live, transport, useCdnProxy, onError }: { src: stri
     }
     video.src = playbackUrl
     video.load()
-  }, [src, live, transport, useCdnProxy, onError])
+  }, [bypassCdn, src, live, transport, onError])
   return <video ref={ref} controls playsInline webkit-playsinline="true" x5-playsinline="true" autoPlay={live} muted={live} preload="metadata" className="legacy-media-video" onCanPlay={() => onError('')} onError={() => onError('媒体地址不可播放，链接可能已经过期')} />
 }
 
@@ -515,7 +651,10 @@ export default function LegacyPlayerPage() {
       : version === '1' ? 'videojs' : version === '2' ? 'plyr' : version === '3' ? 'dplayer' : 'zwplayer'
     : info.media === 'live' ? (version === '1' ? 'flvjs' : version === '2' ? 'dplayer' : 'zwplayer') : version === '2' ? 'h5' : 'plyr'
   const useCdnProxy = info.platform === 'douyin' && info.media === 'video' && proxyVideoSources(data, params).length > 0
-  const musicSources = useMemo(() => sources.map((source) => proxiedMediaUrl(source)), [sources])
+  // `origin=true` selects the provider's original-quality source; it must not
+  // bypass the CDN relay because Douyin origin hosts reject direct browser access.
+  const bypassCdn = info.media === 'live'
+  const musicSources = useMemo(() => sources.map((source) => proxiedMediaUrl(source, bypassCdn)), [bypassCdn, sources])
 
   const platformLabel = info.platform === 'douyin' ? '抖音' : info.platform === 'netease' ? '网易云' : '酷狗'
   const mediaLabel = { video: '视频', live: '直播', music: '音乐', picture: '图片' }[info.media]
@@ -525,6 +664,6 @@ export default function LegacyPlayerPage() {
 
   return <main className={`legacy-player-page legacy-player-${variant} ${embedded ? 'legacy-player-embedded' : ''}`}>
     {!embedded && <Card className="legacy-player-meta" size="small" bordered={false}><Space wrap><Tag color="purple">{platformLabel}</Tag><Tag>{mediaLabel}</Tag><Tag>{variant.toUpperCase()}</Tag>{routeLabel && <Tag color={useCdnProxy ? 'blue' : 'orange'}>{routeLabel}</Tag>}{info.media === 'live' && <Badge status={sources.length ? 'processing' : 'default'} text={sources.length ? '直播线路' : '等待线路'} />}</Space></Card>}
-    {loading ? <Card className="legacy-player-message" bordered={false}><Spin size="large" tip="正在载入媒体数据"><div className="legacy-search-spin" /></Spin></Card> : error ? <Card className="legacy-player-message" bordered={false}><Result status="error" title="媒体数据加载失败" subTitle={error} extra={<Space><Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>重新加载</Button><Button type="text" className="legacy-back-button legacy-back-button-result" icon={<ArrowLeftOutlined />} href="/">返回首页</Button></Space>} /></Card> : !sources.length ? <Card className="legacy-player-message" bordered={false}><Result status="warning" title={info.media === 'live' ? '直播暂不可用' : '媒体链接不可用'} subTitle={info.media === 'live' ? '直播可能已经结束，或者播放地址已经过期。' : '媒体数据可能已过期，请返回解析页面重新获取。'} extra={<Button type="primary" icon={<HomeOutlined />} href="/douyin">重新解析</Button>} /></Card> : info.media === 'music' ? <MusicPlayerPage data={data} sources={musicSources} compact={embedded} /> : info.media === 'picture' ? <Card className="legacy-picture" bordered={false} bodyStyle={{ padding: 0 }}><Carousel arrows dots>{sources.map((src) => <div key={src}><Image preview src={src} /></div>)}</Carousel><div className="picture-caption"><PictureOutlined /> {title}</div></Card> : <Card className="legacy-video-shell" bordered={false} bodyStyle={{ padding: 0 }}>{playbackError && <Alert banner closable type="warning" message={playbackError} onClose={() => setPlaybackError('')} />}{variant === 'zwplayer' ? <OriginalZwPlayer sources={sources} live={info.media === 'live'} transport={transport} useCdnProxy={useCdnProxy} onError={setPlaybackError} /> : <><NativeVideo src={sources[active]} live={info.media === 'live'} transport={transport} useCdnProxy={useCdnProxy} onError={setPlaybackError} /><div className="legacy-video-bar"><Space><Badge status={info.media === 'live' ? 'processing' : 'success'} /><Typography.Text>{info.media === 'live' ? 'LIVE' : variant.toUpperCase()} · {title}</Typography.Text></Space>{sources.length > 1 && <Select value={active} onChange={(value) => { setActive(value); setPlaybackError('') }} options={sources.map((_, index) => ({ value: index, label: `线路 ${index + 1}` }))} />}</div></>}</Card>}
+    {loading ? <Card className="legacy-player-message" bordered={false}><Spin size="large" tip="正在载入媒体数据"><div className="legacy-search-spin" /></Spin></Card> : error ? <Card className="legacy-player-message" bordered={false}><Result status="error" title="媒体数据加载失败" subTitle={error} extra={<Space><Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>重新加载</Button><Button type="text" className="legacy-back-button legacy-back-button-result" icon={<ArrowLeftOutlined />} href="/">返回首页</Button></Space>} /></Card> : !sources.length ? <Card className="legacy-player-message" bordered={false}><Result status="warning" title={info.media === 'live' ? '直播暂不可用' : '媒体链接不可用'} subTitle={info.media === 'live' ? '直播可能已经结束，或者播放地址已经过期。' : '媒体数据可能已过期，请返回解析页面重新获取。'} extra={<Button type="primary" icon={<HomeOutlined />} href="/douyin">重新解析</Button>} /></Card> : info.media === 'music' ? <MusicPlayerPage data={data} sources={musicSources} compact={embedded} /> : info.media === 'picture' ? <Card className="legacy-picture" bordered={false} bodyStyle={{ padding: 0 }}><Carousel arrows dots>{sources.map((src) => <div key={src}><Image preview src={src} /></div>)}</Carousel><div className="picture-caption"><PictureOutlined /> {title}</div></Card> : <Card className="legacy-video-shell" bordered={false} bodyStyle={{ padding: 0 }}>{playbackError && <Alert banner closable type="warning" message={playbackError} onClose={() => setPlaybackError('')} />}{variant === 'zwplayer' ? <OriginalZwPlayer sources={sources} live={info.media === 'live'} transport={transport} bypassCdn={bypassCdn} onError={setPlaybackError} /> : <><NativeVideo src={sources[active]} live={info.media === 'live'} transport={transport} bypassCdn={bypassCdn} onError={setPlaybackError} /><div className="legacy-video-bar"><Space><Badge status={info.media === 'live' ? 'processing' : 'success'} /><Typography.Text>{info.media === 'live' ? 'LIVE' : variant.toUpperCase()} · {title}</Typography.Text></Space>{sources.length > 1 && <Select value={active} onChange={(value) => { setActive(value); setPlaybackError('') }} options={sources.map((_, index) => ({ value: index, label: `线路 ${index + 1}` }))} />}</div></>}</Card>}
   </main>
 }

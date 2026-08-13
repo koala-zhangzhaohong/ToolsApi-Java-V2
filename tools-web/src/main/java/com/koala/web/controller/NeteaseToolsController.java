@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 
 import static com.koala.base.enums.NeteaseResponseEnums.*;
@@ -250,10 +251,48 @@ public class NeteaseToolsController {
             HashMap<String, Object> result = new HashMap<>();
             result.put("page", page);
             result.put("limit", limit);
-            result.put("response", GsonUtil.toBean(response, Object.class));
+            Object searchResponse = GsonUtil.toBean(response, Object.class);
+            enrichNeteaseCoverUrls(searchResponse);
+            result.put("response", searchResponse);
             return formatRespData(GET_DATA_SUCCESS, result);
         }
         return formatRespData(GET_INFO_ERROR, null);
+    }
+
+    private void enrichNeteaseCoverUrls(Object value) {
+        if (value instanceof Map<?, ?> rawMap) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) rawMap;
+            Object picId = map.get("picId");
+            if (picId != null && !StringUtils.hasText(Objects.toString(map.get("picUrl"), null))) {
+                String id = picId instanceof Number number
+                        ? Long.toString(number.longValue())
+                        : picId.toString();
+                if (StringUtils.hasText(id)) map.put("picUrl", neteaseCoverUrl(id));
+            }
+            map.values().forEach(this::enrichNeteaseCoverUrls);
+        } else if (value instanceof Collection<?> collection) {
+            collection.forEach(this::enrichNeteaseCoverUrls);
+        }
+    }
+
+    private String neteaseCoverUrl(String picId) {
+        try {
+            byte[] id = picId.getBytes(StandardCharsets.UTF_8);
+            byte[] magic = "3go8&$8*3*3h0k(2)2".getBytes(StandardCharsets.UTF_8);
+            byte[] encrypted = new byte[id.length];
+            for (int index = 0; index < id.length; index++) {
+                encrypted[index] = (byte) (id[index] ^ magic[index % magic.length]);
+            }
+            String key = Base64.getEncoder().encodeToString(
+                    MessageDigest.getInstance("MD5").digest(encrypted))
+                    .replace('/', '_')
+                    .replace('+', '-');
+            return "https://p3.music.126.net/" + key + "/" + picId + ".jpg?param=160y160";
+        } catch (Exception exception) {
+            logger.warn("[search] failed to generate cover url for picId={}", picId, exception);
+            return "";
+        }
     }
 
     @HttpRequestRecorder

@@ -12,22 +12,26 @@ import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HeaderUtil;
+import com.koala.service.utils.HttpClientUtil;
 import com.koala.service.utils.ShortKeyGenerator;
 import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Map;
@@ -116,8 +120,8 @@ public class LanZouToolsController {
                                 cdnResourceProxyService.downloadUrl(
                                         downloadUrl,
                                         relayReferer(product.getDownloadRelayHeaders()),
-                                        downloadFile.getFileName(),
-                                        null));
+                                        downloadFileName(downloadFile.getFileName()),
+                                        downloadExtension(downloadFile.getFileName())));
                         return null;
                     case INFO:
                         return formatRespData(LanZouResponseEnums.GET_FILE_SUCCESS, fileInfo);
@@ -189,8 +193,37 @@ public class LanZouToolsController {
             // entrances share the same expiry and can be inspected consistently.
             redisService.set(SHORT_KEY_PREFIX + key, targetUrl, DOWNLOAD_EXPIRE_SECONDS);
             String encodedKey = Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8));
+            String cdnDownloadUrl = cdnResourceProxyService.downloadUrl(
+                    withUpstreamFileName(targetUrl, target.fileName()),
+                    relayReferer(target.headers()),
+                    target.fileName(),
+                    null);
+            if (ObjectUtils.isEmpty(cdnDownloadUrl)) {
+                return formatRespData(LanZouResponseEnums.FAILURE, null);
+            }
+            // The Lanzou origin occasionally closes large folder-item responses before
+            // sending the body. Relay the already resolved CDN URL through our named
+            // endpoint instead, while retaining the real filename in Content-Disposition.
+            LanZouDownloadTarget relayTarget = new LanZouDownloadTarget(
+                    cdnDownloadUrl, target.fileName(), Map.of());
+            redisService.set(LANZOU_DOWNLOAD_KEY_PREFIX + key,
+                    GsonUtil.toString(relayTarget), DOWNLOAD_EXPIRE_SECONDS);
+            // Always use the same-origin named relay. The public CDN honors Range,
+            // but its upstream Content-Disposition can override our fileName query
+            // for folder items. The relay stores the CDN as its data source and only
+            // replaces Content-Disposition with the parsed Lanzou filename.
+            // Folder downloads go directly to the CDN. This is the only reliable way
+            // to make a third-party download manager's Pause/Cancel stop traffic
+            // immediately: the Java application is no longer in the data path.
+            // Both single-file and folder-item downloads must leave the application
+            // data path. Java only resolves and signs the target; CDN handles bytes,
+            // Range requests, pause, resume and cancellation.
+            String publicDownloadUrl = cdnDownloadUrl;
             return formatRespData(LanZouResponseEnums.GET_FILE_SUCCESS,
-                    Map.of("downloadUrl", "/tools/LanZou/download?key=" + encodedKey));
+                    Map.of(
+                            "downloadUrl", publicDownloadUrl,
+                            "cdnDownloadUrl", cdnDownloadUrl,
+                            "fallbackDownloadUrl", "/tools/LanZou/download?key=" + encodedKey));
         } catch (Exception exception) {
             logger.error("LanZou download registration failed: url={}, fileName={}", url, fileName, exception);
             return formatRespData(LanZouResponseEnums.FAILURE, null);
@@ -213,16 +246,44 @@ public class LanZouToolsController {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }
-            cdnResourceProxyService.redirect(response,
-                    cdnResourceProxyService.downloadUrl(
-                            target.url(),
-                            relayReferer(target.headers()),
-                            Optional.ofNullable(target.fileName()).filter(name -> !name.isBlank())
-                                    .orElse("lanzou-download"),
-                            null));
+            String actualName = Optional.ofNullable(target.fileName()).map(String::trim)
+                    .filter(name -> !name.isBlank()).orElse("lanzou-download");
+            String encodedName = URLEncoder.encode(actualName, StandardCharsets.UTF_8).replace("+", "%20");
+            Map<String, String> responseHeaders = Map.of(
+                    "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName,
+                    "X-Content-Type-Options", "nosniff");
+            HttpClientUtil.doRelay(target.url(), target.headers(), null, null,
+                    responseHeaders, request, response, 512L * 1024);
         } catch (Exception exception) {
             logger.error("LanZou registered download failed: key={}", decodedKey, exception);
             if (!response.isCommitted()) response.setStatus(HttpServletResponse.SC_BAD_GATEWAY);
+        }
+    }
+
+    @GetMapping("download-file/{fileName:.+}")
+    public void redirectNamedDownload(@PathVariable String fileName,
+                                      @RequestParam String key,
+                                      HttpServletRequest request,
+                                      HttpServletResponse response) throws IOException {
+        String decodedKey = new String(Base64Utils.decodeFromUrlSafeString(key), StandardCharsets.UTF_8);
+        String stored = redisService.get(LANZOU_DOWNLOAD_KEY_PREFIX + decodedKey);
+        LanZouDownloadTarget target = GsonUtil.toBean(stored, LanZouDownloadTarget.class);
+        if (target == null || !isHttpUrl(target.url())) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        String actualName = Optional.ofNullable(target.fileName()).map(String::trim)
+                .filter(name -> !name.isBlank()).orElse(fileName);
+        String encodedName = URLEncoder.encode(actualName, StandardCharsets.UTF_8).replace("+", "%20");
+        Map<String, String> responseHeaders = Map.of(
+                "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName,
+                "X-Content-Type-Options", "nosniff",
+                "Cache-Control", "no-store");
+        try {
+            HttpClientUtil.doRelay(target.url(), target.headers(), null, null,
+                    responseHeaders, request, response, 512L * 1024);
+        } catch (URISyntaxException exception) {
+            if (!response.isCommitted()) response.sendError(HttpServletResponse.SC_BAD_GATEWAY);
         }
     }
 
@@ -233,6 +294,36 @@ public class LanZouToolsController {
 
     private String relayReferer(Map<String, String> headers) {
         return headers == null ? null : headers.get("Referer");
+    }
+
+    private String withUpstreamFileName(String url, String fileName) throws URISyntaxException {
+        if (!org.springframework.util.StringUtils.hasText(fileName)) return url;
+        // Lanzou's final storage URL already contains a fileName query parameter and
+        // uses it for Content-Disposition. Replace that value before handing the URL
+        // to the CDN, otherwise the origin overrides the proxy's requested filename.
+        return new URIBuilder(url).setParameter("fileName", fileName.trim()).build().toString();
+    }
+
+    private String encodedPathSegment(String fileName) {
+        String actualName = Optional.ofNullable(fileName).map(String::trim)
+                .filter(name -> !name.isBlank()).orElse("lanzou-download");
+        return URLEncoder.encode(actualName, StandardCharsets.UTF_8).replace("+", "%20")
+                .replace("%2F", "_").replace("%5C", "_");
+    }
+
+    private String downloadFileName(String fullName) {
+        String safeName = Optional.ofNullable(fullName).map(String::trim)
+                .filter(name -> !name.isBlank()).orElse("lanzou-download");
+        int separator = safeName.lastIndexOf('.');
+        return separator > 0 ? safeName.substring(0, separator) : safeName;
+    }
+
+    private String downloadExtension(String fullName) {
+        if (fullName == null) return null;
+        String safeName = fullName.trim();
+        int separator = safeName.lastIndexOf('.');
+        return separator > 0 && separator < safeName.length() - 1
+                ? safeName.substring(separator + 1) : null;
     }
 
     private FileInfoModel selectDownloadFile(Object info, String fileName) {

@@ -134,7 +134,7 @@ function resultTitle(item: JsonRecord, type: NeteaseSearchType) {
 }
 
 function resultDescription(item: JsonRecord, type: NeteaseSearchType) {
-  if (type === '1' || type === '1006') return [songArtists(item), itemAlbum(item), formatDuration(item.duration || item.dt)].filter(Boolean).join(' · ')
+  if (type === '1' || type === '1006') return [songArtists(item), itemAlbum(item)].filter(Boolean).join(' · ')
   if (type === '1000') {
     const creator = record(item.creator)
     return [`创建者：${text(creator?.nickname, '未知')}`, `歌曲：${idText(item.trackCount) || 0}`].join(' · ')
@@ -282,6 +282,9 @@ function NeteaseSearchTemplate({
                 const id = idText(item.id)
                 const cover = resultCover(item, type)
                 const external = resultUrl(item, type)
+                const duration = type === '1' || type === '1006'
+                  ? formatDuration(item.duration || item.dt)
+                  : ''
                 return (
                   <List.Item
                     actions={[
@@ -292,8 +295,8 @@ function NeteaseSearchTemplate({
                   >
                     <List.Item.Meta
                       avatar={cover ? <img className="netease-cover" src={cover} alt="" loading="lazy" decoding="async" /> : <span className="netease-cover netease-cover-placeholder"><CustomerServiceOutlined /></span>}
-                      title={<Typography.Text strong>{resultTitle(item, type)}</Typography.Text>}
-                      description={<Space direction="vertical" size={3}><Typography.Text type="secondary">{resultDescription(item, type)}</Typography.Text>{id && <Typography.Text type="secondary">ID：{id}</Typography.Text>}</Space>}
+                      title={<div className="netease-result-title"><Typography.Text strong ellipsis>{resultTitle(item, type)}</Typography.Text>{duration && <Tag className="netease-duration-tag">{duration}</Tag>}</div>}
+                      description={<Space direction="vertical" size={3}><Typography.Text type="secondary">{resultDescription(item, type)}{duration && <span className="netease-duration-inline"> · {duration}</span>}</Typography.Text>{id && <Typography.Text type="secondary">ID：{id}</Typography.Text>}</Space>}
                     />
                   </List.Item>
                 )

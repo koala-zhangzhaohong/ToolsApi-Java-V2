@@ -22,7 +22,7 @@ class HeaderUtilTest {
     @Test
     void usesTargetOriginForUnknownMediaMiddleware() {
         Map<String, String> headers = HeaderUtil.getMediaRelayHeader(
-                "https://media.example.test:8443/proxy/doProxy?path=%2Fvideo.mp4", "empty");
+                "https://media.example.test:8443/doProxy?path=%2Fvideo.mp4", "empty");
 
         assertEquals("https://media.example.test:8443", headers.get("Origin"));
         assertEquals("https://media.example.test:8443/", headers.get("Referer"));

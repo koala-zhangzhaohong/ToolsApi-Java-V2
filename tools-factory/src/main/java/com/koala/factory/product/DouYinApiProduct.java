@@ -258,7 +258,7 @@ public class DouYinApiProduct {
                         if (this.version.equals(4)) {
                             String key = ShortKeyGenerator.getKey(null);
                             String title = this.roomInfoData.getData().getData().get(0).getOwner().getNickname() + "的直播间";
-                            String link = ShortKeyGenerator.generateShortUrl(this.roomInfoData.getData().getData().get(0).getStreamUrl().getFlvPullUrl().getFullHd1().replaceFirst("http://", "https://"), EXPIRE_TIME, host, redisService).getUrl();
+                            String link = this.roomInfoData.getData().getData().get(0).getStreamUrl().getFlvPullUrl().getFullHd1();
                             PullUrlModel flvPullUrl = null;
                             PullUrlModel hlsPullUrl = null;
                             try {
@@ -288,10 +288,10 @@ public class DouYinApiProduct {
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePathBackup(host + "tools/DouYin/pro/player/live/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&type=flv");
                         } else if (this.version.equals(3)) {
                             String title = this.roomInfoData.getData().getData().get(0).getOwner().getNickname() + "的直播间";
-                            String link = this.roomInfoData.getData().getData().get(0).getStreamUrl().getFlvPullUrl().getFullHd1().replaceFirst("http://", "https://");
+                            String link = this.roomInfoData.getData().getData().get(0).getStreamUrl().getFlvPullUrl().getFullHd1();
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePath(host + "tools/DouYin/pro/player/live?" + (StringUtils.hasLength(title) && !"的直播间".equals(title) ? "title=" + Base64Utils.encodeToUrlSafeString(title.getBytes(StandardCharsets.UTF_8)) + "&" : "") + "path=" + Base64Utils.encodeToUrlSafeString(link.getBytes(StandardCharsets.UTF_8)));
                         } else if (this.version.equals(2)) {
-                            String link = this.roomInfoData.getData().getData().get(0).getStreamUrl().getFlvPullUrl().getFullHd1().replaceFirst("http://", "https://");
+                            String link = this.roomInfoData.getData().getData().get(0).getStreamUrl().getFlvPullUrl().getFullHd1();
                             this.roomInfoData.getData().getData().get(0).getStreamUrl().setMockPreviewLivePath(host + "tools/DouYin/preview/liveStream?path=" + Base64Utils.encodeToUrlSafeString(link.getBytes(StandardCharsets.UTF_8)));
                         }
                     }
@@ -325,9 +325,6 @@ public class DouYinApiProduct {
                             }
                             ArrayList<MultiVideoQualityInfoModel> proxyMultiVideoQualityInfoList = new ArrayList<>();
                             ArrayList<MultiVideoQualityInfoModel> mockProxyMultiVideoDownloadInfoList = new ArrayList<>();
-                            // cdn Host 去除 /
-                            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
-                            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                             // 取出三个里最多的那一个
                             Integer maxIndex = getVidMaxIndex(playAddr, playAddr265, playAddrH264);
                             for (int i = 0; i < DouyinMiddlewareServerEnums.values().length; i++) {
@@ -412,8 +409,6 @@ public class DouYinApiProduct {
 
     private String reformatPath(String path, Boolean isDownload) {
         try {
-            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
-            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
 //            DouyinMiddlewareServerEnums middlewareServerEnum = DouyinMiddlewareServerEnums.getDouyinMiddlewareServerEnumsByUrl(path);
 //            if (middlewareServerEnum != null) {
 //                if (middlewareServerEnum.getIsGateWay() == true) {
@@ -428,7 +423,7 @@ public class DouYinApiProduct {
             return CdnServiceGenerator.getCdnService(
                     path,
                     host,
-                    cdnHostPrefix.toString(),
+                    cdnHost,
                     true,
                     null,
                     null,
@@ -521,10 +516,7 @@ public class DouYinApiProduct {
     }
 
     private String getPullUrl(String input) {
-        if (StringUtils.hasLength(input)) {
-            return ShortKeyGenerator.generateShortUrl(input.replaceFirst("http://", "https://"), EXPIRE_TIME, host, redisService).getUrl();
-        }
-        return null;
+        return StringUtils.hasLength(input) ? input : null;
     }
 
     private String getBase64(String input) {

@@ -1,5 +1,5 @@
 import type { JsonRecord } from '../types'
-import { getJson } from './http'
+import { getJson, HttpError } from './http'
 
 export interface LanzouFileInfo extends JsonRecord {
   file_name?: string
@@ -67,7 +67,17 @@ export async function prepareLanzouDownload(url: string, password: string, file?
   metadata.forEach(([key, value]) => {
     if (typeof value === 'string' && value.trim()) params.set(key, value.trim())
   })
-  const response = await getJson<LanzouDownloadResponse>(`/tools/LanZou/download-url?${params.toString()}`)
+  let response: LanzouDownloadResponse
+  try {
+    response = await getJson<LanzouDownloadResponse>(`/tools/LanZou/download-url?${params.toString()}`)
+  } catch (reason) {
+    // Some deployed API nodes still expose only the original type=download route.
+    // It can serve a single shared file directly, but cannot select an item in a folder.
+    if (!folder && reason instanceof HttpError && reason.status === 404) {
+      return lanzouApiPath(url, password, 'download')
+    }
+    throw reason
+  }
   const downloadUrl = response.data?.downloadUrl
   if (response.code !== 200 || !downloadUrl) {
     throw new Error(response.message || '下载地址生成失败，请重新解析后重试。')

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.TimeZone;
 
 @Slf4j
@@ -34,7 +37,12 @@ public class ToolsWebApplication {
         ConfigurableApplicationContext application = SpringApplication.run(ToolsWebApplication.class, args);
         Environment env = application.getEnvironment();
         String version = env.getProperty("spring.application.version");
-        String buildTime = env.getProperty("spring.application.build.time");
+        BuildProperties buildProperties = application.getBeanProvider(BuildProperties.class).getIfAvailable();
+        String buildTime = buildProperties == null || buildProperties.getTime() == null
+                ? ""
+                : DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+                        .withZone(ZoneId.systemDefault())
+                        .format(buildProperties.getTime());
         String ip = env.getProperty("server.real.address");
         String port = env.getProperty("server.port");
         String realPort = env.getProperty("server.real.port");

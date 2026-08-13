@@ -41,7 +41,13 @@ function ResultLinks({ result }: { result: DouyinResult }) {
   const previews = useMemo(() => {
     const values = [
       ...(Array.isArray(media.proxy_preview_path) ? media.proxy_preview_path : []),
-      media.preview_path,
+      media.preview_path ? (() => {
+        try {
+          const url = new URL(media.preview_path, window.location.origin)
+          url.searchParams.set('origin', 'true')
+          return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.toString()
+        } catch { return media.preview_path }
+      })() : undefined,
       media.preview_path_hls,
       media.preview_path_flv,
     ]
@@ -54,13 +60,15 @@ function ResultLinks({ result }: { result: DouyinResult }) {
     ...(rank.rank_list_special || []).filter(content).map((url, index) => ({ url, label: specialRankRouteLabel(url, index) })),
   ]
 
-  const downloadButton = ({ url, label }: (typeof downloads)[number]) => {
-    const href = localDownloadUrl(url)
+  const downloadButton = ({ url, label, origin }: (typeof downloads)[number]) => {
+    const href = localDownloadUrl(url, origin)
     return (
       <Button
         key={url}
         href={href}
-        {...(isLocalDownloadProxy(href) ? { target: 'media-download-frame' } : { download: true })}
+        {...(isLocalDownloadProxy(href)
+          ? { target: '_blank', rel: 'noopener noreferrer' }
+          : { download: true })}
         icon={<CloudDownloadOutlined />}
       >
         {label}
@@ -91,7 +99,6 @@ function ResultLinks({ result }: { result: DouyinResult }) {
           )}
         </Card>
       </Col>
-      <iframe name="media-download-frame" title="下载" hidden />
     </Row>
   )
 }

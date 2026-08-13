@@ -53,6 +53,16 @@ function frontendUrl(value: string): string {
   }
 }
 
+function originPreviewUrl(value: string): string {
+  try {
+    const url = new URL(frontendUrl(value), window.location.origin)
+    url.searchParams.set('origin', 'true')
+    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : url.toString()
+  } catch {
+    return value
+  }
+}
+
 function applePreviewUrl(value: string) {
   if (!isAppleMobileBrowser()) return frontendUrl(value)
   try {
@@ -259,7 +269,7 @@ export default function LegacyResultPage() {
   const rank = useMemo(() => data?.rank_data || {}, [data])
   const previews = useMemo(() => unique([
     ...getUrls(media.proxy_preview_path),
-    ...getUrls(media.preview_path),
+    ...getUrls(media.preview_path).map(originPreviewUrl),
     ...getUrls(media.preview_path_hls),
     ...getUrls(media.preview_path_flv),
   ]).sort((first, second) => {
@@ -285,13 +295,15 @@ export default function LegacyResultPage() {
     return Array.isArray(list) ? list : []
   }, [data])
 
-  const downloadButton = ({ url, label }: (typeof downloads)[number]) => {
-    const href = localDownloadUrl(url)
+  const downloadButton = ({ url, label, origin }: (typeof downloads)[number]) => {
+    const href = localDownloadUrl(url, origin)
     return (
       <Button
         key={url}
         href={href}
-        {...(isLocalDownloadProxy(href) ? { target: 'media-download-frame' } : { download: true })}
+        {...(isLocalDownloadProxy(href)
+          ? { target: '_blank', rel: 'noopener noreferrer' }
+          : { download: true })}
         icon={<CloudDownloadOutlined />}
       >
         {label}
@@ -330,7 +342,6 @@ export default function LegacyResultPage() {
           <Typography.Text type="secondary" className="legacy-disclaimer">* 仅供学习使用，禁止用于商业用途</Typography.Text>
         </Space>
       )}
-      <iframe name="media-download-frame" title="下载" hidden />
     </div>
   )
 }

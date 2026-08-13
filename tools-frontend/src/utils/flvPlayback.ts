@@ -1,7 +1,16 @@
 import flvjs from 'flv.js'
 
 const watchdogInterval = 5_000
-const stallTimeout = 15_000
+const stallTimeout = 30_000
+
+function bufferedAhead(video: HTMLVideoElement) {
+  for (let index = 0; index < video.buffered.length; index += 1) {
+    if (video.buffered.start(index) <= video.currentTime + 0.1 && video.buffered.end(index) >= video.currentTime) {
+      return video.buffered.end(index) - video.currentTime
+    }
+  }
+  return 0
+}
 
 interface ManagedFlvOptions {
   video: HTMLVideoElement
@@ -17,7 +26,7 @@ export function attachManagedFlv({ video, url, live, onReady, onStatus, onReconn
     { type: 'flv', isLive: live, url },
     {
       enableStashBuffer: true,
-      stashInitialSize: live ? 128 * 1024 : 384 * 1024,
+      stashInitialSize: live ? 512 * 1024 : 384 * 1024,
       lazyLoad: !live,
       autoCleanupSourceBuffer: live,
       autoCleanupMaxBackwardDuration: 60,
@@ -73,6 +82,10 @@ export function attachManagedFlv({ video, url, live, onReady, onStatus, onReconn
       if (video.currentTime > lastPlaybackTime + 0.1) {
         lastPlaybackTime = video.currentTime
         lastProgressAt = Date.now()
+        return
+      }
+      if (bufferedAhead(video) > 0.75) {
+        void video.play().catch(() => undefined)
         return
       }
       if (Date.now() - lastProgressAt >= stallTimeout) {

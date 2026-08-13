@@ -34,14 +34,6 @@ restore_profile() {
 }
 trap restore_profile EXIT
 
-BUILD_TIME="$(date '+%Y%m%d%H%M%S')"
-echo "更新 Docker 配置 spring.application.build.time=${BUILD_TIME}"
-if grep -q '^spring\.application\.build\.time=' "${APP_DOCKER_PROPERTIES}"; then
-  perl -0pi -e "s/^spring\\.application\\.build\\.time=.*/spring.application.build.time=${BUILD_TIME}/m" "${APP_DOCKER_PROPERTIES}"
-else
-  printf '\nspring.application.build.time=%s\n' "${BUILD_TIME}" >> "${APP_DOCKER_PROPERTIES}"
-fi
-
 echo "切换 Spring profile 为 docker（脚本结束后自动恢复）"
 perl -0pi -e 's/^spring\.profiles\.active=.*/spring.profiles.active=docker/m' "${APP_PROPERTIES}"
 

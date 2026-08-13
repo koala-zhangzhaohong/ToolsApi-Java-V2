@@ -403,6 +403,7 @@ public class FrontendPageDataController {
      */
     @GetMapping("download")
     public void download(@RequestParam String key,
+                         @RequestParam(required = false, defaultValue = "false") boolean origin,
                          HttpServletRequest servletRequest,
                          HttpServletResponse servletResponse) {
         String decodedKey = decodeKey(key);
@@ -421,7 +422,13 @@ public class FrontendPageDataController {
                 mediaError(servletResponse, HttpStatus.FORBIDDEN, "DOWNLOAD_HOST_NOT_ALLOWED");
                 return;
             }
-            String targetUrl = target.uri().getPath() != null && target.uri().getPath().endsWith("/doProxy")
+            String targetUrl = origin
+                    ? cdnResourceProxyService.downloadUrl(
+                            originDownloadUrl(target),
+                            null,
+                            safeDownloadName(target.fileName(), decodedKey),
+                            null)
+                    : target.uri().getPath() != null && target.uri().getPath().endsWith("/doProxy")
                     ? target.uri().toString()
                     : cdnResourceProxyService.downloadUrl(
                             target.uri().toString(),
@@ -435,6 +442,18 @@ public class FrontendPageDataController {
                 mediaError(servletResponse, HttpStatus.BAD_GATEWAY, "DOWNLOAD_PROXY_ERROR");
             }
         }
+    }
+
+    private String originDownloadUrl(DownloadTarget target) throws URISyntaxException {
+        URI uri = target.uri();
+        if (uri.getPath() != null && uri.getPath().endsWith("/doProxy")) {
+            String host = queryParameter(uri, "host");
+            String path = queryParameter(uri, "path");
+            if (StringUtils.hasText(host) && StringUtils.hasText(path)) {
+                return URI.create(host + path).toString();
+            }
+        }
+        return uri.toString();
     }
 
     private DownloadTarget resolveDownloadTarget(String value, int depth) throws URISyntaxException {
