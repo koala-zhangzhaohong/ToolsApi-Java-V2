@@ -18,6 +18,7 @@ interface ZwPlayerInstance {
   paused?: boolean
   pause?: () => void
   destroy: () => void
+  createQualitiesMenu?: (qualities: Array<Record<string, unknown>>, includeAuto?: boolean) => void
 }
 
 interface ZwPlayerConstructor {
@@ -459,6 +460,13 @@ function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { so
           playerReady = true
           onError('')
           installPlaybackStateListeners()
+          // ZWPlayer may defer the quality control until a playback state event.
+          // Build it explicitly so the selector is available on first render.
+          player?.createQualitiesMenu?.(sources.map((source, index) => ({
+            name: qualityName(index, sources.length),
+            qualityIndex: index,
+            url: playerMediaUrl(source, transport, bypassCdn),
+          })), false)
           if (managedStream) scheduleAttachStream(activeSourceIndex)
         },
         onmediaevent: (event) => {

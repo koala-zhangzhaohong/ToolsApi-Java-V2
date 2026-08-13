@@ -99,6 +99,9 @@
             isLive: false,
             onready: function () {
                 console.log('[ZW player]', 'on ready');
+                if (zw && qualityList.length > 1 && typeof zw.createQualitiesMenu === 'function') {
+                    zw.createQualitiesMenu(qualityList, false);
+                }
             },
             onmediaevent: function (event) {
                 console.log(event)
