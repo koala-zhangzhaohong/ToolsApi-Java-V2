@@ -58,6 +58,7 @@ public class KugouToolsController {
     private static final Logger logger = LoggerFactory.getLogger(KugouToolsController.class);
 
     private final static Long EXPIRE_TIME = 12 * 60 * 60L;
+    private static final int MAX_PARSE_ATTEMPTS = 3;
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -132,13 +133,24 @@ public class KugouToolsController {
                 "true".equals(musicInfo),
                 "true".equals(lyricInfo)
         );
-        KugouApiBuilder builder = new ConcreteKugouApiBuilder();
-        KugouApiManager manager = new KugouApiManager(builder);
         KugouApiProduct product = null;
-        try {
-            product = manager.construct(redisService, hostManager.getHost(), url, hash, albumId, version, customParams, config);
-        } catch (Exception e) {
-            e.printStackTrace();
+        Exception lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_PARSE_ATTEMPTS && product == null; attempt++) {
+            try {
+                KugouApiBuilder builder = new ConcreteKugouApiBuilder();
+                KugouApiManager manager = new KugouApiManager(builder);
+                product = manager.construct(redisService, hostManager.getHost(), url, hash, albumId, version, customParams, config);
+            } catch (Exception exception) {
+                lastFailure = exception;
+                if (attempt < MAX_PARSE_ATTEMPTS) {
+                    logger.warn("[Kugou] parse attempt {}/{} failed for hash={}, albumId={}, retrying: {}",
+                            attempt, MAX_PARSE_ATTEMPTS, hash, albumId, exception.getMessage());
+                }
+            }
+        }
+        if (product == null) {
+            logger.error("[Kugou] parse failed after {} attempts for hash={}, albumId={}",
+                    MAX_PARSE_ATTEMPTS, hash, albumId, lastFailure);
             return formatRespData(FAILURE, null);
         }
         KugouMusicDataRespModel<?> publicData = product.generateItemInfoRespData();

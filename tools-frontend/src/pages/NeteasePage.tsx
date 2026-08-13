@@ -19,6 +19,7 @@ import { collectNeteasePlaybackSources, saveMusicPlayback } from '../services/mu
 import { resetNeteaseCookie, resolveNeteaseMusic, resolveNeteaseMv, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
 import type { JsonRecord } from '../types'
 import { legacyPreviewRoute } from '../utils/legacyPreview'
+import { readMusicSearchState, saveMusicSearchState } from '../utils/musicSearchState'
 
 const historyKey = 'tools-frontend:netease-search-history'
 const historyChangedEvent = 'tools-frontend:netease-search-history-change'
@@ -107,6 +108,11 @@ function recordList(value: unknown): JsonRecord[] {
   }) : []
 }
 
+function isUnavailableNeteaseSong(item: JsonRecord) {
+  const privilege = record(item.privilege)
+  return typeof privilege?.st === 'number' && privilege.st < 0
+}
+
 function names(value: unknown) {
   return recordList(value).map((item) => text(item.name)).filter(Boolean).join(' / ')
 }
@@ -190,6 +196,7 @@ interface SearchTemplateProps {
   onSelectHistoryItem: (value: string) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
+  restoredRowCount: number
 }
 
 interface NeteaseHistoryCardProps {
@@ -253,8 +260,9 @@ function NeteaseSearchTemplate({
   onSelectHistoryItem,
   onSearchHistoryItem,
   onClearHistory,
+  restoredRowCount,
 }: SearchTemplateProps) {
-  const { visibleRows, sentinelRef, hasHiddenRows } = useProgressiveRows(rows, hasMore, onLoadMore)
+  const { visibleRows, sentinelRef, hasHiddenRows } = useProgressiveRows(rows, hasMore, onLoadMore, restoredRowCount)
   const footerText = hasHiddenRows
     ? `已显示 ${visibleRows.length} / ${rows.length} 条，继续向下滚动显示更多`
     : hasMore ? '继续向下滚动以加载更多内容' : `已加载全部 ${rows.length} 条结果`
@@ -318,18 +326,20 @@ function NeteaseSearchTemplate({
 export default function NeteasePage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
-  const [keyword, setKeyword] = useState('')
-  const [type, setType] = useState<NeteaseSearchType>('1')
-  const [limit, setLimit] = useState(pageSize)
-  const [searchedKeyword, setSearchedKeyword] = useState('')
+  const restoredStateRef = useRef(readMusicSearchState<NeteaseSearchType, NeteaseSearchPayload>('netease'))
+  const restoredState = restoredStateRef.current
+  const [keyword, setKeyword] = useState(restoredState?.keyword || '')
+  const [type, setType] = useState<NeteaseSearchType>(restoredState?.type || '1')
+  const [limit, setLimit] = useState(restoredState?.limit || pageSize)
+  const [searchedKeyword, setSearchedKeyword] = useState(restoredState?.searchedKeyword || '')
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [resolvingId, setResolvingId] = useState('')
   const [error, setError] = useState('')
-  const [result, setResult] = useState<NeteaseSearchPayload | null>(null)
-  const [rows, setRows] = useState<JsonRecord[]>([])
-  const [total, setTotal] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
+  const [result, setResult] = useState<NeteaseSearchPayload | null>(restoredState?.result || null)
+  const [rows, setRows] = useState<JsonRecord[]>(restoredState?.rows || [])
+  const [total, setTotal] = useState(restoredState?.total || 0)
+  const [hasMore, setHasMore] = useState(restoredState?.hasMore || false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [settingsPassword, setSettingsPassword] = useState('')
@@ -339,9 +349,33 @@ export default function NeteasePage() {
   const [cookieResult, setCookieResult] = useState<{ input: string; output: string } | null>(null)
   const { history, addHistory, clearHistory } = useNeteaseSearchHistory()
   const searchSessionRef = useRef(0)
-  const selectedTypeRef = useRef<NeteaseSearchType>('1')
-  const latestParamsRef = useRef({ keyword: '', type: '1' as NeteaseSearchType, page: 1, limit: pageSize })
+  const selectedTypeRef = useRef<NeteaseSearchType>(restoredState?.type || '1')
+  const latestParamsRef = useRef({ keyword: restoredState?.searchedKeyword || '', type: restoredState?.type || '1' as NeteaseSearchType, page: restoredState?.page || 1, limit: restoredState?.limit || pageSize })
   const loadingMoreRef = useRef(false)
+
+  useEffect(() => {
+    if (!restoredState) return
+    const firstFrame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' }))
+    })
+    return () => cancelAnimationFrame(firstFrame)
+  }, [restoredState])
+
+  const saveSearchPosition = () => {
+    const current = latestParamsRef.current
+    saveMusicSearchState('netease', {
+      keyword,
+      searchedKeyword,
+      type,
+      limit,
+      result,
+      rows,
+      total,
+      hasMore,
+      page: current.page,
+      scrollY: window.scrollY,
+    })
+  }
 
   const search = useCallback(async (value = keyword, nextPage = 1, nextLimit = limit, nextType = selectedTypeRef.current, append = false) => {
     const input = value.trim()
@@ -369,7 +403,10 @@ export default function NeteasePage() {
       if (sessionId !== searchSessionRef.current) return
       const currentResponse = record(data.response)
       const root = record(currentResponse?.result)
-      const pageRows = recordList(root?.[typeMeta.listKey])
+      const rawPageRows = recordList(root?.[typeMeta.listKey])
+      const pageRows = nextType === '1'
+        ? rawPageRows.filter((item) => !isUnavailableNeteaseSong(item))
+        : rawPageRows
       const countKey = typeMeta.countKey
       const nextTotal = Number(root?.[countKey] || pageRows.length || 0)
       setResult(data)
@@ -379,7 +416,7 @@ export default function NeteasePage() {
       setType(nextType)
       setSearchedKeyword(input)
       latestParamsRef.current = { keyword: input, type: nextType, page: nextPage, limit: nextLimit }
-      setHasMore(nextPage * nextLimit < nextTotal && pageRows.length > 0)
+      setHasMore(nextPage * nextLimit < nextTotal && rawPageRows.length > 0)
       if (!append) addHistory(input)
     } catch (reason) {
       if (sessionId !== searchSessionRef.current) return
@@ -468,7 +505,15 @@ export default function NeteasePage() {
     try {
       const data = await resolveNeteaseMusic(id)
       const sources = collectNeteasePlaybackSources(data)
+      if (!sources.length) {
+        const itemInfo = record(data.item_info || data.itemInfo)
+        const item = recordList(itemInfo?.data)[0]
+        const itemCode = Number(item?.code)
+        if (itemCode === 404) throw new Error('该歌曲暂无可播放地址，受网易云版权或地区限制')
+        throw new Error('网易云歌曲已解析，但没有返回可播放地址')
+      }
       const key = saveMusicPlayback('netease', data, sources)
+      saveSearchPosition()
       navigate(`/music/player?key=${encodeURIComponent(key)}&from=netease`)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '网易云歌曲解析失败')
@@ -485,6 +530,7 @@ export default function NeteasePage() {
       const data = await resolveNeteaseMv(id)
       const route = legacyPreviewRoute(data.mock_preview_path)
       if (!route) throw new Error('网易云 MV 未返回可播放地址')
+      saveSearchPosition()
       navigate(route)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '网易云 MV 解析失败')
@@ -551,6 +597,7 @@ export default function NeteasePage() {
             onSelectHistoryItem={selectHistoryItem}
             onSearchHistoryItem={searchFromHistory}
             onClearHistory={clearHistory}
+            restoredRowCount={restoredState?.rows.length || 0}
           />
         </div>
       )}

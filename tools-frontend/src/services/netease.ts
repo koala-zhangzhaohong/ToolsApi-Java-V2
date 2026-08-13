@@ -1,5 +1,5 @@
 import type { JsonRecord } from '../types'
-import { apiUrl, getJson } from './http'
+import { apiUrl, getJson, readableApiError } from './http'
 
 export type NeteaseSearchType = '1' | '10' | '100' | '1000' | '1002' | '1004' | '1006' | '1009'
 export type NeteaseQuality = 'default' | 'standard' | 'exhigh' | 'lossless' | 'hires'
@@ -36,7 +36,7 @@ interface ApiResponse<T> extends JsonRecord {
 
 function assertSuccess<T>(response: ApiResponse<T>, fallback: string): T {
   if (typeof response.code === 'number' && response.code !== 200) {
-    throw new Error(response.message || `${fallback}（业务码 ${response.code}）`)
+    throw new Error(readableApiError(response.message, `${fallback}（业务码 ${response.code}）`))
   }
   if (response.data === undefined || response.data === null) throw new Error(fallback)
   return response.data

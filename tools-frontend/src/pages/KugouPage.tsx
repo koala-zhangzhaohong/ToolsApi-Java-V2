@@ -16,6 +16,7 @@ import { collectKugouPlaybackOptions, saveMusicPlayback } from '../services/musi
 import { resolveKugouMusic, resolveKugouMv, searchKugou, type KugouSearchPayload, type KugouSearchType } from '../services/kugou'
 import type { JsonRecord } from '../types'
 import { legacyPreviewRoute } from '../utils/legacyPreview'
+import { readMusicSearchState, saveMusicSearchState } from '../utils/musicSearchState'
 
 const historyKey = 'tools-frontend:kugou-search-history'
 const historyChangedEvent = 'tools-frontend:kugou-search-history-change'
@@ -208,6 +209,7 @@ interface SearchTemplateProps {
   onSelectHistoryItem: (value: string) => void
   onSearchHistoryItem: (value: string) => void
   onClearHistory: () => void
+  restoredRowCount: number
 }
 
 function KugouSearchTemplate({
@@ -223,8 +225,9 @@ function KugouSearchTemplate({
   onSelectHistoryItem,
   onSearchHistoryItem,
   onClearHistory,
+  restoredRowCount,
 }: SearchTemplateProps) {
-  const { visibleRows, sentinelRef, hasHiddenRows } = useProgressiveRows(rows, hasMore, onLoadMore)
+  const { visibleRows, sentinelRef, hasHiddenRows } = useProgressiveRows(rows, hasMore, onLoadMore, restoredRowCount)
   const footerText = hasHiddenRows
     ? `已显示 ${visibleRows.length} / ${rows.length} 条，继续向下滚动显示更多`
     : hasMore ? '继续向下滚动以加载更多内容' : `已加载全部 ${rows.length} 条结果`
@@ -283,22 +286,48 @@ function KugouSearchTemplate({
 export default function KugouPage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
-  const [keyword, setKeyword] = useState('')
-  const [type, setType] = useState<KugouSearchType>('song')
-  const [limit, setLimit] = useState(pageSize)
-  const [searchedKeyword, setSearchedKeyword] = useState('')
+  const restoredStateRef = useRef(readMusicSearchState<KugouSearchType, KugouSearchPayload>('kugou'))
+  const restoredState = restoredStateRef.current
+  const [keyword, setKeyword] = useState(restoredState?.keyword || '')
+  const [type, setType] = useState<KugouSearchType>(restoredState?.type || 'song')
+  const [limit, setLimit] = useState(restoredState?.limit || pageSize)
+  const [searchedKeyword, setSearchedKeyword] = useState(restoredState?.searchedKeyword || '')
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [resolvingId, setResolvingId] = useState('')
   const [error, setError] = useState('')
-  const [result, setResult] = useState<KugouSearchPayload | null>(null)
-  const [rows, setRows] = useState<JsonRecord[]>([])
-  const [total, setTotal] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
+  const [result, setResult] = useState<KugouSearchPayload | null>(restoredState?.result || null)
+  const [rows, setRows] = useState<JsonRecord[]>(restoredState?.rows || [])
+  const [total, setTotal] = useState(restoredState?.total || 0)
+  const [hasMore, setHasMore] = useState(restoredState?.hasMore || false)
   const { history, addHistory, clearHistory } = useKugouSearchHistory()
   const searchSessionRef = useRef(0)
-  const latestParamsRef = useRef({ keyword: '', type: 'song' as KugouSearchType, page: 1, limit: pageSize })
+  const latestParamsRef = useRef({ keyword: restoredState?.searchedKeyword || '', type: restoredState?.type || 'song' as KugouSearchType, page: restoredState?.page || 1, limit: restoredState?.limit || pageSize })
   const loadingMoreRef = useRef(false)
+
+  useEffect(() => {
+    if (!restoredState) return
+    const firstFrame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' }))
+    })
+    return () => cancelAnimationFrame(firstFrame)
+  }, [restoredState])
+
+  const saveSearchPosition = () => {
+    const current = latestParamsRef.current
+    saveMusicSearchState('kugou', {
+      keyword,
+      searchedKeyword,
+      type,
+      limit,
+      result,
+      rows,
+      total,
+      hasMore,
+      page: current.page,
+      scrollY: window.scrollY,
+    })
+  }
 
   const search = useCallback(async (value = keyword, nextPage = 1, nextLimit = limit, nextType = type, append = false) => {
     const input = value.trim()
@@ -369,7 +398,9 @@ export default function KugouPage() {
     try {
       const data = await resolveKugouMusic(hash, albumId)
       const options = await collectKugouPlaybackOptions(data)
+      if (!options.length) throw new Error('酷狗歌曲已解析，但没有返回可播放地址，可能受版权限制')
       const key = saveMusicPlayback('kugou', data, options.map((option) => option.source), options.map((option) => option.label))
+      saveSearchPosition()
       navigate(`/music/player?key=${encodeURIComponent(key)}&from=kugou`)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '酷狗歌曲解析失败')
@@ -386,6 +417,7 @@ export default function KugouPage() {
       const data = await resolveKugouMv(hash)
       const route = legacyPreviewRoute(data.mock_preview_path)
       if (!route) throw new Error('酷狗 MV 未返回可播放地址')
+      saveSearchPosition()
       navigate(route)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '酷狗 MV 解析失败')
@@ -446,6 +478,7 @@ export default function KugouPage() {
             onSelectHistoryItem={selectHistoryItem}
             onSearchHistoryItem={searchFromHistory}
             onClearHistory={clearHistory}
+            restoredRowCount={restoredState?.rows.length || 0}
           />
         </div>
       )}

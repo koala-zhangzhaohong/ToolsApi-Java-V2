@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 const initialVisibleRows = 24
 const visibleRowsStep = 24
 
-export function useProgressiveRows<T>(rows: T[], hasMore: boolean, onLoadMore: () => void) {
-  const [visibleCount, setVisibleCount] = useState(initialVisibleRows)
+export function useProgressiveRows<T>(rows: T[], hasMore: boolean, onLoadMore: () => void, restoredRowCount = 0) {
+  const [visibleCount, setVisibleCount] = useState(() => Math.max(initialVisibleRows, restoredRowCount))
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const visibleRows = useMemo(() => rows.slice(0, visibleCount), [rows, visibleCount])
   const hasHiddenRows = visibleCount < rows.length

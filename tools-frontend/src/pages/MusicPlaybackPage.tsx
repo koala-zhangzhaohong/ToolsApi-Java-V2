@@ -9,16 +9,6 @@ import { getJson } from '../services/http'
 import MusicPlayerPage from './MusicPlayerPage'
 import { musicMeta } from './musicMeta'
 
-function waitForBrowserIdle() {
-  return new Promise<void>((resolve) => {
-    if (typeof window.requestIdleCallback === 'function') {
-      window.requestIdleCallback(() => resolve(), { timeout: 750 })
-    } else {
-      setTimeout(resolve, 120)
-    }
-  })
-}
-
 export default function MusicPlaybackPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -28,7 +18,6 @@ export default function MusicPlaybackPage() {
   const [proxySources, setProxySources] = useState<string[]>([])
   const [proxyLoading, setProxyLoading] = useState(true)
   const [proxyError, setProxyError] = useState('')
-  const [availableQualityOptions, setAvailableQualityOptions] = useState<Array<{ value: string; label: string }>>([])
   const qualityCache = useRef(new Map<NeteaseQuality, string>())
   const qualityAddressCache = useRef(new Map<NeteaseQuality, string>())
   const neteaseInfo = useMemo(() => payload?.platform === 'netease' ? neteasePlaybackInfo(payload.data) : null, [payload])
@@ -55,9 +44,6 @@ export default function MusicPlaybackPage() {
     let active = true
     setProxySources([])
     setProxyError('')
-    setAvailableQualityOptions(neteaseInfo
-      ? neteaseInfo.qualities.filter((option) => option.value === neteaseInfo.currentQuality)
-      : [])
     qualityCache.current.clear()
     qualityAddressCache.current.clear()
     if (neteaseInfo?.source) qualityAddressCache.current.set(neteaseInfo.currentQuality, neteaseInfo.source)
@@ -108,34 +94,6 @@ export default function MusicPlaybackPage() {
     qualityCache.current.set(value, proxied)
     return proxied
   }, [proxySource, resolveQualityAddress])
-
-  useEffect(() => {
-    if (!neteaseInfo?.songId) {
-      setAvailableQualityOptions([])
-      return
-    }
-    let active = true
-    const current = neteaseInfo.qualities.filter((option) => option.value === neteaseInfo.currentQuality)
-    setAvailableQualityOptions(current)
-    const candidates = neteaseInfo.qualities.filter((option) => option.value !== neteaseInfo.currentQuality)
-    void (async () => {
-      for (const option of candidates) {
-        await waitForBrowserIdle()
-        if (!active) return
-        try {
-          await resolveQualityAddress(option.value)
-          if (!active) return
-          setAvailableQualityOptions((previous) => {
-            const valid = new Set([...previous.map((item) => item.value), option.value])
-            return neteaseInfo.qualities.filter((item) => valid.has(item.value))
-          })
-        } catch {
-          // Unavailable qualities stay out of the selector.
-        }
-      }
-    })()
-    return () => { active = false }
-  }, [neteaseInfo, resolveQualityAddress])
 
   if (!payload) {
     return (
@@ -189,7 +147,7 @@ export default function MusicPlaybackPage() {
           data={payload.data}
           sources={proxySources}
           sourceLabels={payload.sourceLabels}
-          qualityOptions={neteaseInfo ? availableQualityOptions : undefined}
+          qualityOptions={neteaseInfo?.qualities}
           initialQuality={neteaseInfo?.currentQuality}
           onQualityChange={neteaseInfo ? resolveQualitySource : undefined}
           onDownload={prepareDownload}

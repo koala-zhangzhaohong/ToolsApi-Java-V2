@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, CloudDownloadOutlined, LinkOutlined, PlayCircleOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Col, Empty, Row, Skeleton, Space, Typography } from 'antd'
+import { Alert, Button, Card, Col, Empty, Image, Row, Skeleton, Space, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import JsonTree from '../components/JsonTree'
@@ -7,6 +7,7 @@ import { useParseHistory } from '../hooks/useParseHistory'
 import { getJson } from '../services/http'
 import type { DouyinResult, PlayerPageData } from '../types'
 import { downloadRoutes, isLocalDownloadProxy, localDownloadUrl } from '../utils/downloadRoute'
+import { imagePreviewToolbar } from '../utils/imagePreview'
 import { mediaRouteLabel } from '../utils/mediaRoute'
 import { specialRankRouteLabel } from '../utils/rankRoute'
 import LegacyErrorPage from './LegacyErrorPage'
@@ -201,6 +202,7 @@ export default function LegacyResultPage() {
   const [data, setData] = useState<DouyinResult | null>(routeData || cachedState?.data || null)
   const [loading, setLoading] = useState(!(routeData || cachedState?.data))
   const [error, setError] = useState('')
+  const [picturePreview, setPicturePreview] = useState<{ sources: string[]; index: number } | null>(null)
 
   const goBack = () => {
     if (parseInput) addHistory(parseInput)
@@ -265,6 +267,22 @@ export default function LegacyResultPage() {
   useEffect(() => { if (!routeData && !cachedState?.data && (id < 1 || id > 3)) void load() }, [key, remotePath, id, routeData, cachedState?.data]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (parseInput) addHistory(parseInput) }, [addHistory, parseInput])
 
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return
+      const iframe = document.querySelector<HTMLIFrameElement>('.legacy-player-frame iframe')
+      if (!iframe || event.source !== iframe.contentWindow) return
+      const message = event.data as { type?: unknown; sources?: unknown; index?: unknown }
+      if (message?.type !== 'tools-api:picture-preview' || !Array.isArray(message.sources)) return
+      const sources = unique(message.sources.filter(nonEmpty))
+      if (!sources.length) return
+      const requestedIndex = typeof message.index === 'number' ? message.index : 0
+      setPicturePreview({ sources, index: Math.min(Math.max(0, requestedIndex), sources.length - 1) })
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
   const media = useMemo(() => data?.media_data || {}, [data])
   const rank = useMemo(() => data?.rank_data || {}, [data])
   const previews = useMemo(() => unique([
@@ -323,6 +341,7 @@ export default function LegacyResultPage() {
       {error && <Alert type="error" showIcon message="数据加载失败" description={error} />}
       {!data && !error && <Empty description="暂无数据" />}
       {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 0 } }}>{isAppleMobileBrowser() && isWeChatBrowser() ? <LegacyWechatPlayer url={previews[0]} /> : <LegacyPlayer url={previews[0]} />}</Card>}
+      {picturePreview && <Image.PreviewGroup preview={{ visible: true, current: picturePreview.index, toolbarRender: imagePreviewToolbar, onChange: (index) => setPicturePreview((current) => current ? { ...current, index } : current), onVisibleChange: (visible) => { if (!visible) setPicturePreview(null) } }}>{picturePreview.sources.map((src) => <Image key={src} src={src} style={{ display: 'none' }} />)}</Image.PreviewGroup>}
       {data && id === 7 && <Card title="查询结果" className="legacy-section-card legacy-rank-card">
         {rankRows.length ? <div className="legacy-rank-table"><table><thead><tr><th>昵称</th><th>账号</th><th>原始昵称</th></tr></thead><tbody>{rankRows.map((row, index) => <tr key={index}><td>{String(row.nickname || '')}</td><td>{String(row.display_id || row.displayId || '')}</td><td>{String(row.user_real_nickname || row.userRealNickName || '')}</td></tr>)}</tbody></table></div> : <Empty description="暂无数据" />}
       </Card>}

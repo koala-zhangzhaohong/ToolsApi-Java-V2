@@ -8,6 +8,7 @@ import PageHeader from '../components/PageHeader'
 import { getJson } from '../services/http'
 import type { PlayerPageData } from '../types'
 import { attachManagedFlv } from '../utils/flvPlayback'
+import { imagePreviewToolbar } from '../utils/imagePreview'
 import { decodeUrlSafeBase64, firstNonEmpty } from '../utils/query'
 
 type MediaType = 'video' | 'audio' | 'live' | 'image'
@@ -154,7 +155,7 @@ export default function MediaPage() {
         {!activeSource ? <Empty image={<PlayCircleOutlined className="empty-player-icon" />} description="输入媒体地址后开始播放" /> : type === 'audio' ? (
           <div className="audio-stage"><div className="audio-art"><PlayCircleOutlined /></div><Typography.Title level={3}>{title}</Typography.Title><audio src={activeSource} controls autoPlay /></div>
         ) : type === 'image' ? (
-          <Image.PreviewGroup><div className="image-grid">{imageSources.map((src) => <Image key={src} src={src} fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='160'%3E%3Crect width='100%25' height='100%25' fill='%23f0f0f0'/%3E%3C/svg%3E" />)}</div></Image.PreviewGroup>
+          <Image.PreviewGroup preview={{ toolbarRender: imagePreviewToolbar }}><div className="image-grid">{imageSources.map((src) => <Image key={src} src={src} fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='160'%3E%3Crect width='100%25' height='100%25' fill='%23f0f0f0'/%3E%3C/svg%3E" />)}</div></Image.PreviewGroup>
         ) : <VideoPlayer src={activeSource} live={type === 'live'} />}
       </Card>
       {activeSource && <Space className="source-link"><LinkOutlined /><Typography.Link href={activeSource.split(/[\n,]/)[0]} target="_blank">在新窗口打开源地址</Typography.Link></Space>}

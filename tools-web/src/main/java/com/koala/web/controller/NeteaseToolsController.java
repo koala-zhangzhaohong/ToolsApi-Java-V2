@@ -57,6 +57,7 @@ public class NeteaseToolsController {
     private static final Logger logger = LoggerFactory.getLogger(NeteaseToolsController.class);
 
     private static final Long EXPIRE_TIME = 12 * 60 * 60L;
+    private static final int MAX_PARSE_ATTEMPTS = 3;
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -92,18 +93,34 @@ public class NeteaseToolsController {
                 return formatRespData(INVALID_LINK, null);
             }
         }
-        NeteaseApiBuilder builder = new ConcreteNeteaseApiBuilder();
-        NeteaseApiManager manager = new NeteaseApiManager(builder);
         NeteaseApiProduct product = null;
-        try {
-            NeteaseRequestQualityEnums qualityEnums = NeteaseRequestQualityEnums.getEnumsByType(quality);
-            if (!Objects.isNull(qualityEnums)) {
-                product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), neteaseCookieUtil.getNeteaseCookie(), url, qualityEnums.getType(), "true".equals(lyric), encodeLyric, Integer.valueOf(version));
-            } else {
-                product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), neteaseCookieUtil.getNeteaseCookie(), url, null, "true".equals(lyric), encodeLyric, Integer.valueOf(version));
+        Exception lastFailure = null;
+        NeteaseRequestQualityEnums qualityEnums = NeteaseRequestQualityEnums.getEnumsByType(quality);
+        for (int attempt = 1; attempt <= MAX_PARSE_ATTEMPTS && product == null; attempt++) {
+            try {
+                NeteaseApiBuilder builder = new ConcreteNeteaseApiBuilder();
+                NeteaseApiManager manager = new NeteaseApiManager(builder);
+                product = manager.construct(
+                        redisService,
+                        hostManager.getHost(),
+                        hostManager.getCdnHost(),
+                        neteaseCookieUtil.getNeteaseCookie(),
+                        url,
+                        Objects.isNull(qualityEnums) ? null : qualityEnums.getType(),
+                        "true".equals(lyric),
+                        encodeLyric,
+                        Integer.valueOf(version)
+                );
+            } catch (Exception exception) {
+                lastFailure = exception;
+                if (attempt < MAX_PARSE_ATTEMPTS) {
+                    logger.warn("[Netease] parse attempt {}/{} failed for {}, retrying: {}",
+                            attempt, MAX_PARSE_ATTEMPTS, url, exception.getMessage());
+                }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+        if (product == null) {
+            logger.error("[Netease] parse failed after {} attempts for {}", MAX_PARSE_ATTEMPTS, url, lastFailure);
             return formatRespData(FAILURE, null);
         }
         NeteaseMusicDataRespModel publicData = product.generateItemInfoRespData(toWebPlayer);
@@ -253,10 +270,56 @@ public class NeteaseToolsController {
             result.put("limit", limit);
             Object searchResponse = GsonUtil.toBean(response, Object.class);
             enrichNeteaseCoverUrls(searchResponse);
+            if ("1".equals(type)) enrichNeteaseSongPrivileges(searchResponse);
             result.put("response", searchResponse);
             return formatRespData(GET_DATA_SUCCESS, result);
         }
         return formatRespData(GET_INFO_ERROR, null);
+    }
+
+    private void enrichNeteaseSongPrivileges(Object searchResponse) {
+        if (!(searchResponse instanceof Map<?, ?> responseMap)) return;
+        Object resultValue = responseMap.get("result");
+        if (!(resultValue instanceof Map<?, ?> resultMap)) return;
+        Object songsValue = resultMap.get("songs");
+        if (!(songsValue instanceof Collection<?> songs) || songs.isEmpty()) return;
+
+        List<Map<String, Object>> songRequests = songs.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(song -> song.get("id"))
+                .filter(Objects::nonNull)
+                .map(id -> Map.<String, Object>of("id", id))
+                .toList();
+        if (songRequests.isEmpty()) return;
+
+        try {
+            Map<String, String> params = new HashMap<>();
+            params.put("c", GsonUtil.toString(songRequests));
+            String detailResponse = HttpClientUtil.doPost(
+                    NeteaseWebPathCollector.NETEASE_DETAIL_SERVER_URL,
+                    HeaderUtil.getNeteasePublicWithOutCookieHeader(),
+                    params);
+            Object detailValue = GsonUtil.toBean(detailResponse, Object.class);
+            if (!(detailValue instanceof Map<?, ?> detailMap)
+                    || !(detailMap.get("privileges") instanceof Collection<?> privileges)) return;
+
+            Map<String, Object> privilegesById = new HashMap<>();
+            privileges.stream()
+                    .filter(Map.class::isInstance)
+                    .map(Map.class::cast)
+                    .filter(privilege -> privilege.get("id") != null)
+                    .forEach(privilege -> privilegesById.put(Objects.toString(privilege.get("id")), privilege));
+            songs.stream()
+                    .filter(Map.class::isInstance)
+                    .map(Map.class::cast)
+                    .forEach(song -> {
+                        Object privilege = privilegesById.get(Objects.toString(song.get("id"), ""));
+                        if (privilege != null) song.put("privilege", privilege);
+                    });
+        } catch (Exception exception) {
+            logger.warn("[search] failed to enrich song privileges", exception);
+        }
     }
 
     private void enrichNeteaseCoverUrls(Object value) {

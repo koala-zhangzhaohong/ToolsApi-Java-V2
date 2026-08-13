@@ -241,7 +241,9 @@ public class NeteaseApiProduct {
         }
         NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData, webPlayerInfo);
         try {
-            if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemDetailInfoData) && !respData.getItemInfo().getData().isEmpty()) {
+            if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemDetailInfoData)
+                    && !respData.getItemInfo().getData().isEmpty()
+                    && StringUtils.hasLength(respData.getItemInfo().getData().get(0).getUrl())) {
                 String artist = UNKNOWN_ARTIST;
                 if (version == 1) {
                     String key = ShortKeyGenerator.getKey(null);

@@ -1,5 +1,5 @@
 import type { JsonRecord, PlayerPageData } from '../types'
-import { getJson } from './http'
+import { getJson, readableApiError } from './http'
 import type { NeteaseQuality } from './netease'
 
 export type MusicPlatform = 'netease' | 'kugou'
@@ -59,16 +59,18 @@ function objectUrls(value: unknown): string[] {
 function mediaSource(value: unknown) {
   if (typeof value !== 'string') return ''
   const source = value.trim()
-  if (!source || legacyPlayerPath.test(source)) return ''
+  if (!source) return ''
   try {
-    const parsed = new URL(source)
+    const parsed = new URL(source, window.location.origin)
     if (!['http:', 'https:'].includes(parsed.protocol)) return ''
-    if (parsed.pathname === '/short' && parsed.searchParams.has('key')) return source
+    if (legacyPlayerPath.test(parsed.pathname)) return ''
+    if (parsed.pathname === '/short' && parsed.searchParams.has('key')) return parsed.origin === window.location.origin ? `${parsed.pathname}${parsed.search}${parsed.hash}` : parsed.toString()
     if (internalHost.test(parsed.hostname) || internalMediaPath.test(parsed.pathname)) return ''
+    if (parsed.origin === window.location.origin) return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    return parsed.toString()
   } catch {
     return ''
   }
-  return source
 }
 
 function uniqueSources(values: unknown[]) {
@@ -77,7 +79,7 @@ function uniqueSources(values: unknown[]) {
 
 function assertSuccess<T>(response: ApiResponse<T>, fallback: string): T {
   if (typeof response.code === 'number' && response.code !== 200) {
-    throw new Error(response.message || `${fallback}（业务码 ${response.code}）`)
+    throw new Error(readableApiError(response.message, `${fallback}（业务码 ${response.code}）`))
   }
   if (response.data === undefined || response.data === null) throw new Error(fallback)
   return response.data
@@ -86,7 +88,17 @@ function assertSuccess<T>(response: ApiResponse<T>, fallback: string): T {
 export function collectNeteasePlaybackSources(data: PlayerPageData) {
   const item = record(data.item_info || data.itemInfo)
   const itemData = recordList(item?.data)
-  return uniqueSources(itemData.map((row) => row.cdn_url || row.cdnUrl || row.url))
+  return uniqueSources(itemData.flatMap((row) => [
+    row.cdn_url,
+    row.cdnUrl,
+    row.url,
+    row.play_url,
+    row.playUrl,
+    row.backup_url,
+    row.backupUrl,
+    row.mock_preview_path,
+    row.mockPreviewPath,
+  ]))
 }
 
 export function neteasePlaybackInfo(data: PlayerPageData) {
@@ -151,7 +163,9 @@ function kugouQualityCandidates(data: PlayerPageData) {
 export async function collectKugouPlaybackOptions(data: PlayerPageData) {
   const albumId = kugouAlbumId(data)
   const candidates = kugouQualityCandidates(data)
-  if (!albumId || !candidates.length) return []
+  if (!albumId) throw new Error('酷狗歌曲缺少专辑 ID，无法请求播放地址')
+  if (!candidates.length) throw new Error('酷狗歌曲没有返回可用音质信息，可能受版权限制')
+  const failures: string[] = []
   const results = await Promise.all(candidates.map(async ({ hash, id, label }) => {
     try {
       const query = new URLSearchParams({
@@ -162,13 +176,26 @@ export async function collectKugouPlaybackOptions(data: PlayerPageData) {
       })
       const response = await getJson<ApiResponse<JsonRecord>>(`/tools/Kugou/api/playInfo?${query.toString()}`)
       const data = assertSuccess(response, '酷狗播放地址解析失败')
-      const sources = [...new Set(objectUrls(data.url).map(mediaSource).filter(Boolean))]
+      const payload = record(data.data) || data
+      const sources = uniqueSources([
+        payload.url,
+        payload.urls,
+        payload.play_url,
+        payload.playUrl,
+        payload.backup_url,
+        payload.backupUrl,
+        payload.file_url,
+        payload.fileUrl,
+      ])
       return sources.map((source, index) => ({ source, label: `${label} - 线路 ${index + 1}` }))
-    } catch {
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : `${label}解析失败`)
       return []
     }
   }))
-  return results.flat()
+  const options = results.flat()
+  if (!options.length) throw new Error(failures[0] || '酷狗歌曲已解析，但没有返回可播放地址')
+  return options
 }
 
 export function saveMusicPlayback(platform: MusicPlatform, data: PlayerPageData, sources: string[], sourceLabels?: string[]) {
