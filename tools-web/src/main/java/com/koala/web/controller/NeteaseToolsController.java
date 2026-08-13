@@ -14,6 +14,7 @@ import com.koala.factory.builder.ConcreteNeteaseApiBuilder;
 import com.koala.factory.builder.NeteaseApiBuilder;
 import com.koala.factory.director.NeteaseApiManager;
 import com.koala.factory.extra.netease.NeteaseCookieUtil;
+import com.koala.factory.http.NeteaseHttpManager;
 import com.koala.factory.path.NeteaseWebPathCollector;
 import com.koala.factory.product.NeteaseApiProduct;
 import com.koala.factory.service.netease.BaseService;
@@ -69,6 +70,9 @@ public class NeteaseToolsController {
 
     @Resource
     private NeteaseCookieUtil neteaseCookieUtil;
+
+    @Resource
+    private NeteaseHttpManager neteaseHttpManager;
 
     @Resource
     private BaseService baseService;
@@ -252,7 +256,7 @@ public class NeteaseToolsController {
         if (!StringUtils.hasLength(text) || page < 1 || limit < 0) {
             return formatRespData(UNSUPPORTED_PARAMS, null);
         }
-        Map<String, String> params = new HashMap<>();
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
         params.put("s", text);
         params.put("type", type);
         params.put("offset", String.valueOf((page - 1) * limit));
@@ -260,8 +264,12 @@ public class NeteaseToolsController {
         params.put("limit", String.valueOf(limit));
         String response = null;
         try {
-            response = HttpClientUtil.doPost(NeteaseWebPathCollector.NETEASE_SEARCH_WEB_SERVER_URL_V1, HeaderUtil.getNeteasePublicWithOutCookieHeader(), params);
+            response = neteaseHttpManager.requestWeapi(
+                    NeteaseWebPathCollector.NETEASE_SEARCH_WEB_SERVER_URL_V2,
+                    params,
+                    " os=pc; appver=2.10.13;");
         } catch (Exception e) {
+            logger.warn("[search] WeAPI request failed for type={}, page={}", type, page, e);
             return formatRespData(FAILURE, null);
         }
         if (StringUtils.hasLength(response)) {
