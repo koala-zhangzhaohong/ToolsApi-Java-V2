@@ -12,7 +12,9 @@ function projectVersion() {
   // Match the local runtime profile first, then the shared fallback. This keeps
   // the footer aligned with the version printed by the running API service.
   for (const name of ['application-prod-local.properties', 'application-docker.properties', 'application.properties']) {
-    const source = fs.readFileSync(path.join(resourceDir, name), 'utf8')
+    const file = path.join(resourceDir, name)
+    if (!fs.existsSync(file)) continue
+    const source = fs.readFileSync(file, 'utf8')
     const version = source.match(/^spring\.application\.version\.base=(.+)$/m)?.[1]?.trim()
     if (version) return version
   }

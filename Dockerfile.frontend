@@ -4,6 +4,7 @@ WORKDIR /workspace
 COPY tools-frontend/package.json tools-frontend/pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY tools-frontend ./
+COPY tools-web/src/main/resources/application-docker.properties /tools-web/src/main/resources/application-docker.properties
 RUN pnpm build
 
 FROM nginx:1.27-alpine
