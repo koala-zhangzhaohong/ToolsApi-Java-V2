@@ -9,14 +9,14 @@ import {
 } from '@ant-design/icons'
 import { Alert, App, Button, Card, Empty, Input, List, Segmented, Space, Spin, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
 import { collectKugouPlaybackOptions, saveMusicPlayback } from '../services/musicPlayback'
 import { resolveKugouMusic, resolveKugouMv, searchKugou, type KugouSearchPayload, type KugouSearchType } from '../services/kugou'
 import type { JsonRecord } from '../types'
 import { legacyPreviewRoute } from '../utils/legacyPreview'
-import { readMusicSearchState, saveMusicSearchState } from '../utils/musicSearchState'
+import { clearMusicSearchState, readMusicSearchState, saveMusicSearchState } from '../utils/musicSearchState'
 
 const historyKey = 'tools-frontend:kugou-search-history'
 const historyChangedEvent = 'tools-frontend:kugou-search-history-change'
@@ -286,7 +286,12 @@ function KugouSearchTemplate({
 export default function KugouPage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
-  const restoredStateRef = useRef(readMusicSearchState<KugouSearchType, KugouSearchPayload>('kugou'))
+  const location = useLocation()
+  const shouldRestoreRef = useRef(record(location.state)?.restoreMusicSearch === 'kugou')
+  const shouldRestore = shouldRestoreRef.current
+  const restoredStateRef = useRef(shouldRestore
+    ? readMusicSearchState<KugouSearchType, KugouSearchPayload>('kugou')
+    : null)
   const restoredState = restoredStateRef.current
   const [keyword, setKeyword] = useState(restoredState?.keyword || '')
   const [type, setType] = useState<KugouSearchType>(restoredState?.type || 'song')
@@ -306,12 +311,17 @@ export default function KugouPage() {
   const loadingMoreRef = useRef(false)
 
   useEffect(() => {
+    if (!shouldRestore) {
+      clearMusicSearchState('kugou')
+      return
+    }
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
     if (!restoredState) return
     const firstFrame = requestAnimationFrame(() => {
       requestAnimationFrame(() => window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' }))
     })
     return () => cancelAnimationFrame(firstFrame)
-  }, [restoredState])
+  }, [location.pathname, location.search, navigate, restoredState, shouldRestore])
 
   const saveSearchPosition = () => {
     const current = latestParamsRef.current
@@ -401,6 +411,7 @@ export default function KugouPage() {
       if (!options.length) throw new Error('酷狗歌曲已解析，但没有返回可播放地址，可能受版权限制')
       const key = saveMusicPlayback('kugou', data, options.map((option) => option.source), options.map((option) => option.label))
       saveSearchPosition()
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: { restoreMusicSearch: 'kugou' } })
       navigate(`/music/player?key=${encodeURIComponent(key)}&from=kugou`)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '酷狗歌曲解析失败')
@@ -418,6 +429,7 @@ export default function KugouPage() {
       const route = legacyPreviewRoute(data.mock_preview_path)
       if (!route) throw new Error('酷狗 MV 未返回可播放地址')
       saveSearchPosition()
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: { restoreMusicSearch: 'kugou' } })
       navigate(route)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '酷狗 MV 解析失败')

@@ -3,7 +3,7 @@ import { Alert, Badge, Button, Card, Carousel, Image, Result, Select, Space, Spi
 import flvjs from 'flv.js'
 import Hls, { ErrorTypes, Events } from 'hls.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getJson, normalizeCdnProxyUrl } from '../services/http'
 import type { JsonRecord, PlayerPageData } from '../types'
 import { attachManagedFlv } from '../utils/flvPlayback'
@@ -579,6 +579,7 @@ function NativeVideo({ src, live, transport, bypassCdn, onError }: { src: string
 
 export default function LegacyPlayerPage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [params] = useSearchParams()
   const embedded = params.get('embed') === '1'
   const info = useMemo(() => routeInfo(location.pathname), [location.pathname])
@@ -667,6 +668,7 @@ export default function LegacyPlayerPage() {
     : undefined
 
   return <main className={`legacy-player-page legacy-player-${variant} ${embedded ? 'legacy-player-embedded' : ''}`}>
+    {!embedded && musicMvRoute && <Button type="text" className="legacy-back-button" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>返回</Button>}
     {!embedded && <Card className="legacy-player-meta" size="small" bordered={false}><Space wrap><Tag color="purple">{platformLabel}</Tag><Tag>{mediaLabel}</Tag><Tag>{variant.toUpperCase()}</Tag>{routeLabel && <Tag color={useCdnProxy ? 'blue' : 'orange'}>{routeLabel}</Tag>}{info.media === 'live' && <Badge status={sources.length ? 'processing' : 'default'} text={sources.length ? '直播线路' : '等待线路'} />}</Space></Card>}
     {loading ? <Card className="legacy-player-message" bordered={false}><Spin size="large" tip="正在载入媒体数据"><div className="legacy-search-spin" /></Spin></Card> : error ? <Card className="legacy-player-message" bordered={false}><Result status="error" title="媒体数据加载失败" subTitle={error} extra={<Space><Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>重新加载</Button><Button type="text" className="legacy-back-button legacy-back-button-result" icon={<ArrowLeftOutlined />} href="/">返回首页</Button></Space>} /></Card> : !sources.length ? <Card className="legacy-player-message" bordered={false}><Result status="warning" title={info.media === 'live' ? '直播暂不可用' : '媒体链接不可用'} subTitle={info.media === 'live' ? '直播可能已经结束，或者播放地址已经过期。' : '媒体数据可能已过期，请返回解析页面重新获取。'} extra={<Button type="primary" icon={<HomeOutlined />} href="/douyin">重新解析</Button>} /></Card> : info.media === 'music' ? <MusicPlayerPage data={data} sources={musicSources} compact={embedded} /> : info.media === 'picture' ? <Card className="legacy-picture" bordered={false} bodyStyle={{ padding: 0 }}><Carousel arrows dots>{sources.map((src, index) => <div key={src}>{embedded ? <Image preview={false} src={src} onClick={() => openPicturePreview(index)} /> : <Image preview src={src} />}</div>)}</Carousel><div className="picture-caption"><PictureOutlined /> {title}</div></Card> : <Card className="legacy-video-shell" bordered={false} bodyStyle={{ padding: 0 }}>{playbackError && <Alert banner closable type="warning" message={playbackError} onClose={() => setPlaybackError('')} />}{variant === 'zwplayer' ? <OriginalZwPlayer sources={sources} live={info.media === 'live'} transport={transport} bypassCdn={bypassCdn} onError={setPlaybackError} /> : <><NativeVideo src={sources[active]} live={info.media === 'live'} transport={transport} bypassCdn={bypassCdn} onError={setPlaybackError} /><div className="legacy-video-bar"><Space><Badge status={info.media === 'live' ? 'processing' : 'success'} /><Typography.Text>{info.media === 'live' ? 'LIVE' : variant.toUpperCase()} · {title}</Typography.Text></Space>{sources.length > 1 && <Select value={active} onChange={(value) => { setActive(value); setPlaybackError('') }} options={sources.map((_, index) => ({ value: index, label: `线路 ${index + 1}` }))} />}</div></>}</Card>}
   </main>

@@ -12,14 +12,14 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { Alert, App, Button, Card, Empty, Form, Input, List, Modal, Segmented, Space, Spin, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useProgressiveRows } from '../hooks/useProgressiveRows'
 import { collectNeteasePlaybackSources, saveMusicPlayback } from '../services/musicPlayback'
 import { resetNeteaseCookie, resolveNeteaseMusic, resolveNeteaseMv, searchNetease, type NeteaseSearchPayload, type NeteaseSearchType } from '../services/netease'
 import type { JsonRecord } from '../types'
 import { legacyPreviewRoute } from '../utils/legacyPreview'
-import { readMusicSearchState, saveMusicSearchState } from '../utils/musicSearchState'
+import { clearMusicSearchState, readMusicSearchState, saveMusicSearchState } from '../utils/musicSearchState'
 
 const historyKey = 'tools-frontend:netease-search-history'
 const historyChangedEvent = 'tools-frontend:netease-search-history-change'
@@ -326,7 +326,12 @@ function NeteaseSearchTemplate({
 export default function NeteasePage() {
   const { message } = App.useApp()
   const navigate = useNavigate()
-  const restoredStateRef = useRef(readMusicSearchState<NeteaseSearchType, NeteaseSearchPayload>('netease'))
+  const location = useLocation()
+  const shouldRestoreRef = useRef(record(location.state)?.restoreMusicSearch === 'netease')
+  const shouldRestore = shouldRestoreRef.current
+  const restoredStateRef = useRef(shouldRestore
+    ? readMusicSearchState<NeteaseSearchType, NeteaseSearchPayload>('netease')
+    : null)
   const restoredState = restoredStateRef.current
   const [keyword, setKeyword] = useState(restoredState?.keyword || '')
   const [type, setType] = useState<NeteaseSearchType>(restoredState?.type || '1')
@@ -354,12 +359,17 @@ export default function NeteasePage() {
   const loadingMoreRef = useRef(false)
 
   useEffect(() => {
+    if (!shouldRestore) {
+      clearMusicSearchState('netease')
+      return
+    }
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
     if (!restoredState) return
     const firstFrame = requestAnimationFrame(() => {
       requestAnimationFrame(() => window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' }))
     })
     return () => cancelAnimationFrame(firstFrame)
-  }, [restoredState])
+  }, [location.pathname, location.search, navigate, restoredState, shouldRestore])
 
   const saveSearchPosition = () => {
     const current = latestParamsRef.current
@@ -514,6 +524,7 @@ export default function NeteasePage() {
       }
       const key = saveMusicPlayback('netease', data, sources)
       saveSearchPosition()
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: { restoreMusicSearch: 'netease' } })
       navigate(`/music/player?key=${encodeURIComponent(key)}&from=netease`)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '网易云歌曲解析失败')
@@ -531,6 +542,7 @@ export default function NeteasePage() {
       const route = legacyPreviewRoute(data.mock_preview_path)
       if (!route) throw new Error('网易云 MV 未返回可播放地址')
       saveSearchPosition()
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: { restoreMusicSearch: 'netease' } })
       navigate(route)
     } catch (reason) {
       message.error(reason instanceof Error ? reason.message : '网易云 MV 解析失败')

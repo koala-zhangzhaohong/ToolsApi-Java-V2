@@ -39,3 +39,7 @@ export function saveMusicSearchState<TType extends string, TResult>(platform: st
     version: platformVersions[platform],
   }))
 }
+
+export function clearMusicSearchState(platform: string) {
+  sessionStorage.removeItem(`${prefix}${platform}`)
+}

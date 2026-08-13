@@ -3,9 +3,7 @@ package com.koala.factory.extra.netease;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.GsonUtil;
 import com.koala.service.utils.HttpClientUtil;
-import com.koala.service.utils.PatternUtil;
 import jakarta.annotation.Resource;
-import org.apache.hc.client5.http.cookie.Cookie;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -14,11 +12,10 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.koala.service.data.redis.RedisKeyPrefix.*;
 import static com.koala.service.utils.HeaderUtil.getNeteaseHttpHeader;
@@ -40,7 +37,8 @@ public class NeteaseCookieUtil {
 
     private static final Long NETEASE_COOKIE_CACHE_TIME = 14 * 24 * 60 * 60L;
 
-    private static final String BASE_URL_MUSIC_163 = "http://music.163.com";
+    private static final Set<String> COOKIE_ATTRIBUTE_NAMES = Set.of(
+            "domain", "path", "expires", "max-age", "secure", "httponly", "samesite", "priority");
 
     @Resource(name = "getHost")
     private String host;
@@ -87,64 +85,85 @@ public class NeteaseCookieUtil {
     }
 
     private String refreshNeteaseCookie(String cookie) {
-        String cookieContent = Optional.ofNullable(cookie).orElse(getLocalNeteaseCookie());
-        Map<String, String> cookies = new HashMap<>();
-        Arrays.stream(cookieContent.split(";")).forEach(item -> {
-            try {
-                String[] cookieItem = item.split("=");
-                if (cookieItem.length == 2) {
-                    cookies.put(cookieItem[0], cookieItem[1]);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
+        String cookieContent = StringUtils.hasLength(cookie) ? cookie : getLocalNeteaseCookie();
+        LinkedHashMap<String, String> cookies = parseCookieHeader(cookieContent);
+        if (!StringUtils.hasLength(cookies.get("MUSIC_U"))) {
+            return null;
+        }
         HttpClientUtil.HttpResult responseEntity;
         try {
             responseEntity = HttpClientUtil.postFormResponse(
                     getCurrentHost() + "tools/Netease/weapi/login/token/refresh",
-                    getNeteaseHttpHeader(cookies.entrySet().stream()
-                            .map(entry -> entry.getKey() + "=" + entry.getValue())
-                            .collect(java.util.stream.Collectors.joining("; "))),
+                    getNeteaseHttpHeader(formatCookieHeader(cookies)),
                     Map.of());
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to refresh Netease cookie", exception);
         }
         if (StringUtils.hasLength(responseEntity.body())) {
             Map<String, Object> data = GsonUtil.toMaps(responseEntity.body());
-            if (Objects.equals(data.get("code").toString(), "200")) {
+            if (Objects.equals(Objects.toString(data.get("code"), ""), "200")) {
                 List<String> cookieData = responseEntity.headerValues("Set-Cookie");
-                StringBuilder cookieString = new StringBuilder();
-                if (!Objects.isNull(cookieData) && cookieData.stream().noneMatch(item -> item.startsWith("__csrf"))) {
-                    AtomicReference<String> csrf = new AtomicReference<>("");
-                    List<Cookie> baseCookies;
-                    try {
-                        baseCookies = HttpClientUtil.doGetCookie(BASE_URL_MUSIC_163, getNeteaseHttpHeader(null), null);
-                    } catch (IOException | URISyntaxException e) {
-                        throw new RuntimeException(e);
-                    }
-                    Optional<Cookie> baseCookie = baseCookies.stream().filter(item -> item.getName().equals("__csrf")).findFirst();
-                    baseCookie.ifPresent(value -> csrf.set(value.getValue()));
-                    if (StringUtils.hasLength(csrf.get())) {
-                        cookieString.append(" __csrf=").append(csrf.get()).append(";");
-                    }
-                }
-                cookieString.append(" MUSIC_U=").append(PatternUtil.matchData("MUSIC_U=(.*?);", getLocalNeteaseCookie())).append(";");
-                for (String item : Objects.requireNonNull(cookieData)) {
-                    cookieString.append(" ").append(item).append(";");
-                }
-                if (!cookieContent.contains("__remember_me")) {
-                    cookieString.append(" __remember_me=true;");
-                }
-                if (!cookieContent.contains("appver")) {
-                    cookieString.append(" appver=8.9.75;");
-                }
+                LinkedHashMap<String, String> refreshedCookies = mergeSetCookieHeaders(cookies, cookieData);
+                if (!hasRefreshTokens(refreshedCookies)) return null;
+                refreshedCookies.putIfAbsent("__remember_me", "true");
+                refreshedCookies.putIfAbsent("os", "pc");
+                refreshedCookies.putIfAbsent("appver", "8.9.75");
+                String refreshedCookie = formatCookieHeader(refreshedCookies);
                 redisService.set(NETEASE_COOKIE_LOCK, getCurrentDate(), NETEASE_COOKIE_CACHE_TIME);
-                redisService.set(NETEASE_COOKIE_DATA, cookieString.toString().trim(), NETEASE_COOKIE_CACHE_TIME);
-                return cookieString.toString().trim();
+                redisService.set(NETEASE_COOKIE_DATA, refreshedCookie, NETEASE_COOKIE_CACHE_TIME);
+                return refreshedCookie;
             }
         }
         return null;
+    }
+
+    static LinkedHashMap<String, String> parseCookieHeader(String cookieHeader) {
+        LinkedHashMap<String, String> cookies = new LinkedHashMap<>();
+        if (!StringUtils.hasLength(cookieHeader)) return cookies;
+        Arrays.stream(cookieHeader.split(";"))
+                .map(String::trim)
+                .filter(StringUtils::hasLength)
+                .forEach(item -> {
+                    int separator = item.indexOf('=');
+                    if (separator <= 0) return;
+                    String name = item.substring(0, separator).trim();
+                    String value = item.substring(separator + 1).trim();
+                    if (!COOKIE_ATTRIBUTE_NAMES.contains(name.toLowerCase(Locale.ROOT))
+                            && StringUtils.hasLength(value)) {
+                        cookies.putIfAbsent(name, value);
+                    }
+                });
+        return cookies;
+    }
+
+    static LinkedHashMap<String, String> mergeSetCookieHeaders(Map<String, String> currentCookies, List<String> setCookieHeaders) {
+        LinkedHashMap<String, String> merged = new LinkedHashMap<>(currentCookies);
+        if (setCookieHeaders == null) return merged;
+        setCookieHeaders.forEach(header -> {
+            if (!StringUtils.hasLength(header)) return;
+            String cookiePair = header.split(";", 2)[0].trim();
+            int separator = cookiePair.indexOf('=');
+            if (separator <= 0) return;
+            String name = cookiePair.substring(0, separator).trim();
+            String value = cookiePair.substring(separator + 1).trim();
+            if (!StringUtils.hasLength(name)) return;
+            if (StringUtils.hasLength(value)) merged.put(name, value);
+            else merged.remove(name);
+        });
+        return merged;
+    }
+
+    static String formatCookieHeader(Map<String, String> cookies) {
+        return cookies.entrySet().stream()
+                .filter(entry -> StringUtils.hasLength(entry.getKey()) && StringUtils.hasLength(entry.getValue()))
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("; "));
+    }
+
+    private static boolean hasRefreshTokens(Map<String, String> cookies) {
+        return StringUtils.hasLength(cookies.get("MUSIC_U"))
+                && StringUtils.hasLength(cookies.get("MUSIC_A_T"))
+                && StringUtils.hasLength(cookies.get("MUSIC_R_T"));
     }
 
     private static String getCurrentDate() {
