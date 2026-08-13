@@ -708,7 +708,8 @@ public class DouYinToolsController {
         ArrayList<TiktokLiveRankUserInfoModel> tmp = new ArrayList<>();
         String normalizedPrefix = normalizeKeyword(prefix);
         for (TiktokLiveRankUserInfoModel userInfo : data) {
-            if (containsKeyword(userInfo.getNickname(), normalizedPrefix)) {
+            if (containsKeyword(userInfo.getNickname(), normalizedPrefix)
+                    || containsKeyword(userInfo.getUserRealNickName(), normalizedPrefix)) {
                 tmp.add(userInfo);
             }
         }
@@ -719,7 +720,8 @@ public class DouYinToolsController {
         ArrayList<TiktokLiveRankSimpleUserInfoModel> tmp = new ArrayList<>();
         String normalizedPrefix = normalizeKeyword(prefix);
         for (TiktokLiveRankSimpleUserInfoModel userInfo : data) {
-            if (containsKeyword(userInfo.getNickname(), normalizedPrefix)) {
+            if (containsKeyword(userInfo.getNickname(), normalizedPrefix)
+                    || containsKeyword(userInfo.getUserRealNickName(), normalizedPrefix)) {
                 tmp.add(userInfo);
             }
         }
@@ -728,7 +730,7 @@ public class DouYinToolsController {
 
     private ArrayList<String> buildRankListSpecial(String proRankListUrl, ArrayList<String> fallbackSpecialList) {
         if (!StringUtils.hasText(proRankListUrl)) {
-            return fallbackSpecialList;
+            return fallbackSpecialList == null ? new ArrayList<>() : fallbackSpecialList;
         }
         ArrayList<String> specialList = new ArrayList<>();
         specialList.add(buildRankListFilterUrl(proRankListUrl, "神秘人"));
