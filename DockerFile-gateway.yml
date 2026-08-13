@@ -36,7 +36,7 @@ x-otel-lgtm-labels: &otel-lgtm-labels
 
 x-tools-api-service: &tools-api-service
   <<: [*common, *tools-api-limits]
-  image: ${TOOLS_API_IMAGE:-tools-api-package:2.1.1.0-docker}
+  image: ${TOOLS_API_IMAGE:-tools-api-package:2.0.2.1-docker}
   labels: *tools-api-labels
   environment:
     SPRING_PROFILES_ACTIVE: docker
@@ -58,7 +58,7 @@ x-tools-api-environment: &tools-api-environment
 
 x-tools-api-web-service: &tools-api-web-service
   <<: [*common]
-  image: ${TOOLS_API_WEB_IMAGE:-tools-api-web-package:2.1.1.0-docker}
+  image: ${TOOLS_API_WEB_IMAGE:-tools-api-web-package:2.0.2.1-docker}
   labels: *tools-api-labels
   environment:
     TZ: Asia/Shanghai

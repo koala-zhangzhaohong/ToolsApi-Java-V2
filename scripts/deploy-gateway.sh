@@ -24,9 +24,13 @@ FRONTEND_IMAGE="tools-api-web-package:${IMAGE_VERSION}"
 BACKEND_ARCHIVE="${OUTPUT_DIR}/${BACKEND_IMAGE//:/-}.tar.gz"
 FRONTEND_ARCHIVE="${OUTPUT_DIR}/${FRONTEND_IMAGE//:/-}.tar.gz"
 
-[[ -n "${DEPLOY_PASSWORD}" ]] || { echo "请通过 DEPLOY_PASSWORD 环境变量传入 SSH 密码" >&2; exit 1; }
+if [[ -z "${DEPLOY_PASSWORD}" ]]; then
+  read -r -s -p "请输入 SSH 密码: " DEPLOY_PASSWORD
+  echo
+fi
+[[ -n "${DEPLOY_PASSWORD}" ]] || { echo "SSH 密码不能为空" >&2; exit 1; }
 command -v sshpass >/dev/null 2>&1 || { echo "未找到 sshpass" >&2; exit 1; }
-command -v rsync >/dev/null 2>&1 || { echo "未找到 rsync" >&2; exit 1; }
+command -v scp >/dev/null 2>&1 || { echo "未找到 scp" >&2; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "未找到 docker" >&2; exit 1; }
 docker info >/dev/null 2>&1 || { echo "Docker daemon 未运行" >&2; exit 1; }
 
@@ -63,13 +67,12 @@ run_ssh() {
 run_scp() {
   local source_file="$1"
   local target_path="$2"
-  SSHPASS="${DEPLOY_PASSWORD}" sshpass -e rsync \
-    --archive \
-    --partial \
-    --inplace \
-    --human-readable \
-    --progress \
-    -e "ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=20 -o ServerAliveCountMax=30 -o TCPKeepAlive=yes" \
+  SSHPASS="${DEPLOY_PASSWORD}" sshpass -e scp \
+    -P "${DEPLOY_PORT}" \
+    -o StrictHostKeyChecking=accept-new \
+    -o ServerAliveInterval=20 \
+    -o ServerAliveCountMax=30 \
+    -o TCPKeepAlive=yes \
     "${source_file}" "${DEPLOY_USER}@${DEPLOY_HOST}:${target_path}"
 }
 
