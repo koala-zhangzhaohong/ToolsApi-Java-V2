@@ -682,6 +682,19 @@ public class DouYinToolsController {
         if (!verifyListenerAdminPassword(password)) {
             return RespUtil.formatRespDataWithCustomMsg(403, "密码错误", null);
         }
+        return startRankAudienceListenerInternal(liveId);
+    }
+
+    /** 榜单详情的启动流程无需管理密码；解析详情始终使用受保护的 start 接口。 */
+    @PostMapping(value = "api/ranklist/audience/listener/rank/start", produces = {"application/json;charset=utf-8"})
+    public String startRankAudienceListenerFromRankDetail(@RequestParam String liveId) throws IOException, URISyntaxException {
+        if (!StringUtils.hasText(liveId)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        return startRankAudienceListenerInternal(liveId);
+    }
+
+    private String startRankAudienceListenerInternal(String liveId) throws IOException, URISyntaxException {
         String normalizedLiveId = liveId.trim();
         HttpClientUtil.HttpResult current = HttpClientUtil.getResponseWithoutTimeout(
                 liveCdnUrl("/api/douyin/live/" + URLEncoder.encode(normalizedLiveId, StandardCharsets.UTF_8)),

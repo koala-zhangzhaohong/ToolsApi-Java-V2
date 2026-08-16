@@ -57,7 +57,15 @@ button, input, textarea { font: inherit; }
 
 .search-panel, .history-card, .url-card, .player-config { border: 1px solid #e8eaf1; box-shadow: 0 12px 36px rgba(30, 41, 59, .05); }
 .search-panel .ant-card-body { padding: clamp(20px, 4vw, 36px); }
+.ant-input-search-button,
+.legacy-search-submit {
+  white-space: nowrap;
+  word-break: keep-all;
+}
 .ant-input-search-button .anticon + .search-button-label { margin-left: 8px; }
+.legacy-search-submit .anticon + .search-button-label { margin-left: 8px; }
+.legacy-search-submit .anticon,
+.legacy-search-submit .search-button-label { flex: 0 0 auto; white-space: nowrap; }
 .suggestions { margin-top: 16px; }
 .suggestions .ant-tag { cursor: pointer; padding: 5px 12px; border-radius: 999px; }
 .usage-alert { margin-top: 24px; }
@@ -479,7 +487,7 @@ button, input, textarea { font: inherit; }
 .search-v2-hero .legacy-search-form .ant-input-affix-wrapper { flex: 1 1 auto; min-width: 0; height: 54px; padding: 8px 12px 8px 22px; border: 0; border-radius: 18px 0 0 18px; box-shadow: none; }
 .search-v2-hero .ant-input { min-width: 0; color: #172033; font-size: 16px; }
 .search-v2-hero .ant-input::placeholder { color: #9ca3af; }
-.search-v2-hero .legacy-search-submit { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 142px; height: 54px; padding-inline: 22px; border-radius: 0 18px 18px 0; font-weight: 700; box-shadow: none; }
+.search-v2-hero .legacy-search-submit { flex: 0 0 auto; display: inline-flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0; min-width: 142px; height: 54px; padding-inline: 22px; border-radius: 0 18px 18px 0; font-weight: 700; box-shadow: none; }
 .search-v2-hero .legacy-search-chips { justify-content: flex-start; margin-top: 18px; }
 .search-v2-hero .legacy-search-chips .ant-typography { color: rgba(255,255,255,.68) !important; font-weight: 600; }
 .search-v2-hero .legacy-search-chips .ant-tag { margin-inline-end: 8px; color: #1f2937; border-color: rgba(255,255,255,.62); background: rgba(255,255,255,.92); box-shadow: 0 8px 20px rgba(10,12,25,.12); }

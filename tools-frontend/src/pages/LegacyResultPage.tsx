@@ -567,7 +567,14 @@ export default function LegacyResultPage() {
       return
     }
     const { listening } = maskedListenerStatus
-    setListenerPasswordAction(listening ? 'stop' : 'start')
+    if (!listening) {
+      setListenerPasswordAction('start')
+      setStopListenerPassword('')
+      setStopListenerPasswordError('')
+      setStopListenerPasswordOpen(true)
+      return
+    }
+    setListenerPasswordAction('stop')
     setStopListenerPassword('')
     setStopListenerPasswordError('')
     setStopListenerPasswordOpen(true)
@@ -621,10 +628,13 @@ export default function LegacyResultPage() {
           cancelText: '暂不',
           onOk: () => {
             setMaskedListenerStatus({ liveId, listening: false })
-            setListenerPasswordAction('start')
-            setStopListenerPassword('')
-            setStopListenerPasswordError('')
-            setStopListenerPasswordOpen(true)
+            void postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/rank/start?liveId=${encodeURIComponent(liveId)}`)
+              .then((payload) => {
+                if (typeof payload.code === 'number' && payload.code !== 200) throw new Error(payload.message || '开启监听失败')
+                setMaskedListenerStatus({ liveId, listening: true })
+                Modal.success({ title: '已开启脱敏榜单反查监听', content: '如监听到用户送礼操作，可刷新页面查询脱敏账号用户信息。' })
+              })
+              .catch((reason) => Modal.error({ title: '开启监听失败', content: reason instanceof Error ? reason.message : '直播监听服务暂时不可用，请稍后重试。' }))
           },
         })
       })
