@@ -52,6 +52,7 @@ public final class HttpClientUtil {
 
     public enum TimeoutMode {
         DEFAULT,
+        QUICK,
         NONE
     }
 
@@ -111,6 +112,7 @@ public final class HttpClientUtil {
 
     private static final Timeout CONNECTION_TIMEOUT = Timeout.ofSeconds(30);
     private static final Timeout RESPONSE_TIMEOUT = Timeout.ofMinutes(3);
+    private static final Timeout QUICK_RESPONSE_TIMEOUT = Timeout.ofSeconds(10);
     private static final Timeout POOL_TIMEOUT = Timeout.ofSeconds(30);
     private static final int STREAM_BUFFER_SIZE = 64 * 1024;
     private static final long DEFAULT_RELAY_RANGE_WINDOW = 512L * 1024;
@@ -150,6 +152,11 @@ public final class HttpClientUtil {
     public static HttpResult getResponseWithoutTimeout(String url, Map<String, String> headers, Map<String, ?> params)
             throws IOException, URISyntaxException {
         return execute("GET", url, headers, params, null, null, TimeoutMode.NONE, true);
+    }
+
+    public static HttpResult getResponseQuick(String url, Map<String, String> headers, Map<String, ?> params)
+            throws IOException, URISyntaxException {
+        return execute("GET", url, headers, params, null, null, TimeoutMode.QUICK, true);
     }
 
     public static HttpResult postFormResponse(String url, Map<String, String> headers, Map<String, ?> params)
@@ -634,6 +641,8 @@ public final class HttpClientUtil {
             // with ConnectionRequestTimeoutException. Streaming responses may have
             // no read deadline, but they must still wait for an available connection.
             builder.setConnectionRequestTimeout(POOL_TIMEOUT).setResponseTimeout(Timeout.DISABLED);
+        } else if (timeoutMode == TimeoutMode.QUICK) {
+            builder.setConnectionRequestTimeout(POOL_TIMEOUT).setResponseTimeout(QUICK_RESPONSE_TIMEOUT);
         } else {
             builder.setConnectionRequestTimeout(POOL_TIMEOUT).setResponseTimeout(RESPONSE_TIMEOUT);
         }

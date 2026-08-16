@@ -30,6 +30,7 @@ export interface DouyinResult extends JsonRecord {
   song_id?: string
   user_id?: string
   sec_uid?: string
+  short_id?: string
   media_data?: MediaData
   rank_data?: RankData
 }

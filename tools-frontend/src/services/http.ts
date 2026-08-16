@@ -30,6 +30,22 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
   }
 }
 
+export async function postJson<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(apiUrl(path), {
+    method: 'POST',
+    signal,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new HttpError(response.status, text)
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error('服务端返回的不是有效 JSON')
+  }
+}
+
 export function readableApiError(message: unknown, fallback: string) {
   if (typeof message !== 'string' || !message.trim()) return fallback
   const normalized = message.trim().toUpperCase()

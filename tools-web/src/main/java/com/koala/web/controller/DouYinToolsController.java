@@ -7,6 +7,7 @@ import com.koala.data.models.douyin.live.TiktokLiveRankData;
 import com.koala.data.models.douyin.live.TiktokMediaData;
 import com.koala.data.models.douyin.live.TiktokSimpleData;
 import com.koala.data.models.douyin.profile.TiktokUserProfileDataModel;
+import com.koala.data.models.douyin.profile.TiktokUserInfoDataModel;
 import com.koala.data.models.douyin.rank.*;
 import com.koala.data.models.douyin.v1.PublicTiktokDataRespModel;
 import com.koala.data.models.douyin.v1.itemInfo.ItemInfoRespModel;
@@ -41,6 +42,8 @@ import org.springframework.security.web.RedirectStrategy;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,10 +52,14 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.spec.KeySpec;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 
 import static com.koala.base.enums.DouYinResponseEnums.*;
 import static com.koala.base.enums.DouYinTypeEnums.*;
@@ -72,11 +79,17 @@ public class DouYinToolsController {
 
     private static final Logger logger = LoggerFactory.getLogger(DouYinToolsController.class);
 
+    private static final String LISTENER_ADMIN_PASSWORD_SALT = "toolsapi-masked-listener-admin-v1";
+    private static final String LISTENER_ADMIN_PASSWORD_HASH = "e3e3f94de646ae7f2336b5809aedb2c9f3add52805741556157fa6c65a8574ad";
+    private static final int LISTENER_ADMIN_PASSWORD_ITERATIONS = 210_000;
+
     private static final Integer MAX_RETRY_TIMES = 3;
 
     private static final String MASKED_USER_ID = "111111";
 
     private static final String TIKTOK_RANK_SNAPSHOT_PREFIX = "tiktok:rank:snapshot:";
+
+    private static final String TIKTOK_RANK_CDN_SNAPSHOT_SUFFIX = ":cdn-users";
 
     private static final long TIKTOK_RANK_SNAPSHOT_EXPIRE_SECONDS = 5 * 60L;
 
@@ -306,9 +319,12 @@ public class DouYinToolsController {
                                 mediaData.setProxyDownloadPath(productData.getItemInfoData().getAwemeDetailModel().getVideo().getMockDownloadProxyVidPathList());
                             }
                             case LIVE_TYPE_1, LIVE_TYPE_2 -> {
-                                simpleData.setIdStr(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getIdStr());
-                                simpleData.setSecUserId(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getSecUid());
-                                simpleData.setNickname(productData.getRoomItemInfoData().getData().getData().get(0).getOwner().getNickname());
+                                var owner = productData.getRoomItemInfoData().getData().getData().get(0).getOwner();
+                                simpleData.setIdStr(owner.getIdStr());
+                                simpleData.setSecUserId(owner.getSecUid());
+                                simpleData.setNickname(owner.getNickname());
+                                simpleData.setShortId(StringUtils.hasText(owner.getShortId()) ? owner.getShortId() : owner.getWebRid());
+                                simpleData.setUniqueId(owner.getUniqueId());
                                 simpleData.setRoomId(productData.getRoomItemInfoData().getData().getEnterRoomId());
                                 simpleData.setTitle(productData.getRoomItemInfoData().getData().getData().get(0).getTitle());
                                 rankData.setRankListUrl(productData.getRoomItemInfoData().getData().getData().get(0).getRankListData());
@@ -481,13 +497,15 @@ public class DouYinToolsController {
                     TiktokLiveRankDataRespModel originResponseData = GsonUtil.toBean(response, TiktokLiveRankDataRespModel.class);
                     TiktokLiveRankResponseDataModel responseData = new TiktokLiveRankResponseDataModel();
                     responseData.setRoomId(roomId);
-                    ArrayList<TiktokLiveRankUserInfoModel> userInfoList = new ArrayList<>();
+                    ArrayList<TiktokLiveRankUserInfoModel> rawUserInfoList = new ArrayList<>();
                     IterableUtils.forEach(originResponseData.getData().getRanks(), item -> {
                         TiktokLiveRankUserInfoModel userInfoModel = new TiktokLiveRankUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), userInfoModel);
                         userInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + userInfoModel.getSecUid() + "&config=2");
-                        userInfoList.add(userInfoModel);
+                        rawUserInfoList.add(userInfoModel);
                     });
+                    appendCdnRankUsers(rawUserInfoList, getCdnRankUsers(roomId, snapshotKey, extra));
+                    ArrayList<TiktokLiveRankUserInfoModel> userInfoList = deduplicateRankUsers(rawUserInfoList);
                     ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList;
                     switch (config) {
                         case "1" -> {
@@ -512,13 +530,15 @@ public class DouYinToolsController {
                     TiktokLiveRankDataRespModel originResponseData = GsonUtil.toBean(response, TiktokLiveRankDataRespModel.class);
                     TiktokLiveRankSimpleResponseDataModel responseData = new TiktokLiveRankSimpleResponseDataModel();
                     responseData.setRoomId(roomId);
-                    ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoList = new ArrayList<>();
+                    ArrayList<TiktokLiveRankSimpleUserInfoModel> rawUserInfoList = new ArrayList<>();
                     IterableUtils.forEach(originResponseData.getData().getRanks(), item -> {
                         TiktokLiveRankSimpleUserInfoModel simpleUserInfoModel = new TiktokLiveRankSimpleUserInfoModel();
                         BeanUtils.copyProperties(item.getUser(), simpleUserInfoModel);
                         simpleUserInfoModel.setUserInfoDirection(hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + simpleUserInfoModel.getSecUid() + "&config=2");
-                        userInfoList.add(simpleUserInfoModel);
+                        rawUserInfoList.add(simpleUserInfoModel);
                     });
+                    appendCdnSimpleRankUsers(rawUserInfoList, getCdnRankUsers(roomId, snapshotKey, extra));
+                    ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoList = deduplicateSimpleRankUsers(rawUserInfoList);
                     ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList;
                     switch (config) {
                         case "1" -> {
@@ -577,26 +597,151 @@ public class DouYinToolsController {
         if (!StringUtils.hasText(nickname) || !nickname.trim().matches("^(神秘人|神秘嘉宾|dou)\\d+$")) {
             return formatRespData(INVALID_PARAM, null);
         }
-        String normalizedNickname = nickname.trim();
-        String encodedNickname = URLEncoder.encode(normalizedNickname, StandardCharsets.UTF_8).replace("+", "%20");
-        String cdnUrl = "http://" + cdnServerAddress + ':' + cdnServerLivePort + "/api/douyin/live/users/" + encodedNickname;
-        String cdnResponse = HttpClientUtil.doGetWithoutTimeout(cdnUrl, Map.of("Accept", "application/json"), null);
-        if (!StringUtils.hasText(cdnResponse)) {
+        Map<String, Object> resolved = getSpecialRankNicknameFromCdn(nickname.trim());
+        if (resolved.isEmpty()) {
             return formatRespData(GET_INFO_ERROR, null);
         }
-        Map<String, Object> cachedUser = GsonUtil.toMaps(cdnResponse);
-        String secUid = Objects.toString(cachedUser.get("sec_uid"), "");
-        if (!StringUtils.hasText(secUid)) {
+        return formatRespData(GET_DATA_SUCCESS, resolved);
+    }
+
+    @GetMapping(value = "api/ranklist/audience/gift-records", produces = {"application/json;charset=utf-8"})
+    public String getSpecialRankGiftRecords(@RequestParam String roomId,
+                                            @RequestParam String nickname,
+                                            @RequestParam(required = false) String account,
+                                            @RequestParam(required = false) String secUserId) throws IOException, URISyntaxException {
+        if (!StringUtils.hasText(roomId) || !StringUtils.hasText(nickname) || !isSpecialRankNickname(nickname)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        Map<String, Object> cachedUser = getSpecialRankUserFromCdn(nickname.trim());
+        if (cachedUser.isEmpty()) {
+            String type = nickname.trim().startsWith("神秘嘉宾") ? "mystery-guest"
+                    : nickname.trim().startsWith("dou") ? "dou" : "mystery-person";
+            HttpClientUtil.HttpResult result = HttpClientUtil.getResponseWithoutTimeout(
+                    liveCdnUrl("/api/douyin/live/users/" + URLEncoder.encode(roomId.trim(), StandardCharsets.UTF_8) + '/' + type),
+                    Map.of("Accept", "application/json"), null);
+            if (result.isSuccessful() && StringUtils.hasText(result.body())) {
+                Map<String, Object> nicknameFallback = Collections.emptyMap();
+                List<Map<String, Object>> candidates = GsonUtil.toListMaps(result.body());
+                for (Map<String, Object> candidate : candidates == null ? Collections.<Map<String, Object>>emptyList() : candidates) {
+                    String candidateSecUid = Objects.toString(candidate.get("sec_uid"), "");
+                    String candidateAccount = cdnUserAccount(candidate);
+                    String candidateNickname = Objects.toString(candidate.get("nickname"), "");
+                    if ((StringUtils.hasText(secUserId) && secUserId.trim().equals(candidateSecUid))
+                            || (StringUtils.hasText(account) && account.trim().equals(candidateAccount))) {
+                        cachedUser = candidate;
+                        break;
+                    }
+                    if (nicknameFallback.isEmpty() && nickname.trim().equals(candidateNickname)) {
+                        nicknameFallback = candidate;
+                    }
+                }
+                if (cachedUser.isEmpty()) cachedUser = nicknameFallback;
+            }
+        }
+        Object extra = cachedUser.containsKey("extra") ? cachedUser.get("extra") : cachedUser.get("extra_info");
+        return formatRespData(GET_DATA_SUCCESS, Map.of(
+                "extra", extra instanceof Collection<?> ? extra : Collections.emptyList()));
+    }
+
+    @GetMapping(value = "api/ranklist/audience/listener/status", produces = {"application/json;charset=utf-8"})
+    public String getRankAudienceListenerStatus(@RequestParam(required = false) String secUserId,
+                                                @RequestParam(required = false) String key,
+                                                @RequestParam(required = false) String liveId) throws IOException, URISyntaxException {
+        TiktokSimpleData cachedLive = getLiveDataByKey(key);
+        String resolvedLiveId = StringUtils.hasText(liveId) ? liveId.trim() : liveIdFromSimpleData(cachedLive);
+        String resolvedSecUserId = StringUtils.hasText(secUserId) ? secUserId.trim()
+                : cachedLive == null ? null : cachedLive.getSecUserId();
+        if (!StringUtils.hasText(resolvedLiveId) && !StringUtils.hasText(resolvedSecUserId)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        if (!StringUtils.hasText(resolvedLiveId)) resolvedLiveId = getLiveShortId(resolvedSecUserId);
+        if (!StringUtils.hasText(resolvedLiveId)) {
             return formatRespData(GET_INFO_ERROR, null);
         }
-        String realNickname = getRealNickName(secUid);
-        if (!StringUtils.hasText(realNickname)) {
+        HttpClientUtil.HttpResult listenerResponse = HttpClientUtil.getResponse(
+                liveCdnUrl("/api/douyin/live/" + URLEncoder.encode(resolvedLiveId, StandardCharsets.UTF_8)),
+                Map.of("Accept", "application/json"), null);
+        if (!listenerResponse.isSuccessful() && listenerResponse.statusCode() != 404) {
+            logger.warn("[getRankAudienceListenerStatus] live CDN returned status: {}, liveId: {}",
+                    listenerResponse.statusCode(), resolvedLiveId);
             return formatRespData(GET_INFO_ERROR, null);
         }
-        Map<String, String> result = new HashMap<>();
-        result.put("nickname", realNickname);
-        result.put("sec_uid", secUid);
+        Map<String, Object> result = new HashMap<>();
+        result.put("liveId", resolvedLiveId);
+        result.put("listening", listenerResponse.isSuccessful());
         return formatRespData(GET_DATA_SUCCESS, result);
+    }
+
+    @PostMapping(value = "api/ranklist/audience/listener/start", produces = {"application/json;charset=utf-8"})
+    public String startRankAudienceListener(@RequestParam String liveId) throws IOException, URISyntaxException {
+        if (!StringUtils.hasText(liveId)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        String normalizedLiveId = liveId.trim();
+        HttpClientUtil.HttpResult current = HttpClientUtil.getResponseWithoutTimeout(
+                liveCdnUrl("/api/douyin/live/" + URLEncoder.encode(normalizedLiveId, StandardCharsets.UTF_8)),
+                Map.of("Accept", "application/json"), null);
+        if (current.isSuccessful()) {
+            return formatRespData(GET_DATA_SUCCESS, Map.of("liveId", normalizedLiveId, "listening", true));
+        }
+        if (current.statusCode() != 404) {
+            return formatRespData(GET_INFO_ERROR, null);
+        }
+        HttpClientUtil.HttpResult started = HttpClientUtil.postJsonResponse(
+                liveCdnUrl("/api/douyin/live/start"),
+                Map.of("Accept", "application/json", "Content-Type", "application/json"),
+                GsonUtil.toString(Map.of("liveId", normalizedLiveId)));
+        if (!started.isSuccessful()) {
+            logger.warn("[startRankAudienceListener] live CDN returned status: {}, liveId: {}",
+                    started.statusCode(), normalizedLiveId);
+            return formatRespData(GET_INFO_ERROR, null);
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("liveId", normalizedLiveId);
+        result.put("listening", true);
+        if (StringUtils.hasText(started.body())) {
+            result.put("listener", GsonUtil.toBean(started.body(), Object.class));
+        }
+        return formatRespData(GET_DATA_SUCCESS, result);
+    }
+
+    @PostMapping(value = "api/ranklist/audience/listener/stop", produces = {"application/json;charset=utf-8"})
+    public String stopRankAudienceListener(@RequestParam String liveId,
+                                           @RequestBody(required = false) Map<String, String> request) throws IOException, URISyntaxException {
+        if (!StringUtils.hasText(liveId)) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        String password = request == null ? null : request.get("password");
+        if (!verifyListenerAdminPassword(password)) {
+            return RespUtil.formatRespDataWithCustomMsg(403, "密码错误", null);
+        }
+        String normalizedLiveId = liveId.trim();
+        HttpClientUtil.HttpResult stopped = HttpClientUtil.deleteResponse(
+                liveCdnUrl("/api/douyin/live/" + URLEncoder.encode(normalizedLiveId, StandardCharsets.UTF_8)),
+                Map.of("Accept", "application/json"), null);
+        if (!stopped.isSuccessful() && stopped.statusCode() != 404) {
+            logger.warn("[stopRankAudienceListener] live CDN returned status: {}, liveId: {}",
+                    stopped.statusCode(), normalizedLiveId);
+            return formatRespData(GET_INFO_ERROR, null);
+        }
+        return formatRespData(GET_DATA_SUCCESS, Map.of("liveId", normalizedLiveId, "listening", false));
+    }
+
+    private boolean verifyListenerAdminPassword(String password) {
+        if (!StringUtils.hasText(password)) return false;
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(),
+                LISTENER_ADMIN_PASSWORD_SALT.getBytes(StandardCharsets.UTF_8),
+                LISTENER_ADMIN_PASSWORD_ITERATIONS, 256);
+        try {
+            byte[] actual = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded();
+            byte[] expected = HexFormat.of().parseHex(LISTENER_ADMIN_PASSWORD_HASH);
+            return MessageDigest.isEqual(actual, expected);
+        } catch (Exception exception) {
+            logger.error("[verifyListenerAdminPassword] failed to verify password", exception);
+            return false;
+        } finally {
+            spec.clearPassword();
+        }
     }
 
     @HttpRequestRecorder
@@ -671,6 +816,167 @@ public class DouYinToolsController {
         return null;
     }
 
+    private String getLiveShortId(String secUserId) throws IOException, URISyntaxException {
+        String cached = redisService.get(TIKTOK_PROFILE_INFO + secUserId);
+        if (StringUtils.hasText(cached)) {
+            TiktokUserProfileDataModel profile = GsonUtil.toBean(cached, TiktokUserProfileDataModel.class);
+            String shortId = profileShortId(profile);
+            if (StringUtils.hasText(shortId)) {
+                return shortId;
+            }
+        }
+        String url = TIKTOK_USER_PROFILE_OTHER + "?device_platform=webapp&aid=6383&channel=channel_pc_web&publish_video_strategy_type=2&source=channel_pc_web&sec_user_id=" + secUserId + "&version_code=160100&version_name=16.1.0&_signature=_02B4Z6wo00d01A8CVfgAAIDB2MR4gyyTjxgPAlFAAGMe23";
+        AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
+        if (Objects.isNull(abogusDataModel) || !StringUtils.hasText(abogusDataModel.getUrl())) {
+            return null;
+        }
+        HttpClientUtil.HttpResult profileResponse = HttpClientUtil.getResponseQuick(abogusDataModel.getUrl(),
+                HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(),
+                        tiktokCookieUtil.getTiktokCookie(), true), null);
+        if (profileResponse.isSuccessful() && StringUtils.hasText(profileResponse.body())) {
+            TiktokUserProfileDataModel profile = GsonUtil.toBean(profileResponse.body(), TiktokUserProfileDataModel.class);
+            String shortId = profileShortId(profile);
+            if (StringUtils.hasText(shortId)) {
+                redisService.set(TIKTOK_PROFILE_INFO + secUserId, profileResponse.body(), 30 * 60L);
+                return shortId;
+            }
+        }
+        logger.info("[getLiveShortId] no valid short_id for secUserId: {}", secUserId);
+        return null;
+    }
+
+    private TiktokSimpleData getLiveDataByKey(String key) {
+        if (!StringUtils.hasText(key)) return null;
+        String cached = redisService.get(JSON_KEY_PREFIX + key.trim());
+        if (!StringUtils.hasText(cached)) return null;
+        return GsonUtil.toBean(cached, TiktokSimpleData.class);
+    }
+
+    private String liveIdFromSimpleData(TiktokSimpleData data) {
+        if (data == null) return null;
+        if (StringUtils.hasText(data.getShortId()) && !"0".equals(data.getShortId())) return data.getShortId();
+        return StringUtils.hasText(data.getUniqueId()) ? data.getUniqueId() : null;
+    }
+
+    private String profileShortId(TiktokUserProfileDataModel profile) {
+        TiktokUserInfoDataModel user = profile == null ? null : profile.getUser();
+        if (user == null) return null;
+        if (StringUtils.hasText(user.getShortId()) && !"0".equals(user.getShortId())) {
+            return user.getShortId();
+        }
+        // 部分直播主播的用户资料不会返回 short_id；监听服务同样接受公开 unique_id。
+        return StringUtils.hasText(user.getUniqueId()) ? user.getUniqueId() : null;
+    }
+
+    private String liveCdnUrl(String path) {
+        return "http://" + cdnServerAddress + ':' + cdnServerLivePort + path;
+    }
+
+    private List<Map<String, Object>> getCdnRankUsers(String roomId, String snapshotKey, String extra) {
+        String cacheKey = snapshotKey + TIKTOK_RANK_CDN_SNAPSHOT_SUFFIX;
+        if ("1".equals(extra)) {
+            String cached = redisService.get(cacheKey);
+            if (StringUtils.hasText(cached)) return GsonUtil.toListMaps(cached);
+        }
+        List<Map<String, Object>> users = new ArrayList<>();
+        for (String type : List.of("mystery-person", "mystery-guest", "dou")) {
+            try {
+                HttpClientUtil.HttpResult result = HttpClientUtil.getResponseWithoutTimeout(
+                        liveCdnUrl("/api/douyin/live/users/" + URLEncoder.encode(roomId, StandardCharsets.UTF_8) + '/' + type),
+                        Map.of("Accept", "application/json"), null);
+                if (result.isSuccessful() && StringUtils.hasText(result.body())) {
+                    List<Map<String, Object>> typeUsers = GsonUtil.toListMaps(result.body());
+                    if (typeUsers != null) users.addAll(typeUsers);
+                }
+            } catch (Exception exception) {
+                logger.info("[getCdnRankUsers] failed to load type: {}, roomId: {}, error: {}",
+                        type, roomId, exception.getMessage());
+            }
+        }
+        redisService.set(cacheKey, GsonUtil.toString(users), TIKTOK_RANK_SNAPSHOT_EXPIRE_SECONDS);
+        return users;
+    }
+
+    private void appendCdnRankUsers(List<TiktokLiveRankUserInfoModel> target, List<Map<String, Object>> cdnUsers) {
+        for (Map<String, Object> cached : cdnUsers) {
+            TiktokLiveRankUserInfoModel user = new TiktokLiveRankUserInfoModel();
+            fillCdnRankUser(cached, user, null);
+            target.add(user);
+        }
+    }
+
+    private void appendCdnSimpleRankUsers(List<TiktokLiveRankSimpleUserInfoModel> target, List<Map<String, Object>> cdnUsers) {
+        for (Map<String, Object> cached : cdnUsers) {
+            TiktokLiveRankSimpleUserInfoModel user = new TiktokLiveRankSimpleUserInfoModel();
+            fillCdnRankUser(cached, null, user);
+            target.add(user);
+        }
+    }
+
+    private void fillCdnRankUser(Map<String, Object> cached, TiktokLiveRankUserInfoModel full,
+                                 TiktokLiveRankSimpleUserInfoModel simple) {
+        Long id = longValue(cached.get("id"));
+        Long shortId = longValue(cached.get("short_id"));
+        String nickname = Objects.toString(cached.get("nickname"), "");
+        String secUid = Objects.toString(cached.get("sec_uid"), "");
+        String account = shortId != null && shortId > 0 ? String.valueOf(shortId)
+                : id != null && id > 0 ? String.valueOf(id) : secUid;
+        Object extraInfo = cached.get("extra_info");
+        String direction = StringUtils.hasText(secUid)
+                ? hostManager.getHost() + "tools/DouYin/api/user/profile/other?secUserId=" + secUid + "&config=2" : null;
+        if (full != null) {
+            full.setId(id);
+            full.setShortId(shortId);
+            full.setNickname(nickname);
+            full.setDisplayId(account);
+            full.setSecUid(secUid);
+            full.setUserInfoDirection(direction);
+            full.setExtra(extraInfo instanceof Collection<?> ? extraInfo : Collections.emptyList());
+            full.setCdnResolved(true);
+        }
+        if (simple != null) {
+            simple.setId(id);
+            simple.setShortId(shortId);
+            simple.setNickname(nickname);
+            simple.setDisplayId(account);
+            simple.setSecUid(secUid);
+            simple.setUserInfoDirection(direction);
+            simple.setExtra(extraInfo instanceof Collection<?> ? extraInfo : Collections.emptyList());
+            simple.setCdnResolved(true);
+        }
+    }
+
+    private Long longValue(Object value) {
+        if (value instanceof Number number) return number.longValue();
+        try {
+            return StringUtils.hasText(Objects.toString(value, "")) ? Long.parseLong(value.toString()) : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private ArrayList<TiktokLiveRankUserInfoModel> deduplicateRankUsers(List<TiktokLiveRankUserInfoModel> users) {
+        LinkedHashMap<String, TiktokLiveRankUserInfoModel> unique = new LinkedHashMap<>();
+        for (TiktokLiveRankUserInfoModel user : users) unique.put(rankAccountKey(
+                user.getDisplayId(), user.getShortId(), user.getId(), user.getSecUid()), user);
+        return new ArrayList<>(unique.values());
+    }
+
+    private ArrayList<TiktokLiveRankSimpleUserInfoModel> deduplicateSimpleRankUsers(List<TiktokLiveRankSimpleUserInfoModel> users) {
+        LinkedHashMap<String, TiktokLiveRankSimpleUserInfoModel> unique = new LinkedHashMap<>();
+        for (TiktokLiveRankSimpleUserInfoModel user : users) unique.put(rankAccountKey(
+                user.getDisplayId(), user.getShortId(), user.getId(), user.getSecUid()), user);
+        return new ArrayList<>(unique.values());
+    }
+
+    private String rankAccountKey(String displayId, Long shortId, Long id, String secUid) {
+        if (StringUtils.hasText(displayId)) return "display:" + displayId.trim();
+        if (shortId != null && shortId > 0) return "short:" + shortId;
+        if (id != null && id > 0) return "id:" + id;
+        if (StringUtils.hasText(secUid)) return "sec:" + secUid.trim();
+        return "empty:" + UUID.randomUUID();
+    }
+
 
     private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer offset, Integer count) {
         // 只补全当前展示批次的真实昵称；特殊入口筛选仍只匹配榜单返回的 nickname。
@@ -687,13 +993,17 @@ public class DouYinToolsController {
         }
         ThreadPoolUtil<HashMap<String, String>> threadPoolUtil = ThreadPoolUtil.getInstance();
         List<Future<HashMap<String, String>>> futureList = new ArrayList<>();
-        // 每个用户一个 I/O 任务，交由共享线程池动态扩容；同时去重，避免同一 sec_uid 重复请求。
-        Set<String> submittedSecUids = new HashSet<>();
+        // 每个用户一个 I/O 任务，交由共享线程池动态扩容；同时去重，避免重复请求。
+        Set<String> submittedUsers = new HashSet<>();
         for (T item : specialCandidates) {
             String secUid = getSecUid(item);
-            // 普通用户直接使用榜单昵称；只有特殊用户才调用资料接口反查真实昵称。
-            if (isSpecialRankUser(item) && !isMaskedUser(item) && StringUtils.hasText(secUid) && submittedSecUids.add(secUid)) {
-                Callable<HashMap<String, String>> task = () -> execute(Collections.singletonList(item));
+            String nickname = getRankNickname(item);
+            boolean masked = isMaskedUser(item);
+            String requestKey = masked ? "masked:" + nickname : "sec:" + secUid;
+            if (isSpecialRankUser(item) && StringUtils.hasText(secUid) && submittedUsers.add(requestKey)) {
+                Callable<HashMap<String, String>> task = masked
+                        ? () -> executeMaskedRankNickname(item)
+                        : () -> execute(Collections.singletonList(item));
                 Future<HashMap<String, String>> future = threadPoolUtil.submitTask(task);
                 futureList.add(future);
             }
@@ -737,6 +1047,12 @@ public class DouYinToolsController {
         return value.startsWith("神秘人") || value.startsWith("dou") || value.startsWith("神秘嘉宾");
     }
 
+    private boolean isSpecialRankNickname(String nickname) {
+        if (!StringUtils.hasText(nickname)) return false;
+        String value = nickname.trim();
+        return value.startsWith("神秘人") || value.startsWith("dou") || value.startsWith("神秘嘉宾");
+    }
+
     private String getRankSnapshotKey(String roomId, String version, String config, String nickname) {
         return TIKTOK_RANK_SNAPSHOT_PREFIX + roomId + ':' + version + ':' + config + ':' + (nickname == null ? "" : nickname.trim());
     }
@@ -749,6 +1065,78 @@ public class DouYinToolsController {
             return item.getSecUid();
         }
         return null;
+    }
+
+    private String getRankNickname(Object userInfo) {
+        if (userInfo instanceof TiktokLiveRankUserInfoModel item) return item.getNickname();
+        if (userInfo instanceof TiktokLiveRankSimpleUserInfoModel item) return item.getNickname();
+        return null;
+    }
+
+    private HashMap<String, String> executeMaskedRankNickname(Object userInfo) {
+        HashMap<String, String> result = new HashMap<>();
+        String originalSecUid = getSecUid(userInfo);
+        String nickname = getRankNickname(userInfo);
+        if (!StringUtils.hasText(originalSecUid) || !StringUtils.hasText(nickname)) return result;
+        try {
+            Map<String, Object> resolved = getSpecialRankNicknameFromCdn(nickname);
+            String realNickname = Objects.toString(resolved.get("nickname"), "");
+            if (StringUtils.hasText(realNickname)) setRankCdnData(userInfo, resolved.get("extra"));
+            if (StringUtils.hasText(realNickname)) result.put(originalSecUid, realNickname);
+        } catch (Exception exception) {
+            logger.info("[executeMaskedRankNickname] CDN lookup failed for nickname: {}, error: {}",
+                    nickname, exception.getMessage());
+        }
+        return result;
+    }
+
+    private Map<String, Object> getSpecialRankNicknameFromCdn(String nickname) throws IOException, URISyntaxException {
+        Map<String, Object> cachedUser = getSpecialRankUserFromCdn(nickname);
+        if (cachedUser.isEmpty()) return Collections.emptyMap();
+        String secUid = Objects.toString(cachedUser.get("sec_uid"), "");
+        String realNickname = getRealNickName(secUid);
+        if (!StringUtils.hasText(realNickname)) return Collections.emptyMap();
+        Map<String, Object> result = new HashMap<>();
+        result.put("nickname", realNickname);
+        result.put("sec_uid", secUid);
+        Object extra = cachedUser.containsKey("extra") ? cachedUser.get("extra") : cachedUser.get("extra_info");
+        result.put("extra", extra instanceof Collection<?> ? extra : Collections.emptyList());
+        return result;
+    }
+
+    private Map<String, Object> getSpecialRankUserFromCdn(String nickname) throws IOException, URISyntaxException {
+        if (!StringUtils.hasText(nickname) || !nickname.trim().matches("^(神秘人|神秘嘉宾|dou)\\d+$")) {
+            return Collections.emptyMap();
+        }
+        String encodedNickname = URLEncoder.encode(nickname, StandardCharsets.UTF_8).replace("+", "%20");
+        String cdnResponse = HttpClientUtil.doGetWithoutTimeout(
+                liveCdnUrl("/api/douyin/live/users/" + encodedNickname),
+                Map.of("Accept", "application/json"), null);
+        if (!StringUtils.hasText(cdnResponse)) return Collections.emptyMap();
+        Map<String, Object> cachedUser = GsonUtil.toMaps(cdnResponse);
+        String secUid = Objects.toString(cachedUser.get("sec_uid"), "");
+        if (!StringUtils.hasText(secUid)) return Collections.emptyMap();
+        return cachedUser;
+    }
+
+    private String cdnUserAccount(Map<String, Object> user) {
+        Long shortId = longValue(user.get("short_id"));
+        if (shortId != null && shortId > 0) return String.valueOf(shortId);
+        Long id = longValue(user.get("id"));
+        if (id != null && id > 0) return String.valueOf(id);
+        return Objects.toString(user.get("sec_uid"), "");
+    }
+
+    private void setRankCdnData(Object userInfo, Object extra) {
+        Object normalizedExtra = extra instanceof Collection<?> ? extra : Collections.emptyList();
+        if (userInfo instanceof TiktokLiveRankUserInfoModel item) {
+            item.setExtra(normalizedExtra);
+            item.setCdnResolved(true);
+        }
+        if (userInfo instanceof TiktokLiveRankSimpleUserInfoModel item) {
+            item.setExtra(normalizedExtra);
+            item.setCdnResolved(true);
+        }
     }
 
     private boolean isMaskedUser(Object userInfo) {

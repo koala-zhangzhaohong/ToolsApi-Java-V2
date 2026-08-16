@@ -197,6 +197,42 @@ button, input, textarea { font: inherit; }
   transform: translateY(0) scale(.995);
   transition-duration: .08s;
 }
+.legacy-action-grid .legacy-listener-button-start {
+  color: #087f5b;
+  border-color: #9be3cc;
+  background: #e8faf4;
+}
+.legacy-action-grid .legacy-listener-button-start:not(:disabled):hover,
+.legacy-action-grid .legacy-listener-button-start:not(:disabled):focus-visible {
+  color: #067052 !important;
+  border-color: #63cfad !important;
+  background: #d8f5eb !important;
+  box-shadow: 0 7px 16px rgba(8, 127, 91, .14);
+}
+.legacy-action-grid .legacy-listener-button-stop {
+  color: #c2414f;
+  border-color: #f0b5bc;
+  background: #fff0f2;
+}
+.legacy-action-grid .legacy-listener-button-stop:not(:disabled):hover,
+.legacy-action-grid .legacy-listener-button-stop:not(:disabled):focus-visible {
+  color: #ad2f3e !important;
+  border-color: #e68d98 !important;
+  background: #ffe3e7 !important;
+  box-shadow: 0 7px 16px rgba(194, 65, 79, .14);
+}
+.legacy-action-grid .legacy-listener-button-status {
+  color: #667085;
+  border-color: #d0d5dd;
+  background: #f8fafc;
+}
+.legacy-action-grid .legacy-listener-button-status:not(:disabled):hover,
+.legacy-action-grid .legacy-listener-button-status:not(:disabled):focus-visible {
+  color: #475467 !important;
+  border-color: #b8c0cc !important;
+  background: #f1f4f8 !important;
+  box-shadow: 0 7px 16px rgba(71, 84, 103, .12);
+}
 @media (prefers-reduced-motion: reduce) {
   .legacy-action-grid .ant-btn,
   .legacy-action-grid .ant-btn .anticon { transition: none; }
@@ -212,6 +248,26 @@ button, input, textarea { font: inherit; }
 .legacy-rank-table .ant-table-tbody > tr > td { text-align: center; overflow-wrap: anywhere; }
 .legacy-rank-table .ant-table-tbody > tr:nth-child(even) > td { background: #f8fafc; }
 .legacy-rank-table .ant-table-cell { vertical-align: middle; }
+.legacy-rank-nickname-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+}
+.legacy-rank-nickname-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+.legacy-rank-nickname-cell .legacy-gift-button {
+  flex: none;
+  justify-self: end;
+  margin-left: 0;
+  white-space: nowrap;
+}
 .legacy-rank-load-more { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; color: #7b8496; font-size: 13px; text-align: center; }
 .legacy-json-plain { overflow: auto; max-height: 70vh; margin: 0; padding: 18px; color: #d9dee8; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 12px; background: #141721; font: 13px/1.65 'SFMono-Regular', Consolas, monospace; }
 .ant-result { margin: auto; padding-top: 12vh; }
@@ -582,4 +638,96 @@ button, input, textarea { font: inherit; }
   .legacy-rank-table .ant-table-thead > tr > th,
   .legacy-rank-table .ant-table-tbody > tr > td { padding: 10px 8px; }
   .legacy-rank-load-more { min-height: 48px; }
+}
+.legacy-gift-records {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  margin-top: 16px;
+  overflow-y: auto;
+}
+.legacy-gift-record-modal .ant-modal-confirm-content {
+  margin-inline-start: 0;
+}
+.legacy-gift-record-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 180px;
+  text-align: center;
+  /* Modal.info 的正文列会为左侧状态图标预留 34px；向左补偿一半，
+     使空状态相对整个弹窗居中，而不是只在右侧正文列中居中。 */
+  transform: translateX(-17px);
+}
+
+.legacy-gift-button.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-left: 6px;
+  min-width: 30px;
+  width: auto;
+  height: 30px;
+  padding: 0 9px 0 6px;
+  overflow: hidden;
+  line-height: 30px;
+  border: 1px solid #fed7aa;
+  border-radius: 9px;
+  background: #fff7ed;
+  box-shadow: 0 2px 6px rgb(194 65 12 / 12%);
+}
+
+.legacy-rank-nickname-cell .legacy-gift-button.ant-btn {
+  justify-self: end;
+  margin-left: 0;
+}
+
+.legacy-gift-button.ant-btn.ant-btn-text:not(:disabled):hover,
+.legacy-gift-button.ant-btn.ant-btn-text:not(:disabled):focus-visible {
+  color: #fff;
+  border-color: #fb923c;
+  background-color: #fb923c;
+  box-shadow: 0 4px 10px rgb(194 65 12 / 20%);
+  transform: translateY(-1px);
+}
+
+.legacy-gift-button.ant-btn.ant-btn-text:not(:disabled):hover .legacy-gift-button-label,
+.legacy-gift-button.ant-btn.ant-btn-text:not(:disabled):focus-visible .legacy-gift-button-label {
+  color: #fff;
+}
+
+.legacy-gift-button.ant-btn.ant-btn-text:not(:disabled):hover .legacy-gift-button-icon,
+.legacy-gift-button.ant-btn.ant-btn-text:not(:disabled):focus-visible .legacy-gift-button-icon {
+  transform: scale(1.06);
+}
+
+.legacy-gift-button-icon {
+  display: block;
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgb(94 30 0 / 14%));
+  transition: transform 160ms ease;
+}
+
+.legacy-gift-button-label {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.legacy-gift-record {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #edf0f5;
+  border-radius: 10px;
+  background: #f8f9fc;
+}
+.legacy-listener-password-field {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
 }

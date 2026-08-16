@@ -1,10 +1,10 @@
-import { ArrowLeftOutlined, CloudDownloadOutlined, LinkOutlined, PlayCircleOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Col, Empty, Image, Row, Skeleton, Space, Spin, Table, Typography } from 'antd'
+import { ArrowLeftOutlined, CloudDownloadOutlined, LinkOutlined, PlayCircleOutlined, RadarChartOutlined, ReloadOutlined, StopOutlined, UserOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Col, Empty, Image, Input, Modal, Row, Skeleton, Space, Spin, Table, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import JsonTree from '../components/JsonTree'
 import { useParseHistory } from '../hooks/useParseHistory'
-import { getJson } from '../services/http'
+import { getJson, postJson } from '../services/http'
 import type { DouyinResult, PlayerPageData } from '../types'
 import { downloadRoutes, isLocalDownloadProxy, localDownloadUrl } from '../utils/downloadRoute'
 import { imagePreviewToolbar } from '../utils/imagePreview'
@@ -47,6 +47,53 @@ function isSpecialRankNickname(value: unknown) {
   return nickname.startsWith('神秘人') || nickname.startsWith('dou') || nickname.startsWith('神秘嘉宾')
 }
 
+function isMaskedRankUser(row: Record<string, unknown>) {
+  return String(row.display_id || row.displayId || '').trim() === '111111'
+}
+
+type GiftRecord = { time: number; message: string }
+type MaskedListenerStatus = { liveId: string; listening: boolean }
+
+function giftRecords(value: unknown): GiftRecord[] {
+  const values = Array.isArray(value) ? value : []
+  return values.flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+    const record = item as Record<string, unknown>
+    const message = record.msg || record.content || record.message
+    if (!nonEmpty(message)) return []
+    const rawTime = Number(record.gift_time || record.giftTime || record.time || record.timestamp || 0)
+    const time = rawTime > 0 && rawTime < 10_000_000_000 ? rawTime * 1000 : rawTime
+    return [{ time, message }]
+  })
+}
+
+function showGiftRecords(value: unknown) {
+  const records = giftRecords(value)
+  Modal.info({
+    title: '最近送礼记录',
+    className: 'legacy-gift-record-modal',
+    width: 620,
+    okText: '知道了',
+    content: records.length ? (
+      <div className="legacy-gift-records">
+        {records.map((record, index) => <div className="legacy-gift-record" key={`${record.time}-${index}`}>
+          <Typography.Text type="secondary">{record.time ? new Date(record.time).toLocaleString('zh-CN', { hour12: false }) : '时间未知'}</Typography.Text>
+          <Typography.Text>{record.message}</Typography.Text>
+        </div>)}
+      </div>
+    ) : <div className="legacy-gift-record-empty"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无送礼记录" /></div>,
+  })
+}
+
+function parentResultKey(returnTo: string) {
+  if (!returnTo) return ''
+  try {
+    return new URL(returnTo, window.location.origin).searchParams.get('key') || ''
+  } catch {
+    return ''
+  }
+}
+
 function rankNeedsRealNickname(value: string) {
   try {
     const url = new URL(value.replace(/&amp;/g, '&'), window.location.origin)
@@ -80,12 +127,23 @@ function rankNicknameBatchPath(value: string, offset: number, count: number) {
   }
 }
 
+function rankRoomId(value: string) {
+  try {
+    return new URL(value.replace(/&amp;/g, '&'), window.location.origin).searchParams.get('roomId') || ''
+  } catch {
+    return ''
+  }
+}
+
 const rankColumns = [
   {
     title: '昵称',
     key: 'nickname',
     width: 220,
-    render: (_: unknown, row: Record<string, unknown>) => String(row.nickname || '—'),
+    render: (_: unknown, row: Record<string, unknown>) => <div className="legacy-rank-nickname-cell">
+      <span className="legacy-rank-nickname-text">{String(row.nickname || '—')}</span>
+      {Boolean(row.__specialNickname) && <Button type="text" size="small" className="legacy-gift-button" title="查看最近送礼记录" aria-label="查看最近送礼记录" loading={Boolean(row.__giftRecordsLoading)} onClick={() => (row.__showGiftRecords as (() => void) | undefined)?.()}><span className="legacy-gift-button-icon">🎁</span><span className="legacy-gift-button-label">送礼记录</span></Button>}
+    </div>,
   },
   {
     title: '账号',
@@ -304,12 +362,22 @@ export default function LegacyResultPage() {
   const [picturePreview, setPicturePreview] = useState<{ sources: string[]; index: number } | null>(null)
   const [visibleRankCount, setVisibleRankCount] = useState(rankBatchSize)
   const [rankNicknames, setRankNicknames] = useState<Record<string, string>>({})
+  const [rankGiftRecords, setRankGiftRecords] = useState<Record<string, unknown>>({})
+  const [giftRecordLoadingKeys, setGiftRecordLoadingKeys] = useState<Set<string>>(() => new Set())
+  const [cdnResolvedNicknameKeys, setCdnResolvedNicknameKeys] = useState<Set<string>>(() => new Set())
   const [rankNicknameLoading, setRankNicknameLoading] = useState(false)
   const [resolvingNicknameKeys, setResolvingNicknameKeys] = useState<Set<string>>(() => new Set())
   const [failedNicknameKeys, setFailedNicknameKeys] = useState<Set<string>>(() => new Set())
+  const [maskedListenerStatus, setMaskedListenerStatus] = useState<MaskedListenerStatus | null>(null)
+  const [maskedListenerLoading, setMaskedListenerLoading] = useState(false)
+  const [maskedListenerStatusError, setMaskedListenerStatusError] = useState(false)
+  const [stopListenerPasswordOpen, setStopListenerPasswordOpen] = useState(false)
+  const [stopListenerPassword, setStopListenerPassword] = useState('')
+  const [stopListenerPasswordError, setStopListenerPasswordError] = useState('')
   const requestRef = useRef<AbortController | null>(null)
   const nicknameRequestRef = useRef<AbortController | null>(null)
   const requestedNicknameKeys = useRef(new Set<string>())
+  const promptedMaskedListenerKeys = useRef(new Set<string>())
   const rankLoadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const goBack = () => {
@@ -350,6 +418,9 @@ export default function LegacyResultPage() {
       nicknameRequestRef.current?.abort()
       requestedNicknameKeys.current.clear()
       setRankNicknames({})
+      setRankGiftRecords({})
+      setGiftRecordLoadingKeys(new Set())
+      setCdnResolvedNicknameKeys(new Set())
       setResolvingNicknameKeys(new Set())
       setFailedNicknameKeys(new Set())
       setVisibleRankCount(rankBatchSize)
@@ -456,6 +527,128 @@ export default function LegacyResultPage() {
     return routes.filter(({ url }) => !seen.has(url) && Boolean(seen.add(url)))
   }, [rank])
   const rankRows = useMemo(() => rankRowsFromPayload(data), [data])
+
+  const refreshMaskedListenerStatus = useCallback(async (signal?: AbortSignal) => {
+    if (!key) return
+    setMaskedListenerStatus(null)
+    setMaskedListenerStatusError(false)
+    setMaskedListenerLoading(true)
+    try {
+      const query = new URLSearchParams({ key })
+      const liveId = data?.short_id || data?.unique_id
+      if (nonEmpty(liveId)) query.set('liveId', liveId)
+      const payload = await getJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/status?${query}`, signal)
+      if (typeof payload.code === 'number' && payload.code !== 200) throw new Error(payload.message || '监听状态查询失败')
+      const status = payload.data as Record<string, unknown> | undefined
+      if (!nonEmpty(status?.liveId)) throw new Error('未获取到直播间账号')
+      setMaskedListenerStatus({ liveId: status.liveId, listening: status.listening === true })
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+        setMaskedListenerStatusError(true)
+        console.warn('[masked-listener] listener status check failed', reason)
+      }
+    } finally {
+      if (!signal?.aborted) setMaskedListenerLoading(false)
+    }
+  }, [data?.short_id, data?.unique_id, key])
+
+  useEffect(() => {
+    if (id === 7 || !data || ranks.length === 0 || !key) return
+    const controller = new AbortController()
+    void refreshMaskedListenerStatus(controller.signal)
+    return () => controller.abort()
+  }, [data, id, key, ranks.length, refreshMaskedListenerStatus])
+
+  const toggleMaskedListener = useCallback(async () => {
+    if (maskedListenerLoading) return
+    if (!maskedListenerStatus?.liveId) {
+      await refreshMaskedListenerStatus()
+      return
+    }
+    const { liveId, listening } = maskedListenerStatus
+    if (listening) {
+      setStopListenerPassword('')
+      setStopListenerPasswordError('')
+      setStopListenerPasswordOpen(true)
+      return
+    }
+    const run = async () => {
+      setMaskedListenerLoading(true)
+      try {
+        const payload = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/start?liveId=${encodeURIComponent(liveId)}`)
+        if (typeof payload.code === 'number' && payload.code !== 200) throw new Error(payload.message || '开启监听失败')
+        setMaskedListenerStatus({ liveId, listening: true })
+        Modal.success({
+          title: '已开启脱敏榜单反查监听',
+          content: '如监听到用户送礼操作，可刷新页面查询脱敏账号用户信息。',
+        })
+      } catch (reason) {
+        Modal.error({ title: '开启监听失败', content: reason instanceof Error ? reason.message : '直播监听服务暂时不可用，请稍后重试。' })
+      } finally {
+        setMaskedListenerLoading(false)
+      }
+    }
+    await run()
+  }, [maskedListenerLoading, maskedListenerStatus, refreshMaskedListenerStatus])
+
+  const stopMaskedListenerWithPassword = useCallback(async () => {
+    const liveId = maskedListenerStatus?.liveId
+    if (!liveId || !stopListenerPassword.trim()) {
+      setStopListenerPasswordError('请输入管理密码')
+      return
+    }
+    setMaskedListenerLoading(true)
+    setStopListenerPasswordError('')
+    try {
+      const payload = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/stop?liveId=${encodeURIComponent(liveId)}`, { password: stopListenerPassword })
+      if (typeof payload.code === 'number' && payload.code !== 200) {
+        setStopListenerPasswordError(payload.message || '密码错误')
+        return
+      }
+      setMaskedListenerStatus({ liveId, listening: false })
+      setStopListenerPasswordOpen(false)
+      setStopListenerPassword('')
+      Modal.success({ title: '已关闭脱敏榜单反查监听', content: '该直播间已停止监听。' })
+    } catch (reason) {
+      setStopListenerPasswordError(reason instanceof Error ? reason.message : '直播监听服务暂时不可用，请稍后重试。')
+    } finally {
+      setMaskedListenerLoading(false)
+    }
+  }, [maskedListenerStatus?.liveId, stopListenerPassword])
+
+  useEffect(() => {
+    if (id !== 7 || !rankRows.some(isMaskedRankUser)) return
+    const parentKey = parentResultKey(returnTo)
+    if (!parentKey || promptedMaskedListenerKeys.current.has(parentKey)) return
+    const controller = new AbortController()
+    void getJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/status?key=${encodeURIComponent(parentKey)}`, controller.signal)
+      .then((statusPayload) => {
+        if (!statusPayload || controller.signal.aborted) return
+        if (typeof statusPayload.code === 'number' && statusPayload.code !== 200) return
+        const status = statusPayload.data as Record<string, unknown> | undefined
+        if (status?.listening === true || !nonEmpty(status?.liveId)) return
+        const liveId = status.liveId
+        promptedMaskedListenerKeys.current.add(parentKey)
+        Modal.confirm({
+          title: '检测到当前存在脱敏账号',
+          content: '是否开始监听直播间？监听后，如若该用户出现送礼操作，可刷新页面查询脱敏账号用户信息。',
+          okText: '开始监听',
+          cancelText: '暂不',
+          onOk: async () => {
+            const started = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/start?liveId=${encodeURIComponent(liveId)}`)
+            if (typeof started.code === 'number' && started.code !== 200) {
+              Modal.error({ title: '启动监听失败', content: started.message || '直播监听服务暂时不可用，请稍后重试。' })
+              throw new Error(started.message || '启动监听失败')
+            }
+            Modal.success({ title: '已开始监听', content: '如监听到用户送礼操作，可刷新页面查询脱敏账号用户信息。' })
+          },
+        })
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) console.warn('[masked-listener] listener status check failed', reason)
+      })
+    return () => controller.abort()
+  }, [id, rankRows, returnTo])
   const retryRankNickname = useCallback(async (row: Record<string, unknown>, index: number) => {
     const key = rankRowKey(row, index)
     const nickname = String(row.nickname || '').trim()
@@ -473,6 +666,8 @@ export default function LegacyResultPage() {
       const resolvedNickname = result?.nickname || result?.user_real_nickname || result?.userRealNickName
       if (!nonEmpty(resolvedNickname)) throw new Error('未获取到真实昵称')
       setRankNicknames((current) => ({ ...current, [key]: resolvedNickname }))
+      setRankGiftRecords((current) => ({ ...current, [key]: result?.extra || [] }))
+      setCdnResolvedNicknameKeys((current) => new Set([...current, key]))
     } catch {
       setFailedNicknameKeys((current) => new Set([...current, key]))
     } finally {
@@ -483,9 +678,49 @@ export default function LegacyResultPage() {
       })
     }
   }, [])
+  const openRankGiftRecords = useCallback(async (row: Record<string, unknown>, index: number) => {
+    const rowKey = rankRowKey(row, index)
+    const currentRecords = rankGiftRecords[rowKey] ?? row.extra
+    if (giftRecords(currentRecords).length > 0) {
+      showGiftRecords(currentRecords)
+      return
+    }
+    const roomId = rankRoomId(remotePath)
+    const nickname = String(row.nickname || '').trim()
+    if (!roomId || !nickname) {
+      showGiftRecords([])
+      return
+    }
+    setGiftRecordLoadingKeys((current) => new Set([...current, rowKey]))
+    try {
+      const query = new URLSearchParams({ roomId, nickname })
+      const account = row.display_id || row.displayId
+      const secUserId = row.sec_uid || row.secUid
+      if (nonEmpty(account)) query.set('account', account)
+      if (nonEmpty(secUserId)) query.set('secUserId', secUserId)
+      const payload = await getJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/gift-records?${query}`)
+      if (typeof payload.code === 'number' && payload.code !== 200) throw new Error(payload.message || '送礼记录查询失败')
+      const result = payload.data as Record<string, unknown> | undefined
+      const records = result?.extra || []
+      setRankGiftRecords((current) => ({ ...current, [rowKey]: records }))
+      showGiftRecords(records)
+    } catch (reason) {
+      Modal.error({ title: '送礼记录查询失败', content: reason instanceof Error ? reason.message : 'Live CDN 暂时不可用，请稍后重试。' })
+    } finally {
+      setGiftRecordLoadingKeys((current) => {
+        const next = new Set(current)
+        next.delete(rowKey)
+        return next
+      })
+    }
+  }, [rankGiftRecords, remotePath])
   const rankTableRows = useMemo(() => rankRows.slice(0, visibleRankCount).map((row, index) => ({
     ...row,
     __resolvedRealNickname: rankNicknames[rankRowKey(row, index)] || row.user_real_nickname || row.userRealNickName,
+    __cdnResolved: cdnResolvedNicknameKeys.has(rankRowKey(row, index)),
+    __specialNickname: isSpecialRankNickname(row.nickname),
+    __giftRecordsLoading: giftRecordLoadingKeys.has(rankRowKey(row, index)),
+    __showGiftRecords: () => { void openRankGiftRecords(row, index) },
     // 后端批次会为普通用户直接回填 nickname；此处保留同样的最终兜底，避免
     // 上游实时榜单变化或批次合并键异常时把已经可展示的昵称渲染成空值。
     user_real_nickname: rankNicknames[rankRowKey(row, index)] || row.user_real_nickname || row.userRealNickName || row.nickname,
@@ -493,7 +728,7 @@ export default function LegacyResultPage() {
     __realNicknameFailed: isSpecialRankNickname(row.nickname) && failedNicknameKeys.has(rankRowKey(row, index)),
     __retryRealNickname: () => { void retryRankNickname(row, index) },
     __rowKey: `${rankRowKey(row, index)}-${index}`,
-  })), [failedNicknameKeys, rankNicknames, rankRows, resolvingNicknameKeys, retryRankNickname, visibleRankCount])
+  })), [cdnResolvedNicknameKeys, failedNicknameKeys, giftRecordLoadingKeys, openRankGiftRecords, rankNicknames, rankRows, resolvingNicknameKeys, retryRankNickname, visibleRankCount])
 
   useEffect(() => {
     if (!shouldResolveRankNicknames || !rankRows.length) return
@@ -517,6 +752,8 @@ export default function LegacyResultPage() {
     void getJson<DouyinResult>(`/api/frontend/pages/json?path=${encodeURIComponent(batchPath)}`, controller.signal).then((payload) => {
       if (controller.signal.aborted) return
       const resolved: Record<string, string> = {}
+      const resolvedExtras: Record<string, unknown> = {}
+      const cdnResolvedKeys: string[] = []
       const batchEntries = batchRows.map((row, index) => ({
         row,
         key: rankRowKey(row, batchStart + index),
@@ -530,9 +767,17 @@ export default function LegacyResultPage() {
           || (nonEmpty(source.nickname) && source.nickname === row.nickname)
           || (nonEmpty(source.display_id || source.displayId) && (source.display_id || source.displayId) === (row.display_id || row.displayId)),
         )
-        if (matched) resolved[matched.key] = nickname
+        if (matched) {
+          resolved[matched.key] = nickname
+          if (row.cdn_resolved === true || row.cdnResolved === true) {
+            resolvedExtras[matched.key] = row.extra || []
+            cdnResolvedKeys.push(matched.key)
+          }
+        }
       })
       if (Object.keys(resolved).length) setRankNicknames((current) => ({ ...current, ...resolved }))
+      if (Object.keys(resolvedExtras).length) setRankGiftRecords((current) => ({ ...current, ...resolvedExtras }))
+      if (cdnResolvedKeys.length) setCdnResolvedNicknameKeys((current) => new Set([...current, ...cdnResolvedKeys]))
       const resolvedKeys = new Set(Object.keys(resolved))
       if (resolvedKeys.size) setFailedNicknameKeys((current) => {
         const next = new Set(current)
@@ -601,6 +846,13 @@ export default function LegacyResultPage() {
       {!data && !error && <Empty description="暂无数据" />}
       {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 0 } }}>{isAppleMobileBrowser() && isWeChatBrowser() ? <LegacyWechatPlayer url={previews[0]} /> : <LegacyPlayer url={previews[0]} />}</Card>}
       {picturePreview && <Image.PreviewGroup preview={{ visible: true, current: picturePreview.index, toolbarRender: imagePreviewToolbar, onChange: (index) => setPicturePreview((current) => current ? { ...current, index } : current), onVisibleChange: (visible) => { if (!visible) setPicturePreview(null) } }}>{picturePreview.sources.map((src) => <Image key={src} src={src} style={{ display: 'none' }} />)}</Image.PreviewGroup>}
+      <Modal title="验证管理密码" open={stopListenerPasswordOpen} okText="验证并关闭" cancelText="取消" confirmLoading={maskedListenerLoading} okButtonProps={{ danger: true }} onOk={() => void stopMaskedListenerWithPassword()} onCancel={() => { setStopListenerPasswordOpen(false); setStopListenerPassword(''); setStopListenerPasswordError('') }} destroyOnHidden>
+        <div className="legacy-listener-password-field">
+          <Typography.Text>管理密码</Typography.Text>
+          <Input.Password autoFocus autoComplete="current-password" placeholder="请输入管理密码" value={stopListenerPassword} status={stopListenerPasswordError ? 'error' : undefined} onChange={(event) => { setStopListenerPassword(event.target.value); setStopListenerPasswordError('') }} onPressEnter={() => void stopMaskedListenerWithPassword()} />
+          {stopListenerPasswordError && <Typography.Text type="danger">{stopListenerPasswordError}</Typography.Text>}
+        </div>
+      </Modal>
       {data && id === 7 && <Card title="查询结果" className="legacy-section-card legacy-rank-card">
         <Table
           className="legacy-rank-table"
@@ -624,7 +876,7 @@ export default function LegacyResultPage() {
               <Col className="legacy-ids"><Typography.Text type="secondary">{data.unique_id || data.room_id || data.song_id || '—'}</Typography.Text><Typography.Text type="secondary">{data.user_id || data.sec_uid || '—'}</Typography.Text></Col>
             </Row>
           </Card>
-          {ranks.length > 0 && <Card title="用户榜单查询" className="legacy-section-card"><div className="legacy-action-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/tools/json/printer/pro?path=${encodeURIComponent(url)}&id=7&returnTo=${encodeURIComponent(rankReturnTo)}`} icon={<UserOutlined />}>{label}</Button>)}</div></Card>}
+          {ranks.length > 0 && <Card title="用户榜单查询" className="legacy-section-card"><div className="legacy-action-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/tools/json/printer/pro?path=${encodeURIComponent(url)}&id=7&returnTo=${encodeURIComponent(rankReturnTo)}`} icon={<UserOutlined />}>{label}</Button>)}<Button className={maskedListenerStatus?.listening ? 'legacy-listener-button legacy-listener-button-stop' : maskedListenerStatus ? 'legacy-listener-button legacy-listener-button-start' : 'legacy-listener-button legacy-listener-button-status'} loading={maskedListenerLoading} icon={maskedListenerStatus?.listening ? <StopOutlined /> : maskedListenerStatus ? <RadarChartOutlined /> : <ReloadOutlined />} onClick={() => void toggleMaskedListener()}>{maskedListenerLoading ? '正在获取监听状态' : maskedListenerStatusError ? '重新获取监听状态' : maskedListenerStatus?.listening ? '关闭脱敏榜单反查监听' : '开启脱敏榜单反查监听'}</Button></div></Card>}
           {previews.length > 0 && <Card title="预览" className="legacy-section-card"><div className="legacy-action-grid">{previews.map((url, index) => <Button key={url} href={frontendUrl(url)} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></Card>}
           {downloads.length > 0 && <Card title="下载" className="legacy-section-card"><div className="legacy-action-grid">{downloads.map(downloadButton)}</div></Card>}
           {id === 4 && <Card title={<Space><LinkOutlined />JSON 数据</Space>}><pre className="legacy-json-plain">{JSON.stringify(data, null, 2)}</pre></Card>}

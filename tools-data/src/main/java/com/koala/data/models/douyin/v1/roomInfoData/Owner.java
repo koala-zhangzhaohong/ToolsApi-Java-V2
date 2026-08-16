@@ -17,6 +17,12 @@ public class Owner implements Serializable {
     private String idStr;
     @SerializedName("sec_uid")
     private String secUid;
+    @SerializedName("short_id")
+    private String shortId;
+    @SerializedName("unique_id")
+    private String uniqueId;
+    @SerializedName("web_rid")
+    private String webRid;
     private String nickname;
     @SerializedName("avatar_thumb")
     private AvatarThumbModel avatarThumb;
