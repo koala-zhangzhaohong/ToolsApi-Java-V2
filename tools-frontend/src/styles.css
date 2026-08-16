@@ -205,11 +205,14 @@ button, input, textarea { font: inherit; }
   .legacy-action-grid .ant-btn:not(:disabled):active { transform: none; }
 }
 .legacy-disclaimer { display: block; margin: 6px auto 0; }
-.legacy-rank-table { overflow-x: auto; }
-.legacy-rank-table table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.legacy-rank-table th, .legacy-rank-table td { padding: 12px 10px; text-align: center; border: 1px solid #dce4ef; overflow-wrap: anywhere; }
-.legacy-rank-table th { color: #335c70; background: #dff1f4; }
-.legacy-rank-table tbody tr:nth-child(even) { background: #f7fafc; }
+.legacy-rank-table { min-width: 0; }
+.legacy-rank-table .ant-table { border-radius: 14px; overflow: hidden; }
+.legacy-rank-table .ant-table-container { border: 1px solid #e5eaf2; border-radius: 14px; }
+.legacy-rank-table .ant-table-thead > tr > th { color: #335c70; text-align: center; background: #dff1f4; }
+.legacy-rank-table .ant-table-tbody > tr > td { text-align: center; overflow-wrap: anywhere; }
+.legacy-rank-table .ant-table-tbody > tr:nth-child(even) > td { background: #f8fafc; }
+.legacy-rank-table .ant-table-cell { vertical-align: middle; }
+.legacy-rank-load-more { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; color: #7b8496; font-size: 13px; text-align: center; }
 .legacy-json-plain { overflow: auto; max-height: 70vh; margin: 0; padding: 18px; color: #d9dee8; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 12px; background: #141721; font: 13px/1.65 'SFMono-Regular', Consolas, monospace; }
 .ant-result { margin: auto; padding-top: 12vh; }
 
@@ -416,14 +419,11 @@ button, input, textarea { font: inherit; }
 .search-v2-hero .ant-card-body > .ant-typography:first-child { color: #d8d2ff !important; font-size: 12px; font-weight: 800; letter-spacing: .18em; }
 .search-v2-hero h1.ant-typography { color: white !important; margin: 12px 0 8px; font-size: clamp(36px, 6vw, 62px); line-height: 1.12; letter-spacing: 0; }
 .search-v2-hero .ant-typography + h1 + .ant-typography { max-width: 640px; margin-bottom: 26px; color: rgba(255,255,255,.76) !important; font-size: 17px; line-height: 1.7; }
-.search-v2-hero .ant-input-search { display: block; width: min(100%, 1000px); }
-.search-v2-hero .ant-input-group-wrapper { width: 100%; }
-.search-v2-hero .ant-input-group { display: flex; width: 100%; }
-.search-v2-hero .ant-input-group .ant-input-affix-wrapper { flex: 1 1 auto; min-width: 0; height: 54px; padding: 8px 12px 8px 22px; border: 0; border-radius: 18px 0 0 18px; box-shadow: none; }
+.legacy-search-form { display: flex; width: min(100%, 1000px); }
+.search-v2-hero .legacy-search-form .ant-input-affix-wrapper { flex: 1 1 auto; min-width: 0; height: 54px; padding: 8px 12px 8px 22px; border: 0; border-radius: 18px 0 0 18px; box-shadow: none; }
 .search-v2-hero .ant-input { min-width: 0; color: #172033; font-size: 16px; }
 .search-v2-hero .ant-input::placeholder { color: #9ca3af; }
-.search-v2-hero .ant-input-group-addon { flex: 0 0 auto; width: auto; background: transparent; }
-.search-v2-hero .ant-input-search-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 142px; height: 54px; padding-inline: 22px; border-radius: 0 18px 18px 0 !important; font-weight: 700; box-shadow: none; }
+.search-v2-hero .legacy-search-submit { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 142px; height: 54px; padding-inline: 22px; border-radius: 0 18px 18px 0; font-weight: 700; box-shadow: none; }
 .search-v2-hero .legacy-search-chips { justify-content: flex-start; margin-top: 18px; }
 .search-v2-hero .legacy-search-chips .ant-typography { color: rgba(255,255,255,.68) !important; font-weight: 600; }
 .search-v2-hero .legacy-search-chips .ant-tag { margin-inline-end: 8px; color: #1f2937; border-color: rgba(255,255,255,.62); background: rgba(255,255,255,.92); box-shadow: 0 8px 20px rgba(10,12,25,.12); }
@@ -472,7 +472,8 @@ button, input, textarea { font: inherit; }
     max-width: calc(100% - 104px);
     transform: none;
   }
-  .mobile-brand .brand { min-width: 0; }
+  .mobile-brand .brand { display: flex; min-width: 0; max-width: 100%; overflow: hidden; }
+  .mobile-brand .brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .mobile-menu-button {
     position: absolute;
     left: 12px;
@@ -560,14 +561,11 @@ button, input, textarea { font: inherit; }
   .search-v2-hero .ant-card-body > .ant-typography:first-child { color: rgba(255,255,255,.58); font-size: 11px; letter-spacing: .08em; }
   .search-v2-hero h1 { max-width: 100%; margin: 10px 0 8px; font-size: clamp(30px, 8vw, 38px); line-height: 1.15; letter-spacing: 0; text-wrap: balance; }
   .search-v2-hero .ant-typography + h1 + .ant-typography { margin-bottom: 22px; color: rgba(255,255,255,.72); font-size: 14px; line-height: 1.55; }
-  .search-v2-hero .ant-input-search { display: block; width: 100%; max-width: 100%; }
-  .search-v2-hero .ant-input-group-wrapper { width: 100%; max-width: 100%; }
-  .search-v2-hero .ant-input-group { display: flex; width: 100%; max-width: 100%; }
-  .search-v2-hero .ant-input-group-addon { flex: 0 0 54px; width: 54px; }
-  .search-v2-hero .ant-input-group .ant-input-affix-wrapper { flex: 1 1 auto; min-width: 0; height: 48px; padding: 6px 10px 6px 14px; border-radius: 16px 0 0 16px; }
+  .search-v2-hero .legacy-search-form { width: 100%; max-width: 100%; }
+  .search-v2-hero .legacy-search-form .ant-input-affix-wrapper { flex: 1 1 0; min-width: 0; width: 0; height: 48px; padding: 6px 10px 6px 14px; border-radius: 16px 0 0 16px; }
   .search-v2-hero .ant-input { min-width: 0; font-size: 15px; }
   .search-v2-hero .ant-input-clear-icon { display: inline-flex; flex: 0 0 auto; }
-  .search-v2-hero .ant-input-search-button { display: grid; place-items: center; width: 54px; min-width: 54px; height: 48px; padding: 0; border-radius: 0 16px 16px 0 !important; }
+  .search-v2-hero .legacy-search-submit { flex: 0 0 54px; display: grid; place-items: center; width: 54px; min-width: 54px; height: 48px; padding: 0; border-radius: 0 16px 16px 0; }
   .search-v2-hero .legacy-search-chips.ant-space { grid-template-columns: auto repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; margin-top: 16px; }
   .search-v2-hero .legacy-search-chips > .ant-space-item:first-child .ant-typography { height: 28px; padding: 0; font-size: 11px; letter-spacing: 0; }
   .search-v2-hero .legacy-search-chips > .ant-space-item:first-child .ant-typography::after { height: 12px; margin-left: 6px; }
@@ -579,4 +577,9 @@ button, input, textarea { font: inherit; }
   .legacy-search-result, .legacy-search-history { margin-top: 14px; border-radius: 22px; }
   .legacy-search-history .ant-card-head { padding: 0 18px; }
   .legacy-search-history .ant-card-body { padding: 12px 18px 18px; }
+  .legacy-rank-card .ant-card-body { padding: 14px; }
+  .legacy-rank-table .ant-table-content { overscroll-behavior-inline: contain; scrollbar-width: thin; }
+  .legacy-rank-table .ant-table-thead > tr > th,
+  .legacy-rank-table .ant-table-tbody > tr > td { padding: 10px 8px; }
+  .legacy-rank-load-more { min-height: 48px; }
 }

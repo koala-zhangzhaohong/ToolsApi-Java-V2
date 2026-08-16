@@ -45,7 +45,12 @@ export default function LegacySearchPage() {
   }
 
   const searchBox = <>
-    <Input.Search value={value} onChange={(event) => setValue(event.target.value)} onSearch={(input) => void search(input)} enterButton={loading ? <LoadingOutlined className="legacy-search-button-loading" /> : <><SearchOutlined /><span className="search-button-label">立即解析</span></>} size="large" allowClear placeholder="粘贴完整的抖音分享文本或链接" />
+    <form className="legacy-search-form" onSubmit={(event) => { event.preventDefault(); void search() }}>
+      <Input value={value} onChange={(event) => setValue(event.target.value)} size="large" allowClear placeholder="粘贴完整的抖音分享文本或链接" aria-label="抖音分享文本或链接" />
+      <Button className="legacy-search-submit" type="primary" htmlType="submit" size="large" disabled={loading} aria-label={loading ? '正在解析' : '立即解析'} icon={loading ? <LoadingOutlined className="legacy-search-button-loading" /> : <SearchOutlined />}>
+        <span className="search-button-label">立即解析</span>
+      </Button>
+    </form>
     <Space wrap className="legacy-search-chips"><Typography.Text type="secondary">快捷输入</Typography.Text>{douyinExamples.map((item) => <Tag key={item.label} onClick={() => setValue(item.value)}>{item.label}</Tag>)}</Space>
   </>
 

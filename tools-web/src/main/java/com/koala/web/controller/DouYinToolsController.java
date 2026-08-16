@@ -34,6 +34,7 @@ import org.apache.commons.collections4.IterableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
@@ -75,6 +76,10 @@ public class DouYinToolsController {
 
     private static final String MASKED_USER_ID = "111111";
 
+    private static final String TIKTOK_RANK_SNAPSHOT_PREFIX = "tiktok:rank:snapshot:";
+
+    private static final long TIKTOK_RANK_SNAPSHOT_EXPIRE_SECONDS = 5 * 60L;
+
     private final static Long EXPIRE_TIME = 3 * 24 * 60 * 60L;
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
@@ -93,6 +98,12 @@ public class DouYinToolsController {
 
     @Resource
     private DistributedScheduledTaskExecutor distributedScheduledTaskExecutor;
+
+    @Value("${backend.server.cdn.address}")
+    private String cdnServerAddress;
+
+    @Value("${cdn.server.live.port}")
+    private Integer cdnServerLivePort;
 
     @HttpRequestRecorder
     @GetMapping("player/video")
@@ -442,16 +453,25 @@ public class DouYinToolsController {
 
     @HttpRequestRecorder
     @GetMapping(value = "api/ranklist/audience", produces = {"application/json;charset=utf-8"})
-    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "count", defaultValue = "200") Integer count) throws IOException, URISyntaxException {
+    public String getRanklistAudience(@RequestParam String roomId, @RequestParam(required = false, defaultValue = "1") String version, @RequestParam(required = false, defaultValue = "0") String extra, @RequestParam(required = false) String nickname, @RequestParam(required = false, value = "config", defaultValue = "1") String config, @RequestParam(required = false, value = "offset", defaultValue = "0") Integer offset, @RequestParam(required = false, value = "count", defaultValue = "200") Integer count) throws IOException, URISyntaxException {
         if (ObjectUtils.isEmpty(roomId)) {
             return formatRespData(INVALID_PARAM, null);
         }
-        String url = TIKTOK_RANKLIST_AUDIENCE + "?aid=6383&app_name=douyin_web&live_id=1&device_platform=web&language=zh-CN&enter_from=web_homepage_follow&cookie_enabled=true&screen_width=2304&screen_height=1296&browser_language=zh-CN&browser_platform=MacIntel&browser_name=Chrome&browser_version=147.0.0.0&os_name=Mac+OS&os_version=10.15.7&webcast_sdk_version=2450&room_id=" + roomId + "&rank_type=30";
-        XbogusDataModel xbogusDataModel = XbogusUtil.encrypt(url);
-        if (Objects.isNull(xbogusDataModel) || ObjectUtils.isEmpty(xbogusDataModel.getUrl())) {
-            return formatRespData(ENCRYPT_URL_ERROR, null);
+        String snapshotKey = getRankSnapshotKey(roomId, version, config, nickname);
+        // extra=0 创建本次榜单快照；后续 extra=1 的每一个批次都从同一快照取数，
+        // 避免上游榜单实时变动后导致前端按 sec_uid 合并时丢行。
+        String response = "1".equals(extra) ? redisService.get(snapshotKey) : null;
+        if (!StringUtils.hasText(response)) {
+            String url = TIKTOK_RANKLIST_AUDIENCE + "?aid=6383&app_name=douyin_web&live_id=1&device_platform=web&language=zh-CN&enter_from=web_homepage_follow&cookie_enabled=true&screen_width=2304&screen_height=1296&browser_language=zh-CN&browser_platform=MacIntel&browser_name=Chrome&browser_version=147.0.0.0&os_name=Mac+OS&os_version=10.15.7&webcast_sdk_version=2450&room_id=" + roomId + "&rank_type=30";
+            XbogusDataModel xbogusDataModel = XbogusUtil.encrypt(url);
+            if (Objects.isNull(xbogusDataModel) || ObjectUtils.isEmpty(xbogusDataModel.getUrl())) {
+                return formatRespData(ENCRYPT_URL_ERROR, null);
+            }
+            response = HttpClientUtil.doGetWithoutTimeout(xbogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(xbogusDataModel.getMstoken(), xbogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
+            if (StringUtils.hasText(response)) {
+                redisService.set(snapshotKey, response, TIKTOK_RANK_SNAPSHOT_EXPIRE_SECONDS);
+            }
         }
-        String response = HttpClientUtil.doGetWithoutTimeout(xbogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(xbogusDataModel.getMstoken(), xbogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
         if (StringUtils.hasLength(response)) {
             switch (version) {
                 case "1" -> {
@@ -469,23 +489,23 @@ public class DouYinToolsController {
                         userInfoList.add(userInfoModel);
                     });
                     ArrayList<TiktokLiveRankUserInfoModel> userInfoDataList;
-                    int effectiveCount = "2".equals(config) ? -1 : count;
-                    if (extra.equals("1")) {
-                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, effectiveCount);
-                    } else {
-                        userInfoDataList = new ArrayList<>(userInfoList);
-                    }
                     switch (config) {
                         case "1" -> {
-                            responseData.setUserList(userInfoDataList);
+                            userInfoDataList = new ArrayList<>(userInfoList);
                         }
                         case "2" -> {
-                            responseData.setUserList(getDataListByPrefix(userInfoDataList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                            userInfoDataList = getDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname);
                         }
                         default -> {
                             return formatRespData(INVALID_CONFIG, null);
                         }
                     }
+                    // 普通榜单的 nickname 就是可直接展示的昵称，不需要逐个请求资料接口。
+                    // 只有“神秘人”等特殊昵称筛选入口才需要反查真实昵称。
+                    if ("1".equals(extra)) {
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoDataList, offset, count);
+                    }
+                    responseData.setUserList(userInfoDataList);
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
                 case "3" -> {
@@ -500,23 +520,23 @@ public class DouYinToolsController {
                         userInfoList.add(simpleUserInfoModel);
                     });
                     ArrayList<TiktokLiveRankSimpleUserInfoModel> userInfoDataList;
-                    int effectiveCount = "2".equals(config) ? -1 : count;
-                    if (extra.equals("1")) {
-                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoList, effectiveCount);
-                    } else {
-                        userInfoDataList = new ArrayList<>(userInfoList);
-                    }
                     switch (config) {
                         case "1" -> {
-                            responseData.setUserList(userInfoDataList);
+                            userInfoDataList = new ArrayList<>(userInfoList);
                         }
                         case "2" -> {
-                            responseData.setUserList(getSimpleDataListByPrefix(userInfoDataList, ObjectUtils.isEmpty(nickname) ? "" : nickname));
+                            userInfoDataList = getSimpleDataListByPrefix(userInfoList, ObjectUtils.isEmpty(nickname) ? "" : nickname);
                         }
                         default -> {
                             return formatRespData(INVALID_CONFIG, null);
                         }
                     }
+                    // 普通榜单的 nickname 就是可直接展示的昵称，不需要逐个请求资料接口。
+                    // 只有“神秘人”等特殊昵称筛选入口才需要反查真实昵称。
+                    if ("1".equals(extra)) {
+                        userInfoDataList = doMultiThreadRealNickNameExecuter(userInfoDataList, offset, count);
+                    }
+                    responseData.setUserList(userInfoDataList);
                     return formatRespData(GET_DATA_SUCCESS, GsonUtil.toBean(GsonUtil.toString(responseData), Object.class));
                 }
             }
@@ -550,6 +570,33 @@ public class DouYinToolsController {
             }
         }
         return formatRespData(GET_INFO_ERROR, null);
+    }
+
+    @GetMapping(value = "api/ranklist/audience/nickname/retry", produces = {"application/json;charset=utf-8"})
+    public String retrySpecialRankNickname(@RequestParam String nickname) throws IOException, URISyntaxException {
+        if (!StringUtils.hasText(nickname) || !nickname.trim().matches("^(神秘人|神秘嘉宾|dou)\\d+$")) {
+            return formatRespData(INVALID_PARAM, null);
+        }
+        String normalizedNickname = nickname.trim();
+        String encodedNickname = URLEncoder.encode(normalizedNickname, StandardCharsets.UTF_8).replace("+", "%20");
+        String cdnUrl = "http://" + cdnServerAddress + ':' + cdnServerLivePort + "/api/douyin/live/users/" + encodedNickname;
+        String cdnResponse = HttpClientUtil.doGetWithoutTimeout(cdnUrl, Map.of("Accept", "application/json"), null);
+        if (!StringUtils.hasText(cdnResponse)) {
+            return formatRespData(GET_INFO_ERROR, null);
+        }
+        Map<String, Object> cachedUser = GsonUtil.toMaps(cdnResponse);
+        String secUid = Objects.toString(cachedUser.get("sec_uid"), "");
+        if (!StringUtils.hasText(secUid)) {
+            return formatRespData(GET_INFO_ERROR, null);
+        }
+        String realNickname = getRealNickName(secUid);
+        if (!StringUtils.hasText(realNickname)) {
+            return formatRespData(GET_INFO_ERROR, null);
+        }
+        Map<String, String> result = new HashMap<>();
+        result.put("nickname", realNickname);
+        result.put("sec_uid", secUid);
+        return formatRespData(GET_DATA_SUCCESS, result);
     }
 
     @HttpRequestRecorder
@@ -599,7 +646,9 @@ public class DouYinToolsController {
         String tmp = redisService.get(TIKTOK_PROFILE_INFO + secUserId);
         if (StringUtils.hasLength(tmp)) {
             TiktokUserProfileDataModel tmpData = GsonUtil.toBean(tmp, TiktokUserProfileDataModel.class);
-            return tmpData.getUser().getNickname();
+            if (tmpData != null && tmpData.getUser() != null && StringUtils.hasText(tmpData.getUser().getNickname())) {
+                return tmpData.getUser().getNickname();
+            }
         }
         String url = TIKTOK_USER_PROFILE_OTHER + "?device_platform=webapp&aid=6383&channel=channel_pc_web&publish_video_strategy_type=2&source=channel_pc_web&sec_user_id=" + secUserId + "&version_code=160100&version_name=16.1.0&_signature=_02B4Z6wo00d01A8CVfgAAIDB2MR4gyyTjxgPAlFAAGMe23";
         AbogusDataModel abogusDataModel = AbogusUtil.encrypt(url);
@@ -611,30 +660,39 @@ public class DouYinToolsController {
             response = HttpClientUtil.doGetWithoutTimeout(abogusDataModel.getUrl(), HeaderUtil.getDouYinSpecialHeader(abogusDataModel.getMstoken(), abogusDataModel.getTtwid(), tiktokCookieUtil.getTiktokCookie(), true), null);
             if (StringUtils.hasLength(response)) {
                 TiktokUserProfileDataModel profileData = GsonUtil.toBean(response, TiktokUserProfileDataModel.class);
-                String nickname = profileData.getUser().getNickname();
-                if (StringUtils.hasLength(nickname)) {
+                String nickname = profileData != null && profileData.getUser() != null ? profileData.getUser().getNickname() : null;
+                if (StringUtils.hasText(nickname)) {
                     redisService.set(TIKTOK_PROFILE_INFO + secUserId, response, 30 * 60L);
+                    return nickname;
                 }
-                return nickname;
             }
-            logger.info("[getRealNickName] secUserId: {}, retry: {}", secUserId, retry + 1);
+            logger.info("[getRealNickName] no valid nickname for secUserId: {}, retry: {}", secUserId, retry + 1);
         }
         return null;
     }
 
 
-    private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer count) {
-        // 先补全真实昵称用于展示；特殊入口筛选仍只匹配榜单返回的 nickname。
-        int resolveCount = count == null || count < 0 ? userInfoList.size() : Math.min(count, userInfoList.size());
-        ArrayList<T> candidates = new ArrayList<>(userInfoList.subList(0, resolveCount));
+    private <T> ArrayList<T> doMultiThreadRealNickNameExecuter(ArrayList<T> userInfoList, Integer offset, Integer count) {
+        // 只补全当前展示批次的真实昵称；特殊入口筛选仍只匹配榜单返回的 nickname。
+        int resolveOffset = offset == null ? 0 : Math.max(0, Math.min(offset, userInfoList.size()));
+        int resolveCount = count == null || count < 0 ? userInfoList.size() - resolveOffset : Math.min(count, userInfoList.size() - resolveOffset);
+        ArrayList<T> candidates = new ArrayList<>(userInfoList.subList(resolveOffset, resolveOffset + resolveCount));
+        // 批次接口只返回需要反查的特殊用户；普通用户由前端直接使用榜单昵称兜底，
+        // 无需重复传输或参与合并。
+        ArrayList<T> specialCandidates = new ArrayList<>();
+        for (T item : candidates) {
+            if (isSpecialRankUser(item)) {
+                specialCandidates.add(item);
+            }
+        }
         ThreadPoolUtil<HashMap<String, String>> threadPoolUtil = ThreadPoolUtil.getInstance();
         List<Future<HashMap<String, String>>> futureList = new ArrayList<>();
         // 每个用户一个 I/O 任务，交由共享线程池动态扩容；同时去重，避免同一 sec_uid 重复请求。
         Set<String> submittedSecUids = new HashSet<>();
-        for (T item : candidates) {
+        for (T item : specialCandidates) {
             String secUid = getSecUid(item);
-            // 脱敏用户保留在榜单中参与昵称筛选和展示，但占位 ID 无法反查，跳过资料接口。
-            if (!isMaskedUser(item) && StringUtils.hasText(secUid) && submittedSecUids.add(secUid)) {
+            // 普通用户直接使用榜单昵称；只有特殊用户才调用资料接口反查真实昵称。
+            if (isSpecialRankUser(item) && !isMaskedUser(item) && StringUtils.hasText(secUid) && submittedSecUids.add(secUid)) {
                 Callable<HashMap<String, String>> task = () -> execute(Collections.singletonList(item));
                 Future<HashMap<String, String>> future = threadPoolUtil.submitTask(task);
                 futureList.add(future);
@@ -649,15 +707,38 @@ public class DouYinToolsController {
                 e.printStackTrace();
             }
         });
-        IterableUtils.forEach(userInfoList, item -> {
+        IterableUtils.forEach(specialCandidates, item -> {
             if (item instanceof TiktokLiveRankUserInfoModel) {
-                ((TiktokLiveRankUserInfoModel) item).setUserRealNickName(nicknameInfoMap.get(((TiktokLiveRankUserInfoModel) item).getSecUid()));
+                TiktokLiveRankUserInfoModel user = (TiktokLiveRankUserInfoModel) item;
+                String realNickname = nicknameInfoMap.get(user.getSecUid());
+                // 某些榜单记录已带有原始昵称；反查失败不能把这个可用结果清空，
+                // 否则前端会把该条误判为失败并展示“重试”。
+                if (StringUtils.hasText(realNickname)) {
+                    user.setUserRealNickName(realNickname);
+                }
             }
             if (item instanceof TiktokLiveRankSimpleUserInfoModel) {
-                ((TiktokLiveRankSimpleUserInfoModel) item).setUserRealNickName(nicknameInfoMap.get(((TiktokLiveRankSimpleUserInfoModel) item).getSecUid()));
+                TiktokLiveRankSimpleUserInfoModel user = (TiktokLiveRankSimpleUserInfoModel) item;
+                String realNickname = nicknameInfoMap.get(user.getSecUid());
+                if (StringUtils.hasText(realNickname)) {
+                    user.setUserRealNickName(realNickname);
+                }
             }
         });
-        return userInfoList;
+        return specialCandidates;
+    }
+
+    private boolean isSpecialRankUser(Object userInfo) {
+        String nickname = null;
+        if (userInfo instanceof TiktokLiveRankUserInfoModel user) nickname = user.getNickname();
+        if (userInfo instanceof TiktokLiveRankSimpleUserInfoModel user) nickname = user.getNickname();
+        if (!StringUtils.hasText(nickname)) return false;
+        String value = nickname.trim();
+        return value.startsWith("神秘人") || value.startsWith("dou") || value.startsWith("神秘嘉宾");
+    }
+
+    private String getRankSnapshotKey(String roomId, String version, String config, String nickname) {
+        return TIKTOK_RANK_SNAPSHOT_PREFIX + roomId + ':' + version + ':' + config + ':' + (nickname == null ? "" : nickname.trim());
     }
 
     private String getSecUid(Object userInfo) {
@@ -681,10 +762,10 @@ public class DouYinToolsController {
     }
 
     private boolean isMaskedId(Long id, Long shortId, String displayId, String secUid) {
-        return Objects.equals(id, Long.valueOf(MASKED_USER_ID))
-                || Objects.equals(shortId, Long.valueOf(MASKED_USER_ID))
-                || MASKED_USER_ID.equals(displayId)
-                || MASKED_USER_ID.equals(secUid);
+        // 按页面展示的账号区分处理方式：账号不是 111111 时，即使内部 id、
+        // short_id 或 sec_uid 呈现特殊值，也优先用该记录携带的 sec_uid 直接查询。
+        // 只有账号明确为 111111 的 dou/神秘用户才留给后续 CDN 特殊处理。
+        return MASKED_USER_ID.equals(displayId);
     }
 
     private <T> HashMap<String, String> execute(List<T> userInfoList) {
