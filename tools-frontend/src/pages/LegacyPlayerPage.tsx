@@ -17,6 +17,8 @@ type VideoTransport = 'native' | 'flv' | 'hls'
 interface ZwPlayerInstance {
   paused?: boolean
   pause?: () => void
+  setMuted?: (muted: boolean) => void
+  setVolume?: (volume: number) => void
   destroy: () => void
   createQualitiesMenu?: (qualities: Array<Record<string, unknown>>, includeAuto?: boolean) => void
 }
@@ -312,6 +314,7 @@ function attachManagedHls(
 
 function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { sources: string[]; live: boolean; transport: VideoTransport; bypassCdn: boolean; onError: (message: string) => void }) {
   const elementId = useRef(`zw-player-${Math.random().toString(36).slice(2)}`)
+  const playerRef = useRef<ZwPlayerInstance | undefined>(undefined)
   const [playerLoading, setPlayerLoading] = useState(true)
   const [showMutedHint, setShowMutedHint] = useState(false)
   useEffect(() => {
@@ -479,6 +482,7 @@ function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { so
           }
         },
       })
+      playerRef.current = player
       // onready can fire synchronously while the assignment above is in progress.
       // Refresh once after construction so the control is present on first render.
       refreshQualityMenu()
@@ -527,14 +531,18 @@ function OriginalZwPlayer({ sources, live, transport, bypassCdn, onError }: { so
         player?.pause?.()
         player?.destroy()
       } catch { /* player may already be disposed internally */ }
+      if (playerRef.current === player) playerRef.current = undefined
       document.getElementById(playerElementId)?.replaceChildren()
     }
   }, [bypassCdn, live, onError, sources, transport])
   const enableSound = () => {
     const video = document.getElementById(elementId.current)?.querySelector('video')
     if (video) {
-      video.muted = false
       if (video.volume === 0) video.volume = 1
+      playerRef.current?.setVolume?.(video.volume)
+      playerRef.current?.setMuted?.(false)
+      video.muted = false
+      video.dispatchEvent(new Event('volumechange'))
       void video.play().catch(() => undefined)
     }
     setShowMutedHint(false)
