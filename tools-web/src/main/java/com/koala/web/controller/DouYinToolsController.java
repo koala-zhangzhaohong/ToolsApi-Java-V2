@@ -668,23 +668,28 @@ public class DouYinToolsController {
         }
         Map<String, Object> result = new HashMap<>();
         result.put("liveId", resolvedLiveId);
-        result.put("listening", listenerResponse.isSuccessful());
+        result.put("listening", isLiveCdnListenerActive(listenerResponse));
         return formatRespData(GET_DATA_SUCCESS, result);
     }
 
     @PostMapping(value = "api/ranklist/audience/listener/start", produces = {"application/json;charset=utf-8"})
-    public String startRankAudienceListener(@RequestParam String liveId) throws IOException, URISyntaxException {
+    public String startRankAudienceListener(@RequestParam String liveId,
+                                            @RequestBody(required = false) Map<String, String> request) throws IOException, URISyntaxException {
         if (!StringUtils.hasText(liveId)) {
             return formatRespData(INVALID_PARAM, null);
+        }
+        String password = request == null ? null : request.get("password");
+        if (!verifyListenerAdminPassword(password)) {
+            return RespUtil.formatRespDataWithCustomMsg(403, "密码错误", null);
         }
         String normalizedLiveId = liveId.trim();
         HttpClientUtil.HttpResult current = HttpClientUtil.getResponseWithoutTimeout(
                 liveCdnUrl("/api/douyin/live/" + URLEncoder.encode(normalizedLiveId, StandardCharsets.UTF_8)),
                 Map.of("Accept", "application/json"), null);
-        if (current.isSuccessful()) {
+        if (isLiveCdnListenerActive(current)) {
             return formatRespData(GET_DATA_SUCCESS, Map.of("liveId", normalizedLiveId, "listening", true));
         }
-        if (current.statusCode() != 404) {
+        if (!current.isSuccessful() && current.statusCode() != 404) {
             return formatRespData(GET_INFO_ERROR, null);
         }
         HttpClientUtil.HttpResult started = HttpClientUtil.postJsonResponse(
@@ -725,6 +730,19 @@ public class DouYinToolsController {
             return formatRespData(GET_INFO_ERROR, null);
         }
         return formatRespData(GET_DATA_SUCCESS, Map.of("liveId", normalizedLiveId, "listening", false));
+    }
+
+    private boolean isLiveCdnListenerActive(HttpClientUtil.HttpResult response) {
+        if (response == null || !response.isSuccessful() || !StringUtils.hasText(response.body())) return false;
+        try {
+            Object payload = GsonUtil.toBean(response.body(), Object.class);
+            if (!(payload instanceof Map<?, ?> room)) return false;
+            Object desiredState = room.get("desiredState");
+            return desiredState != null && "RUNNING".equalsIgnoreCase(String.valueOf(desiredState));
+        } catch (RuntimeException exception) {
+            logger.warn("[isLiveCdnListenerActive] invalid live CDN response", exception);
+            return false;
+        }
     }
 
     private boolean verifyListenerAdminPassword(String password) {

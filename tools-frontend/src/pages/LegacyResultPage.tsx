@@ -374,6 +374,7 @@ export default function LegacyResultPage() {
   const [stopListenerPasswordOpen, setStopListenerPasswordOpen] = useState(false)
   const [stopListenerPassword, setStopListenerPassword] = useState('')
   const [stopListenerPasswordError, setStopListenerPasswordError] = useState('')
+  const [listenerPasswordAction, setListenerPasswordAction] = useState<'start' | 'stop'>('stop')
   const requestRef = useRef<AbortController | null>(null)
   const nicknameRequestRef = useRef<AbortController | null>(null)
   const requestedNicknameKeys = useRef(new Set<string>())
@@ -565,30 +566,11 @@ export default function LegacyResultPage() {
       await refreshMaskedListenerStatus()
       return
     }
-    const { liveId, listening } = maskedListenerStatus
-    if (listening) {
-      setStopListenerPassword('')
-      setStopListenerPasswordError('')
-      setStopListenerPasswordOpen(true)
-      return
-    }
-    const run = async () => {
-      setMaskedListenerLoading(true)
-      try {
-        const payload = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/start?liveId=${encodeURIComponent(liveId)}`)
-        if (typeof payload.code === 'number' && payload.code !== 200) throw new Error(payload.message || '开启监听失败')
-        setMaskedListenerStatus({ liveId, listening: true })
-        Modal.success({
-          title: '已开启脱敏榜单反查监听',
-          content: '如监听到用户送礼操作，可刷新页面查询脱敏账号用户信息。',
-        })
-      } catch (reason) {
-        Modal.error({ title: '开启监听失败', content: reason instanceof Error ? reason.message : '直播监听服务暂时不可用，请稍后重试。' })
-      } finally {
-        setMaskedListenerLoading(false)
-      }
-    }
-    await run()
+    const { listening } = maskedListenerStatus
+    setListenerPasswordAction(listening ? 'stop' : 'start')
+    setStopListenerPassword('')
+    setStopListenerPasswordError('')
+    setStopListenerPasswordOpen(true)
   }, [maskedListenerLoading, maskedListenerStatus, refreshMaskedListenerStatus])
 
   const stopMaskedListenerWithPassword = useCallback(async () => {
@@ -600,21 +582,24 @@ export default function LegacyResultPage() {
     setMaskedListenerLoading(true)
     setStopListenerPasswordError('')
     try {
-      const payload = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/stop?liveId=${encodeURIComponent(liveId)}`, { password: stopListenerPassword })
+      const payload = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/${listenerPasswordAction}?liveId=${encodeURIComponent(liveId)}`, { password: stopListenerPassword })
       if (typeof payload.code === 'number' && payload.code !== 200) {
         setStopListenerPasswordError(payload.message || '密码错误')
         return
       }
-      setMaskedListenerStatus({ liveId, listening: false })
+      const listening = listenerPasswordAction === 'start'
+      setMaskedListenerStatus({ liveId, listening })
       setStopListenerPasswordOpen(false)
       setStopListenerPassword('')
-      Modal.success({ title: '已关闭脱敏榜单反查监听', content: '该直播间已停止监听。' })
+      Modal.success(listening
+        ? { title: '已开启脱敏榜单反查监听', content: '如监听到用户送礼操作，可刷新页面查询脱敏账号用户信息。' }
+        : { title: '已关闭脱敏榜单反查监听', content: '该直播间已停止监听。' })
     } catch (reason) {
       setStopListenerPasswordError(reason instanceof Error ? reason.message : '直播监听服务暂时不可用，请稍后重试。')
     } finally {
       setMaskedListenerLoading(false)
     }
-  }, [maskedListenerStatus?.liveId, stopListenerPassword])
+  }, [listenerPasswordAction, maskedListenerStatus?.liveId, stopListenerPassword])
 
   useEffect(() => {
     if (id !== 7 || !rankRows.some(isMaskedRankUser)) return
@@ -634,13 +619,12 @@ export default function LegacyResultPage() {
           content: '是否开始监听直播间？监听后，如若该用户出现送礼操作，可刷新页面查询脱敏账号用户信息。',
           okText: '开始监听',
           cancelText: '暂不',
-          onOk: async () => {
-            const started = await postJson<DouyinResult>(`/tools/DouYin/api/ranklist/audience/listener/start?liveId=${encodeURIComponent(liveId)}`)
-            if (typeof started.code === 'number' && started.code !== 200) {
-              Modal.error({ title: '启动监听失败', content: started.message || '直播监听服务暂时不可用，请稍后重试。' })
-              throw new Error(started.message || '启动监听失败')
-            }
-            Modal.success({ title: '已开始监听', content: '如监听到用户送礼操作，可刷新页面查询脱敏账号用户信息。' })
+          onOk: () => {
+            setMaskedListenerStatus({ liveId, listening: false })
+            setListenerPasswordAction('start')
+            setStopListenerPassword('')
+            setStopListenerPasswordError('')
+            setStopListenerPasswordOpen(true)
           },
         })
       })
@@ -846,10 +830,9 @@ export default function LegacyResultPage() {
       {!data && !error && <Empty description="暂无数据" />}
       {data && id !== 5 && previews[0] && <Card className="legacy-preview-card" styles={{ body: { padding: 0 } }}>{isAppleMobileBrowser() && isWeChatBrowser() ? <LegacyWechatPlayer url={previews[0]} /> : <LegacyPlayer url={previews[0]} />}</Card>}
       {picturePreview && <Image.PreviewGroup preview={{ visible: true, current: picturePreview.index, toolbarRender: imagePreviewToolbar, onChange: (index) => setPicturePreview((current) => current ? { ...current, index } : current), onVisibleChange: (visible) => { if (!visible) setPicturePreview(null) } }}>{picturePreview.sources.map((src) => <Image key={src} src={src} style={{ display: 'none' }} />)}</Image.PreviewGroup>}
-      <Modal title="验证管理密码" open={stopListenerPasswordOpen} okText="验证并关闭" cancelText="取消" confirmLoading={maskedListenerLoading} okButtonProps={{ danger: true }} onOk={() => void stopMaskedListenerWithPassword()} onCancel={() => { setStopListenerPasswordOpen(false); setStopListenerPassword(''); setStopListenerPasswordError('') }} destroyOnHidden>
+      <Modal title="验证管理密码" open={stopListenerPasswordOpen} okText={listenerPasswordAction === 'start' ? '验证并开启' : '验证并关闭'} cancelText="取消" confirmLoading={maskedListenerLoading} okButtonProps={{ danger: listenerPasswordAction === 'stop' }} onOk={() => void stopMaskedListenerWithPassword()} onCancel={() => { setStopListenerPasswordOpen(false); setStopListenerPassword(''); setStopListenerPasswordError('') }} destroyOnHidden>
         <div className="legacy-listener-password-field">
-          <Typography.Text>管理密码</Typography.Text>
-          <Input.Password autoFocus autoComplete="current-password" placeholder="请输入管理密码" value={stopListenerPassword} status={stopListenerPasswordError ? 'error' : undefined} onChange={(event) => { setStopListenerPassword(event.target.value); setStopListenerPasswordError('') }} onPressEnter={() => void stopMaskedListenerWithPassword()} />
+          <Input.Password aria-label="管理密码" autoFocus autoComplete="current-password" placeholder="请输入管理密码" value={stopListenerPassword} status={stopListenerPasswordError ? 'error' : undefined} onChange={(event) => { setStopListenerPassword(event.target.value); setStopListenerPasswordError('') }} onPressEnter={() => void stopMaskedListenerWithPassword()} />
           {stopListenerPasswordError && <Typography.Text type="danger">{stopListenerPasswordError}</Typography.Text>}
         </div>
       </Modal>

@@ -21,7 +21,7 @@ https://github.com/zhangzhaohong/SpringBootAdminServer
 DEPLOY_PASSWORD='服务器密码' scripts/deploy-prod.sh
 ```
 
-生产 Compose 会启动 3 个后端容器和 2 个前端容器：`traefik-middleware-multiple-1~3`、`traefik-middleware-web-multiple-1~2`。Traefik 动态配置中的后端服务名为 `tools-api`，前端服务名为 `tools-api-web`。
+生产 Compose 会启动 5 个后端容器和 2 个前端容器：`traefik-middleware-multiple-1~5`、`traefik-middleware-web-multiple-1~2`。Traefik 动态配置中的后端服务名为 `tools-api`，前端服务名为 `tools-api-web`。
 
 ## 签名程序
 抖音 X-Bogus、A-Bogus、直播 X-Bogus 已迁移到后端 JVM 内，由 GraalJS 执行，不再依赖 `signature_web_project` HTTP 服务。

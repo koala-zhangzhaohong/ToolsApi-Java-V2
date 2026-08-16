@@ -85,7 +85,7 @@ run_scp "${FRONTEND_ARCHIVE}" "${DEPLOY_DIR}/$(basename "${FRONTEND_ARCHIVE}")"
 run_scp "${GATEWAY_FILE}" "${DEPLOY_DIR}/DockerFile-gateway.yml.next"
 run_scp "${DYNAMIC_CONFIG_FILE}" "${TRAEFIK_CONFIG_DIR}/tools-api.yml.next"
 
-echo "远端导入镜像并启动 3 个后端、2 个前端容器"
+echo "远端导入镜像并启动 5 个后端、2 个前端容器"
 remote_archive_backend="${DEPLOY_DIR}/$(basename "${BACKEND_ARCHIVE}")"
 remote_archive_frontend="${DEPLOY_DIR}/$(basename "${FRONTEND_ARCHIVE}")"
 run_ssh "set -e; cd '${DEPLOY_DIR}'; \
@@ -97,13 +97,13 @@ docker network connect traefik-gateway-v1 spring-boot-admin-server 2>/dev/null |
 export TOOLS_API_IMAGE='${BACKEND_IMAGE}'; export TOOLS_API_WEB_IMAGE='${FRONTEND_IMAGE}'; \
 export OLD_TOOLS_API_IMAGES=\"\$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | awk -v backend='${BACKEND_IMAGE}' -v frontend='${FRONTEND_IMAGE}' '\$1 ~ /^(tools-api-package|tools-api-web-package):/ && \$1 != backend && \$1 != frontend {print \$2}' | sort -u)\"; \
 \${COMPOSE} -f DockerFile-gateway.yml.next config --quiet; \
-docker rm -f traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2 2>/dev/null || true; \
+docker rm -f traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-multiple-4 traefik-middleware-multiple-5 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2 2>/dev/null || true; \
 if [ -f DockerFile-gateway.yml ]; then cp DockerFile-gateway.yml DockerFile-gateway.yml.bak; fi; \
 mv DockerFile-gateway.yml.next DockerFile-gateway.yml; \
 if [ -f '${TRAEFIK_CONFIG_DIR}/tools-api.yml' ]; then cp '${TRAEFIK_CONFIG_DIR}/tools-api.yml' '${TRAEFIK_CONFIG_DIR}/tools-api.yml.bak'; fi; \
 mv '${TRAEFIK_CONFIG_DIR}/tools-api.yml.next' '${TRAEFIK_CONFIG_DIR}/tools-api.yml'; \
 \${COMPOSE} -f DockerFile-gateway.yml up -d --pull never; \
-for container in traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2; do \
+for container in traefik-middleware-multiple-1 traefik-middleware-multiple-2 traefik-middleware-multiple-3 traefik-middleware-multiple-4 traefik-middleware-multiple-5 traefik-middleware-web-multiple-1 traefik-middleware-web-multiple-2; do \
   for attempt in \$(seq 1 40); do [ \"\$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \"\${container}\" 2>/dev/null || true)\" = healthy ] && break; sleep 3; done; \
   [ \"\$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \"\${container}\")\" = healthy ] || { echo \"容器未健康: \${container}\" >&2; exit 1; }; \
 done; \
@@ -117,4 +117,4 @@ fi; \
 docker image prune -f >/dev/null; \
 rm -f '${remote_archive_backend}' '${remote_archive_frontend}' source-build-*.tar.gz"
 
-echo "上线完成：后端 3 个容器，前端 2 个容器"
+echo "上线完成：后端 5 个容器，前端 2 个容器"
