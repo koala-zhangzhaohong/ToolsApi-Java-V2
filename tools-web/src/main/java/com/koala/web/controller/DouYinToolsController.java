@@ -26,6 +26,7 @@ import com.koala.service.threadPool.ThreadPoolUtil;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
 import com.koala.web.service.CdnResourceProxyService;
+import com.koala.web.service.DistributedScheduledTaskExecutor;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -88,6 +90,9 @@ public class DouYinToolsController {
 
     @Resource
     private CdnResourceProxyService cdnResourceProxyService;
+
+    @Resource
+    private DistributedScheduledTaskExecutor distributedScheduledTaskExecutor;
 
     @HttpRequestRecorder
     @GetMapping("player/video")
@@ -575,7 +580,11 @@ public class DouYinToolsController {
 
     @Scheduled(cron = "0 0 12 * * ?")
     public void refreshToken() {
-        tiktokCookieUtil.doRefreshTiktokCookieTask();
+        distributedScheduledTaskExecutor.runOnce(
+                "tiktok-token-refresh",
+                Duration.ofHours(1),
+                tiktokCookieUtil::doRefreshTiktokCookieTask
+        );
     }
 
     private Boolean checkCanDownload(Integer itemTypeId) {

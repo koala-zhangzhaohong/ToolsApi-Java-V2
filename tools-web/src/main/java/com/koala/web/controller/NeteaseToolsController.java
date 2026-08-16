@@ -23,6 +23,7 @@ import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
 import com.koala.web.service.CdnResourceProxyService;
+import com.koala.web.service.DistributedScheduledTaskExecutor;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,6 +40,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.*;
 
 import static com.koala.base.enums.NeteaseResponseEnums.*;
@@ -79,6 +81,9 @@ public class NeteaseToolsController {
 
     @Resource
     private CdnResourceProxyService cdnResourceProxyService;
+
+    @Resource
+    private DistributedScheduledTaskExecutor distributedScheduledTaskExecutor;
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
@@ -527,7 +532,11 @@ public class NeteaseToolsController {
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshToken() {
-        neteaseCookieUtil.doRefreshNeteaseCookieTask(null);
+        distributedScheduledTaskExecutor.runOnce(
+                "netease-token-refresh",
+                Duration.ofHours(1),
+                () -> neteaseCookieUtil.doRefreshNeteaseCookieTask(null)
+        );
     }
 
 }
