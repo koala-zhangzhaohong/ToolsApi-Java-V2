@@ -581,7 +581,7 @@ export default function NeteasePage() {
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
           onSearch={(value) => void search(value, 1, limit, selectedTypeRef.current)}
-          enterButton={loading ? <span className="search-button-label">搜索</span> : <><SearchOutlined /><span className="search-button-label">搜索</span></>}
+          enterButton={loading ? <span className="search-button-label">搜索</span> : <span className="search-button-content"><SearchOutlined /><span className="search-button-label">搜索</span></span>}
           placeholder="输入歌曲或 MV 关键词"
           loading={loading}
           allowClear

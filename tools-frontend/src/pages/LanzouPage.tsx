@@ -218,7 +218,7 @@ export default function LanzouPage() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onSearch={(value) => void parse(value)}
-          enterButton={loading ? <span className="search-button-label">立即解析</span> : <><SearchOutlined /><span className="search-button-label">立即解析</span></>}
+          enterButton={loading ? <span className="search-button-label">立即解析</span> : <span className="search-button-content"><SearchOutlined /><span className="search-button-label">立即解析</span></span>}
           placeholder="粘贴蓝奏云分享链接"
           loading={loading}
           allowClear

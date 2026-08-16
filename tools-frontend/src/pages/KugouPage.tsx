@@ -462,7 +462,7 @@ export default function KugouPage() {
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
           onSearch={(value) => void search(value, 1, limit)}
-          enterButton={loading ? <span className="search-button-label">搜索</span> : <><SearchOutlined /><span className="search-button-label">搜索</span></>}
+          enterButton={loading ? <span className="search-button-label">搜索</span> : <span className="search-button-content"><SearchOutlined /><span className="search-button-label">搜索</span></span>}
           placeholder="输入歌名、歌手或 MV 关键词"
           loading={loading}
           allowClear

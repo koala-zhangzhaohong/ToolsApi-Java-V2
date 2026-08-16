@@ -57,15 +57,23 @@ button, input, textarea { font: inherit; }
 
 .search-panel, .history-card, .url-card, .player-config { border: 1px solid #e8eaf1; box-shadow: 0 12px 36px rgba(30, 41, 59, .05); }
 .search-panel .ant-card-body { padding: clamp(20px, 4vw, 36px); }
-.ant-input-search-button,
+.ant-input-search-btn,
 .legacy-search-submit {
   white-space: nowrap;
   word-break: keep-all;
 }
-.ant-input-search-button .anticon + .search-button-label { margin-left: 8px; }
-.legacy-search-submit .anticon + .search-button-label { margin-left: 8px; }
-.legacy-search-submit .anticon,
-.legacy-search-submit .search-button-label { flex: 0 0 auto; white-space: nowrap; }
+.search-button-content {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+.search-button-content .anticon,
+.search-button-content .search-button-label { flex: 0 0 auto; white-space: nowrap; }
 .suggestions { margin-top: 16px; }
 .suggestions .ant-tag { cursor: pointer; padding: 5px 12px; border-radius: 999px; }
 .usage-alert { margin-top: 24px; }
@@ -561,8 +569,18 @@ button, input, textarea { font: inherit; }
   .page-heading { align-items: flex-start; flex-direction: column; }
   .hero-panel { padding: 30px 24px; border-radius: 20px; }
   .hero-panel h1.ant-typography { font-size: 38px; }
-  .ant-input-search-button { min-width: 52px; padding-inline: 14px; }
-  .ant-input-search-button .anticon { display: inline-flex !important; margin: 0 !important; }
+  .ant-input-search-btn { display: inline-flex; align-items: center; justify-content: center; width: 52px; min-width: 52px; padding: 0; white-space: nowrap; }
+  .ant-input-search-btn .search-button-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: 100%;
+    gap: 8px;
+    margin-inline-end: 0 !important;
+    letter-spacing: normal !important;
+  }
+  .ant-input-search-btn .anticon { display: inline-flex !important; margin: 0 !important; }
   .search-button-label { display: none; }
   .json-workbench .ant-card-head { padding: 0 14px; }
   .json-workbench .ant-card-body { padding: 12px; }
