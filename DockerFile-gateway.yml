@@ -152,26 +152,6 @@ services:
       SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://traefik-middleware-multiple-3:8080/actuator
       SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://traefik-middleware-multiple-3:8080/actuator/health
 
-  traefik-middleware-multiple-4:
-    <<: *tools-api-service
-    container_name: traefik-middleware-multiple-4
-    hostname: traefik-middleware-multiple-4
-    environment:
-      <<: *tools-api-environment
-      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: tools-api-traefik-middleware-multiple-4
-      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://traefik-middleware-multiple-4:8080/actuator
-      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://traefik-middleware-multiple-4:8080/actuator/health
-
-  traefik-middleware-multiple-5:
-    <<: *tools-api-service
-    container_name: traefik-middleware-multiple-5
-    hostname: traefik-middleware-multiple-5
-    environment:
-      <<: *tools-api-environment
-      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: tools-api-traefik-middleware-multiple-5
-      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://traefik-middleware-multiple-5:8080/actuator
-      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://traefik-middleware-multiple-5:8080/actuator/health
-
   traefik-middleware-web-multiple-1:
     <<: *tools-api-web-service
     container_name: traefik-middleware-web-multiple-1

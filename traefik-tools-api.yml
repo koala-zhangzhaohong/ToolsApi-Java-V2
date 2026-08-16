@@ -51,8 +51,6 @@ http:
           - url: "http://traefik-middleware-multiple-1:8080"
           - url: "http://traefik-middleware-multiple-2:8080"
           - url: "http://traefik-middleware-multiple-3:8080"
-          - url: "http://traefik-middleware-multiple-4:8080"
-          - url: "http://traefik-middleware-multiple-5:8080"
 
     tools-api-web:
       loadBalancer:
