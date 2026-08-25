@@ -3,7 +3,7 @@ import { Button, Result, Space } from 'antd'
 import { Spin } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { collectNeteasePlaybackSources, neteasePlaybackInfo, readMusicPlayback } from '../services/musicPlayback'
+import { collectNeteasePlaybackSources, fetchMusicPlayback, neteasePlaybackInfo, publishMusicPlayback, readMusicPlayback, type MusicPlaybackPayload } from '../services/musicPlayback'
 import { resolveNeteaseMusic, type NeteaseQuality } from '../services/netease'
 import { getJson } from '../services/http'
 import MusicPlayerPage from './MusicPlayerPage'
@@ -13,7 +13,8 @@ export default function MusicPlaybackPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const key = params.get('key') || ''
-  const payload = useMemo(() => key ? readMusicPlayback(key) : null, [key])
+  const [payload, setPayload] = useState<MusicPlaybackPayload | null>(() => key ? readMusicPlayback(key) : null)
+  const [payloadLoading, setPayloadLoading] = useState(Boolean(key && !payload))
   const meta = useMemo(() => payload ? musicMeta(payload.data) : null, [payload])
   const [proxySources, setProxySources] = useState<string[]>([])
   const [proxyLoading, setProxyLoading] = useState(true)
@@ -21,6 +22,28 @@ export default function MusicPlaybackPage() {
   const qualityCache = useRef(new Map<NeteaseQuality, string>())
   const qualityAddressCache = useRef(new Map<NeteaseQuality, string>())
   const neteaseInfo = useMemo(() => payload?.platform === 'netease' ? neteasePlaybackInfo(payload.data) : null, [payload])
+
+  useEffect(() => {
+    const local = key ? readMusicPlayback(key) : null
+    setPayload(local)
+    if (!key || local) {
+      setPayloadLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    setPayloadLoading(true)
+    void fetchMusicPlayback(key, controller.signal)
+      .then((remote) => setPayload(remote))
+      .catch(() => setPayload(null))
+      .finally(() => setPayloadLoading(false))
+    return () => controller.abort()
+  }, [key])
+
+  const publishShare = useCallback(async () => {
+    if (!payload || !key) throw new Error('播放数据不存在')
+    await publishMusicPlayback(key, payload)
+    return window.location.href
+  }, [key, payload])
 
   const registerSource = useCallback(async (source: string) => {
     const absoluteSource = new URL(source, window.location.origin).toString()
@@ -95,6 +118,10 @@ export default function MusicPlaybackPage() {
     return proxied
   }, [proxySource, resolveQualityAddress])
 
+  if (payloadLoading) {
+    return <div className="page-container music-playback-page"><div className="music-playback-loading"><Spin size="large" tip="正在读取分享数据" /></div></div>
+  }
+
   if (!payload) {
     return (
       <Result
@@ -151,6 +178,7 @@ export default function MusicPlaybackPage() {
           initialQuality={neteaseInfo?.currentQuality}
           onQualityChange={neteaseInfo ? resolveQualitySource : undefined}
           onDownload={prepareDownload}
+          onShare={publishShare}
         />
       </Space>
     </div>

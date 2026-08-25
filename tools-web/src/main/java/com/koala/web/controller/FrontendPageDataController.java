@@ -19,7 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,6 +59,9 @@ public class FrontendPageDataController {
             "/tools/DouYin/api/user/profile/other"
     );
     private static final long TRUSTED_MEDIA_EXPIRE_SECONDS = 12 * 60 * 60L;
+    private static final long MUSIC_PLAYBACK_EXPIRE_SECONDS = 24 * 60 * 60L;
+    private static final String MUSIC_PLAYBACK_KEY_PREFIX = "frontend:music-playback:";
+    private static final Pattern MUSIC_PLAYBACK_KEY = Pattern.compile("^[A-Za-z0-9-]{16,80}$");
     private static final Set<String> TRUSTED_MEDIA_PLATFORMS = Set.of("douyin", "netease", "kugou");
 
     @Resource(name = "RedisService")
@@ -201,6 +206,35 @@ public class FrontendPageDataController {
             logger.warn("[frontendPageData] invalid media url={}", url);
             return error(HttpStatus.BAD_REQUEST, "INVALID_MEDIA_URL");
         }
+    }
+
+    @PostMapping("music-playback")
+    public ResponseEntity<Object> saveMusicPlayback(@RequestParam String key,
+                                                     @RequestBody Map<String, Object> payload) {
+        if (!validMusicPlaybackKey(key)) return error(HttpStatus.BAD_REQUEST, "INVALID_KEY");
+        Object platform = payload.get("platform");
+        Object data = payload.get("data");
+        Object sources = payload.get("sources");
+        if (!(platform instanceof String platformName)
+                || !("netease".equalsIgnoreCase(platformName) || "kugou".equalsIgnoreCase(platformName))
+                || !(data instanceof Map<?, ?>)
+                || !(sources instanceof Iterable<?>)) {
+            return error(HttpStatus.BAD_REQUEST, "INVALID_MUSIC_PLAYBACK_DATA");
+        }
+        String serialized = GsonUtil.toString(payload);
+        if (serialized.length() > 2_000_000) return error(HttpStatus.PAYLOAD_TOO_LARGE, "MUSIC_PLAYBACK_DATA_TOO_LARGE");
+        redisService.set(MUSIC_PLAYBACK_KEY_PREFIX + key, serialized, MUSIC_PLAYBACK_EXPIRE_SECONDS);
+        return ResponseEntity.ok(Map.of("key", key, "expiresIn", MUSIC_PLAYBACK_EXPIRE_SECONDS));
+    }
+
+    @GetMapping("music-playback")
+    public ResponseEntity<Object> musicPlayback(@RequestParam String key) {
+        if (!validMusicPlaybackKey(key)) return error(HttpStatus.BAD_REQUEST, "INVALID_KEY");
+        return read(MUSIC_PLAYBACK_KEY_PREFIX, key, false);
+    }
+
+    private boolean validMusicPlaybackKey(String key) {
+        return StringUtils.hasText(key) && MUSIC_PLAYBACK_KEY.matcher(key).matches();
     }
 
     @GetMapping("/{*segmentPath}")

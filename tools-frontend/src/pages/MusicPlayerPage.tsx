@@ -152,9 +152,10 @@ interface MusicPlayerPageProps {
   initialQuality?: string
   onQualityChange?: (quality: string) => Promise<string>
   onDownload?: (source: string) => Promise<string>
+  onShare?: () => Promise<string>
 }
 
-export default function MusicPlayerPage({ data, sources, sourceLabels, compact = false, qualityOptions, initialQuality, onQualityChange, onDownload }: MusicPlayerPageProps) {
+export default function MusicPlayerPage({ data, sources, sourceLabels, compact = false, qualityOptions, initialQuality, onQualityChange, onDownload, onShare }: MusicPlayerPageProps) {
   const { message } = App.useApp()
   const meta = useMemo(() => musicMeta(data), [data])
   const lines = useMemo(() => parseLyrics(meta.lyric), [meta.lyric])
@@ -309,7 +310,8 @@ export default function MusicPlayerPage({ data, sources, sourceLabels, compact =
 
   const copyShareLink = async () => {
     try {
-      if (!await copyText(window.location.href)) throw new Error('copy failed')
+      const shareLink = onShare ? await onShare() : window.location.href
+      if (!await copyText(shareLink)) throw new Error('copy failed')
       message.success('分享链接已复制')
     } catch {
       message.warning('分享链接复制失败')

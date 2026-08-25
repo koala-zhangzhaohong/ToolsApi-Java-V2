@@ -1,5 +1,5 @@
 import type { JsonRecord, PlayerPageData } from '../types'
-import { getJson, readableApiError } from './http'
+import { getJson, postJson, readableApiError } from './http'
 import type { NeteaseQuality } from './netease'
 
 export type MusicPlatform = 'netease' | 'kugou'
@@ -222,4 +222,18 @@ export function readMusicPlayback(key: string) {
   } catch {
     return null
   }
+}
+
+export async function publishMusicPlayback(key: string, payload: MusicPlaybackPayload) {
+  await postJson(`/api/frontend/pages/music-playback?key=${encodeURIComponent(key)}`, payload)
+}
+
+export async function fetchMusicPlayback(key: string, signal?: AbortSignal) {
+  const payload = await getJson<MusicPlaybackPayload>(
+    `/api/frontend/pages/music-playback?key=${encodeURIComponent(key)}`,
+    signal,
+  )
+  if (!payload || !Array.isArray(payload.sources) || !payload.data) return null
+  sessionStorage.setItem(`${storagePrefix}${key}`, JSON.stringify(payload))
+  return readMusicPlayback(key)
 }
