@@ -58,6 +58,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
@@ -990,14 +991,38 @@ public class DouYinToolsController {
         LinkedHashMap<String, TiktokLiveRankUserInfoModel> unique = new LinkedHashMap<>();
         for (TiktokLiveRankUserInfoModel user : users) unique.put(rankAccountKey(
                 user.getDisplayId(), user.getShortId(), user.getId(), user.getSecUid()), user);
-        return new ArrayList<>(unique.values());
+        Set<String> resolvedNicknames = unique.values().stream()
+                .filter(user -> isResolvedSpecialRankUser(user.getNickname(), user.getDisplayId()))
+                .map(user -> user.getNickname().trim())
+                .collect(Collectors.toSet());
+        return unique.values().stream()
+                .filter(user -> !isShadowedMaskedRankUser(user.getNickname(), user.getDisplayId(), resolvedNicknames))
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private ArrayList<TiktokLiveRankSimpleUserInfoModel> deduplicateSimpleRankUsers(List<TiktokLiveRankSimpleUserInfoModel> users) {
         LinkedHashMap<String, TiktokLiveRankSimpleUserInfoModel> unique = new LinkedHashMap<>();
         for (TiktokLiveRankSimpleUserInfoModel user : users) unique.put(rankAccountKey(
                 user.getDisplayId(), user.getShortId(), user.getId(), user.getSecUid()), user);
-        return new ArrayList<>(unique.values());
+        Set<String> resolvedNicknames = unique.values().stream()
+                .filter(user -> isResolvedSpecialRankUser(user.getNickname(), user.getDisplayId()))
+                .map(user -> user.getNickname().trim())
+                .collect(Collectors.toSet());
+        return unique.values().stream()
+                .filter(user -> !isShadowedMaskedRankUser(user.getNickname(), user.getDisplayId(), resolvedNicknames))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    private boolean isResolvedSpecialRankUser(String nickname, String displayId) {
+        return isSpecialRankNickname(nickname)
+                && StringUtils.hasText(displayId)
+                && !MASKED_USER_ID.equals(displayId.trim());
+    }
+
+    private boolean isShadowedMaskedRankUser(String nickname, String displayId, Set<String> resolvedNicknames) {
+        return StringUtils.hasText(nickname)
+                && MASKED_USER_ID.equals(StringUtils.hasText(displayId) ? displayId.trim() : "")
+                && resolvedNicknames.contains(nickname.trim());
     }
 
     private String rankAccountKey(String displayId, Long shortId, Long id, String secUid) {
