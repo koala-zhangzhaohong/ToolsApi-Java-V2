@@ -23,4 +23,7 @@ public class TiktokLiveRankSimpleUserInfoModel implements Serializable {
     private String userInfoDirection;
     @SerializedName("user_real_nickname")
     private String userRealNickName;
+    private Object extra;
+    @SerializedName("cdn_resolved")
+    private Boolean cdnResolved;
 }

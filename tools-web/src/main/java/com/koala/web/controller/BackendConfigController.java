@@ -6,6 +6,7 @@ import com.koala.service.utils.RespUtil;
 import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 import static com.koala.service.data.redis.RedisKeyPrefix.SERVICE_HOST;
 
@@ -29,8 +33,8 @@ public class BackendConfigController {
     @Value("${spring.application.version}")
     private String version;
 
-    @Value("${spring.application.build.time}")
-    private String buildTime;
+    @Resource
+    private Optional<BuildProperties> buildProperties;
 
     @Value("${spring.profiles.active}")
     private String env;
@@ -48,7 +52,12 @@ public class BackendConfigController {
     public String info() {
         HashMap<String, String> info = new HashMap<>(0);
         info.put("version", version);
-        info.put("buildTime", buildTime);
+        info.put("buildTime", buildProperties
+                .map(BuildProperties::getTime)
+                .map(time -> DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+                        .withZone(ZoneId.systemDefault())
+                        .format(time))
+                .orElse(""));
         info.put("env", env);
         return RespUtil.formatRespDataWithCustomMsg(
                 200,

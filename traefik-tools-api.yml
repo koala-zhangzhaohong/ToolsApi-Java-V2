@@ -1,0 +1,64 @@
+http:
+  routers:
+    tools-api-backend:
+      entryPoints:
+        - web
+      rule: "PathPrefix(`/api`) || PathPrefix(`/tools`) || PathPrefix(`/backend`) || PathPrefix(`/actuator`) || Path(`/short`) || PathPrefix(`/short/`) || Path(`/doProxy`) || PathPrefix(`/doProxy/`)"
+      priority: 100
+      middlewares:
+        - tools-api-compress
+      service: tools-api
+
+    tools-api-legacy-assets:
+      entryPoints:
+        - web
+      rule: "PathPrefix(`/legacy-assets`)"
+      priority: 300
+      middlewares:
+        - tools-api-legacy-assets-rewrite
+        - tools-api-compress
+      service: tools-api
+
+    tools-api-frontend:
+      entryPoints:
+        - web
+      rule: "HeaderRegexp(`Accept`, `text/html`) || PathPrefix(`/assets`) || Path(`/favicon.ico`) || Path(`/favicon.svg`)"
+      priority: 200
+      middlewares:
+        - tools-api-compress
+      service: tools-api-web
+
+  middlewares:
+    tools-api-legacy-assets-rewrite:
+      replacePathRegex:
+        regex: "^/legacy-assets/(.*)"
+        replacement: "/assets/${1}"
+
+    tools-api-compress:
+      compress:
+        defaultEncoding: gzip
+        minResponseBodyBytes: 1024
+
+  services:
+    tools-api:
+      loadBalancer:
+        strategy: wrr
+        healthCheck:
+          path: /actuator/health
+          interval: 10s
+          timeout: 3s
+        servers:
+          - url: "http://traefik-middleware-multiple-1:8080"
+          - url: "http://traefik-middleware-multiple-2:8080"
+          - url: "http://traefik-middleware-multiple-3:8080"
+
+    tools-api-web:
+      loadBalancer:
+        strategy: wrr
+        healthCheck:
+          path: /health
+          interval: 10s
+          timeout: 3s
+        servers:
+          - url: "http://traefik-middleware-web-multiple-1:80"
+          - url: "http://traefik-middleware-web-multiple-2:80"

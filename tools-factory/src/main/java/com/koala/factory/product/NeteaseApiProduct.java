@@ -106,15 +106,13 @@ public class NeteaseApiProduct {
             data.put("params", this.params);
             String itemInfoResponse = HttpClientUtil.doPost(NETEASE_SERVER_URL, HeaderUtil.getNeteaseHeader(cookie), data);
             logger.info("[NeteaseApiProject]({}) itemInfoResponse: {}", this.musicId, itemInfoResponse);
-            StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
-            cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
             try {
                 this.itemInfoData = GsonUtil.toBean(itemInfoResponse, NeteaseMusicItemInfoRespModel.class);
                 this.itemInfoData.getData().get(0).setCdnUrl(
                         CdnServiceGenerator.getCdnService(
                                 this.itemInfoData.getData().get(0).getUrl().split("\\?")[0],
                                 host,
-                                cdnHostPrefix.toString(),
+                                cdnHost,
                                 true,
                                 null,
                                 null,
@@ -243,7 +241,9 @@ public class NeteaseApiProduct {
         }
         NeteaseMusicDataRespModel respData = new NeteaseMusicDataRespModel(this.itemInfoData, this.itemDetailInfoData, this.itemLyricInfoData, webPlayerInfo);
         try {
-            if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemDetailInfoData) && !respData.getItemInfo().getData().isEmpty()) {
+            if (!Objects.isNull(this.itemInfoData) && !Objects.isNull(this.itemDetailInfoData)
+                    && !respData.getItemInfo().getData().isEmpty()
+                    && StringUtils.hasLength(respData.getItemInfo().getData().get(0).getUrl())) {
                 String artist = UNKNOWN_ARTIST;
                 if (version == 1) {
                     String key = ShortKeyGenerator.getKey(null);
@@ -267,14 +267,11 @@ public class NeteaseApiProduct {
                     }
                     redisService.set(NETEASE_DATA_KEY_PREFIX + key, GsonUtil.toString(new ShortNeteaseItemDataModel(title, link, origin, type, artist)), EXPIRE_TIME);
                     respData.getItemInfo().getData().get(0).setMockPreviewPath(host + "tools/Netease/pro/player/music/short?key=" + Base64Utils.encodeToUrlSafeString(key.getBytes(StandardCharsets.UTF_8)) + "&version=1");
-                    // cdn Host 去除 /
-                    StringBuilder cdnHostPrefix = new StringBuilder(cdnHost);
-                    cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                     respData.getItemInfo().getData().get(0).setMockDownloadPath(
                             CdnServiceGenerator.getCdnService(
                                     respData.getItemInfo().getData().get(0).getUrl().split("\\?")[0],
                                     host,
-                                    cdnHostPrefix.toString(),
+                                    cdnHost,
                                     true,
                                     null,
                                     null,

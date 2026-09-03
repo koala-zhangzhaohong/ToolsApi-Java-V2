@@ -5,15 +5,17 @@ import com.koala.base.module.*;
 import com.koala.factory.service.netease.BaseService;
 import com.koala.service.utils.CookieUtil;
 import com.koala.service.utils.CryptoUtil;
-import com.koala.service.utils.NeteaseRestTemplateUtil;
+import com.koala.service.utils.HttpClientUtil;
+import com.koala.service.utils.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @AllArgsConstructor
 public class BaseServiceImpl implements BaseService {
 
-    private final RestTemplate restTemplate;
     private final InitModule initModule;
     private final CookieUtil cookieUtil;
 
@@ -48,28 +49,52 @@ public class BaseServiceImpl implements BaseService {
         object.set("csrf_token", cookies.get("__csrf"));
         BaseModule baseModule = initModule.getService(key);
         baseModule.execute(object,queryMap,cookies);
-        if (baseModule instanceof BaseModuleApi) {
-            return NeteaseRestTemplateUtil.postApi(object, baseModule.getUrl(), cookies, restTemplate);
+        try {
+            Map<String, String> headers = requestHeaders(cookies);
+            HttpClientUtil.HttpResult result;
+            if (baseModule instanceof BaseModuleEApi) {
+                String param = CryptoUtil.eapiEncrypt(baseModule.getOptionsUrl(), object.toString());
+                result = HttpClientUtil.postFormResponse(
+                        baseModule.getUrl().replaceAll("/api", "/" + baseModule.getType()),
+                        headers,
+                        Map.of("params", param));
+            } else if (baseModule instanceof BaseModuleWeApi) {
+                String[] encrypt = CryptoUtil.weapiEncrypt(object.toString());
+                result = HttpClientUtil.postFormResponse(
+                        baseModule.getUrl().replaceAll("/api", "/" + baseModule.getType()) + "?csrf_token=" + cookies.get("__csrf"),
+                        headers,
+                        Map.of("params", encrypt[0], "encSecKey", encrypt[1]));
+            } else if (baseModule instanceof BaseModuleGetType) {
+                result = HttpClientUtil.getResponse(baseModule.getUrl(), headers, null);
+            } else {
+                result = HttpClientUtil.postFormResponse(baseModule.getUrl(), headers, object);
+            }
+            return responseEntity(result);
+        } catch (Exception exception) {
+            log.error("Netease request failed: {}", baseModule.getUrl(), exception);
+            return ResponseEntity.status(502).body("{\"code\":502,\"message\":\"UPSTREAM_REQUEST_ERROR\"}");
         }
-        if (baseModule instanceof BaseModuleEApi) {
-            final String param = CryptoUtil.eapiEncrypt(baseModule.getOptionsUrl(), object.toString());
-            return NeteaseRestTemplateUtil.postEApi(param,
-                    // baseModule.getUrl().replaceAll("api",baseModule.getOptionsUrl()),
-                    baseModule.getUrl().replaceAll("/api","/" + baseModule.getType()),
-                    cookies,
-                    restTemplate);
-        }
-        if (baseModule instanceof BaseModuleWeApi) {
-            String[] encrypt = CryptoUtil.weapiEncrypt(object.toString());
-            return NeteaseRestTemplateUtil.postWeApi(encrypt[0],
-                    encrypt[1],
-                    baseModule.getUrl().replaceAll("/api","/" + baseModule.getType()) +"?csrf_token=" + cookies.get("__csrf"),
-                    cookies,
-                    restTemplate);
-        }
-        if (baseModule instanceof BaseModuleGetType) {
-            return NeteaseRestTemplateUtil.get(baseModule.getUrl(),cookies,restTemplate);
-        }
-        return NeteaseRestTemplateUtil.post(object, baseModule.getUrl(),cookies,restTemplate);
+    }
+
+    private Map<String, String> requestHeaders(Map<String, String> cookies) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put(HttpHeaders.ACCEPT, "*/*");
+        headers.put(HttpHeaders.ACCEPT_LANGUAGE, "zh-CN,zh;q=0.8,gl;q=0.6,zh-TW;q=0.4");
+        headers.put(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+        headers.put(HttpHeaders.REFERER, "https://music.163.com");
+        headers.put(HttpHeaders.HOST, "music.163.com");
+        headers.put(HttpHeaders.COOKIE, cookies.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(java.util.stream.Collectors.joining("; ")));
+        headers.put(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36");
+        headers.put("X-FORWARDED-FOR", IpUtil.getRandomIpAddress());
+        headers.put("CLIENT-IP", IpUtil.getRandomIpAddress());
+        return headers;
+    }
+
+    private ResponseEntity<String> responseEntity(HttpClientUtil.HttpResult result) {
+        HttpHeaders headers = new HttpHeaders();
+        result.headers().forEach(headers::put);
+        return ResponseEntity.status(result.statusCode()).headers(headers).body(result.body());
     }
 }

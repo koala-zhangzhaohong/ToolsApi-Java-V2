@@ -14,6 +14,7 @@ import com.koala.factory.builder.ConcreteNeteaseApiBuilder;
 import com.koala.factory.builder.NeteaseApiBuilder;
 import com.koala.factory.director.NeteaseApiManager;
 import com.koala.factory.extra.netease.NeteaseCookieUtil;
+import com.koala.factory.http.NeteaseHttpManager;
 import com.koala.factory.path.NeteaseWebPathCollector;
 import com.koala.factory.product.NeteaseApiProduct;
 import com.koala.factory.service.netease.BaseService;
@@ -21,6 +22,8 @@ import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
+import com.koala.web.service.CdnResourceProxyService;
+import com.koala.web.service.DistributedScheduledTaskExecutor;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,6 +39,8 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.*;
 
 import static com.koala.base.enums.NeteaseResponseEnums.*;
@@ -55,6 +60,7 @@ public class NeteaseToolsController {
     private static final Logger logger = LoggerFactory.getLogger(NeteaseToolsController.class);
 
     private static final Long EXPIRE_TIME = 12 * 60 * 60L;
+    private static final int MAX_PARSE_ATTEMPTS = 3;
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -68,7 +74,16 @@ public class NeteaseToolsController {
     private NeteaseCookieUtil neteaseCookieUtil;
 
     @Resource
+    private NeteaseHttpManager neteaseHttpManager;
+
+    @Resource
     private BaseService baseService;
+
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
+
+    @Resource
+    private DistributedScheduledTaskExecutor distributedScheduledTaskExecutor;
 
     @HttpRequestRecorder
     @GetMapping(value = "api", produces = {"application/json;charset=utf-8"})
@@ -87,18 +102,34 @@ public class NeteaseToolsController {
                 return formatRespData(INVALID_LINK, null);
             }
         }
-        NeteaseApiBuilder builder = new ConcreteNeteaseApiBuilder();
-        NeteaseApiManager manager = new NeteaseApiManager(builder);
         NeteaseApiProduct product = null;
-        try {
-            NeteaseRequestQualityEnums qualityEnums = NeteaseRequestQualityEnums.getEnumsByType(quality);
-            if (!Objects.isNull(qualityEnums)) {
-                product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), neteaseCookieUtil.getNeteaseCookie(), url, qualityEnums.getType(), "true".equals(lyric), encodeLyric, Integer.valueOf(version));
-            } else {
-                product = manager.construct(redisService, hostManager.getHost(), hostManager.getCdnHost(), neteaseCookieUtil.getNeteaseCookie(), url, null, "true".equals(lyric), encodeLyric, Integer.valueOf(version));
+        Exception lastFailure = null;
+        NeteaseRequestQualityEnums qualityEnums = NeteaseRequestQualityEnums.getEnumsByType(quality);
+        for (int attempt = 1; attempt <= MAX_PARSE_ATTEMPTS && product == null; attempt++) {
+            try {
+                NeteaseApiBuilder builder = new ConcreteNeteaseApiBuilder();
+                NeteaseApiManager manager = new NeteaseApiManager(builder);
+                product = manager.construct(
+                        redisService,
+                        hostManager.getHost(),
+                        hostManager.getCdnHost(),
+                        neteaseCookieUtil.getNeteaseCookie(),
+                        url,
+                        Objects.isNull(qualityEnums) ? null : qualityEnums.getType(),
+                        "true".equals(lyric),
+                        encodeLyric,
+                        Integer.valueOf(version)
+                );
+            } catch (Exception exception) {
+                lastFailure = exception;
+                if (attempt < MAX_PARSE_ATTEMPTS) {
+                    logger.warn("[Netease] parse attempt {}/{} failed for {}, retrying: {}",
+                            attempt, MAX_PARSE_ATTEMPTS, url, exception.getMessage());
+                }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+        if (product == null) {
+            logger.error("[Netease] parse failed after {} attempts for {}", MAX_PARSE_ATTEMPTS, url, lastFailure);
             return formatRespData(FAILURE, null);
         }
         NeteaseMusicDataRespModel publicData = product.generateItemInfoRespData(toWebPlayer);
@@ -170,7 +201,8 @@ public class NeteaseToolsController {
                 ShortNeteaseItemDataModel tmp = GsonUtil.toBean(redisService.get(NETEASE_DATA_KEY_PREFIX + itemKey), ShortNeteaseItemDataModel.class);
                 String artist = StringUtils.hasLength(tmp.getArtist()) ? " - " + tmp.getArtist() : "";
                 String fileName = StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : UUID.randomUUID().toString().replace("-", "");
-                HttpClientUtil.doRelay(tmp.getPath(), HeaderUtil.getNeteaseAudioDownloadHeader(), null, 206, HeaderUtil.getMockDownloadNeteaseFileHeader(fileName, tmp.getType()), request, response);
+                cdnResourceProxyService.redirect(response,
+                        cdnResourceProxyService.downloadUrl(tmp.getPath(), null, fileName, tmp.getType()));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -212,8 +244,8 @@ public class NeteaseToolsController {
 
                     }
                 }
-                response.setDateHeader("Expires", 0);
-                HttpClientUtil.doRelay(redirect, HeaderUtil.getNeteaseVideoDownloadHeader(), null, 206, HeaderUtil.getMockDownloadNeteaseFileHeader(fileName, tmp.getType()), request, response);
+                cdnResourceProxyService.redirect(response,
+                        cdnResourceProxyService.downloadUrl(redirect, null, fileName, tmp.getType()));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -229,7 +261,7 @@ public class NeteaseToolsController {
         if (!StringUtils.hasLength(text) || page < 1 || limit < 0) {
             return formatRespData(UNSUPPORTED_PARAMS, null);
         }
-        Map<String, String> params = new HashMap<>();
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
         params.put("s", text);
         params.put("type", type);
         params.put("offset", String.valueOf((page - 1) * limit));
@@ -237,18 +269,106 @@ public class NeteaseToolsController {
         params.put("limit", String.valueOf(limit));
         String response = null;
         try {
-            response = HttpClientUtil.doPost(NeteaseWebPathCollector.NETEASE_SEARCH_WEB_SERVER_URL_V1, HeaderUtil.getNeteasePublicWithOutCookieHeader(), params);
+            response = neteaseHttpManager.requestWeapi(
+                    NeteaseWebPathCollector.NETEASE_SEARCH_WEB_SERVER_URL_V2,
+                    params,
+                    " os=pc; appver=2.10.13;");
         } catch (Exception e) {
+            logger.warn("[search] WeAPI request failed for type={}, page={}", type, page, e);
             return formatRespData(FAILURE, null);
         }
         if (StringUtils.hasLength(response)) {
             HashMap<String, Object> result = new HashMap<>();
             result.put("page", page);
             result.put("limit", limit);
-            result.put("response", GsonUtil.toBean(response, Object.class));
+            Object searchResponse = GsonUtil.toBean(response, Object.class);
+            enrichNeteaseCoverUrls(searchResponse);
+            if ("1".equals(type)) enrichNeteaseSongPrivileges(searchResponse);
+            result.put("response", searchResponse);
             return formatRespData(GET_DATA_SUCCESS, result);
         }
         return formatRespData(GET_INFO_ERROR, null);
+    }
+
+    private void enrichNeteaseSongPrivileges(Object searchResponse) {
+        if (!(searchResponse instanceof Map<?, ?> responseMap)) return;
+        Object resultValue = responseMap.get("result");
+        if (!(resultValue instanceof Map<?, ?> resultMap)) return;
+        Object songsValue = resultMap.get("songs");
+        if (!(songsValue instanceof Collection<?> songs) || songs.isEmpty()) return;
+
+        List<Map<String, Object>> songRequests = songs.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(song -> song.get("id"))
+                .filter(Objects::nonNull)
+                .map(id -> Map.<String, Object>of("id", id))
+                .toList();
+        if (songRequests.isEmpty()) return;
+
+        try {
+            Map<String, String> params = new HashMap<>();
+            params.put("c", GsonUtil.toString(songRequests));
+            String detailResponse = HttpClientUtil.doPost(
+                    NeteaseWebPathCollector.NETEASE_DETAIL_SERVER_URL,
+                    HeaderUtil.getNeteasePublicWithOutCookieHeader(),
+                    params);
+            Object detailValue = GsonUtil.toBean(detailResponse, Object.class);
+            if (!(detailValue instanceof Map<?, ?> detailMap)
+                    || !(detailMap.get("privileges") instanceof Collection<?> privileges)) return;
+
+            Map<String, Object> privilegesById = new HashMap<>();
+            privileges.stream()
+                    .filter(Map.class::isInstance)
+                    .map(Map.class::cast)
+                    .filter(privilege -> privilege.get("id") != null)
+                    .forEach(privilege -> privilegesById.put(Objects.toString(privilege.get("id")), privilege));
+            songs.stream()
+                    .filter(Map.class::isInstance)
+                    .map(Map.class::cast)
+                    .forEach(song -> {
+                        Object privilege = privilegesById.get(Objects.toString(song.get("id"), ""));
+                        if (privilege != null) song.put("privilege", privilege);
+                    });
+        } catch (Exception exception) {
+            logger.warn("[search] failed to enrich song privileges", exception);
+        }
+    }
+
+    private void enrichNeteaseCoverUrls(Object value) {
+        if (value instanceof Map<?, ?> rawMap) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) rawMap;
+            Object picId = map.get("picId");
+            if (picId != null && !StringUtils.hasText(Objects.toString(map.get("picUrl"), null))) {
+                String id = picId instanceof Number number
+                        ? Long.toString(number.longValue())
+                        : picId.toString();
+                if (StringUtils.hasText(id)) map.put("picUrl", neteaseCoverUrl(id));
+            }
+            map.values().forEach(this::enrichNeteaseCoverUrls);
+        } else if (value instanceof Collection<?> collection) {
+            collection.forEach(this::enrichNeteaseCoverUrls);
+        }
+    }
+
+    private String neteaseCoverUrl(String picId) {
+        try {
+            byte[] id = picId.getBytes(StandardCharsets.UTF_8);
+            byte[] magic = "3go8&$8*3*3h0k(2)2".getBytes(StandardCharsets.UTF_8);
+            byte[] encrypted = new byte[id.length];
+            for (int index = 0; index < id.length; index++) {
+                encrypted[index] = (byte) (id[index] ^ magic[index % magic.length]);
+            }
+            String key = Base64.getEncoder().encodeToString(
+                    MessageDigest.getInstance("MD5").digest(encrypted))
+                    .replace('/', '_')
+                    .replace('+', '-');
+            return "https://p3.music.126.net/" + key + "/" + picId + ".jpg?param=160y160";
+        } catch (Exception exception) {
+            logger.warn("[search] failed to generate cover url for picId={}", picId, exception);
+            return "";
+        }
     }
 
     @HttpRequestRecorder
@@ -412,7 +532,11 @@ public class NeteaseToolsController {
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshToken() {
-        neteaseCookieUtil.doRefreshNeteaseCookieTask(null);
+        distributedScheduledTaskExecutor.runOnce(
+                "netease-token-refresh",
+                Duration.ofHours(1),
+                () -> neteaseCookieUtil.doRefreshNeteaseCookieTask(null)
+        );
     }
 
 }

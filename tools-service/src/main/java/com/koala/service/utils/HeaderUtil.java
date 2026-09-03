@@ -4,6 +4,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Nullable;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -75,18 +76,64 @@ public class HeaderUtil {
     }
 
     public static Map<String, String> getDouYinDownloadHeader() {
-        HashMap<String, String> header = new HashMap<>(0);
+        return getMediaRelayHeader(null, "video");
+    }
+
+    /**
+     * Builds the server-side headers used when relaying media from an origin or CDN.
+     *
+     * <p>Media hosts commonly validate {@code Origin}/{@code Referer}.  These values are
+     * derived from the trusted upstream URL instead of accepting arbitrary browser input.
+     * ByteDance media uses the Douyin web origin; other providers use their own first-party
+     * web origin. Unknown CDNs receive the same-origin profile used by video-middleware.</p>
+     */
+    public static Map<String, String> getMediaRelayHeader(@Nullable String url, @Nullable String destination) {
+        HashMap<String, String> header = new HashMap<>();
         header.put("Accept", "*/*");
-        header.put("Accept-Encoding", "identity;q=1, *;q=0");
-        header.put("Accept-Language", "zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7,zh-TW;q=0.6,de;q=0.5,fr;q=0.4,ca;q=0.3,ga;q=0.2");
-        header.put("Range", "bytes=0-");
-        header.put("Sec-Fetch-Dest", "video");
+        header.put("Accept-Encoding", "identity");
+        header.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        header.put("Sec-Fetch-Dest", StringUtils.hasText(destination) ? destination : "empty");
         header.put("Sec-Fetch-Mode", "no-cors");
-        header.put("Sec-Fetch-Site", "cross-sit");
-        header.put("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1");
-        header.put("X-FORWARDED-FOR", getRandomIpAddress());
-        header.put("CLIENT-IP", getRandomIpAddress());
+        header.put("Sec-Fetch-Site", "cross-site");
+        header.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
+        String origin = mediaRequestOrigin(url);
+        if (StringUtils.hasText(origin)) {
+            header.put("Origin", origin);
+            header.put("Referer", origin + "/");
+        }
         return header;
+    }
+
+    private static String mediaRequestOrigin(@Nullable String value) {
+        if (!StringUtils.hasText(value)) return "https://www.douyin.com";
+        try {
+            URI uri = URI.create(value);
+            String host = Objects.toString(uri.getHost(), "").toLowerCase(Locale.ROOT);
+            if (isHost(host, "douyin.com") || isHost(host, "douyincdn.com")
+                    || isHost(host, "douyinpic.com") || isHost(host, "byteimg.com")
+                    || isHost(host, "zjcdn.com") || isHost(host, "bytecdn.cn")
+                    || isHost(host, "bytedance.com") || isHost(host, "snssdk.com")) {
+                return "https://www.douyin.com";
+            }
+            if (isHost(host, "music.163.com") || isHost(host, "music.126.net")
+                    || isHost(host, "126.net")) {
+                return "https://music.163.com";
+            }
+            if (isHost(host, "kugou.com") || isHost(host, "kugou.net")) {
+                return "https://www.kugou.com";
+            }
+            if (("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                    && StringUtils.hasText(uri.getAuthority())) {
+                return uri.getScheme().toLowerCase(Locale.ROOT) + "://" + uri.getAuthority();
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Keep the baseline profile for malformed/legacy URLs.
+        }
+        return null;
+    }
+
+    private static boolean isHost(String host, String domain) {
+        return host.equals(domain) || host.endsWith("." + domain);
     }
 
     public static Map<String, String> getNeteaseVideoDownloadHeader() {

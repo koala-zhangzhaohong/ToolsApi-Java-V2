@@ -1,0 +1,170 @@
+import {
+  ClearOutlined,
+  CloudDownloadOutlined,
+  HistoryOutlined,
+  LinkOutlined,
+  PlayCircleOutlined,
+  SearchOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
+import { Alert, App, Button, Card, Col, Empty, Input, List, Row, Space, Spin, Tag, Typography } from 'antd'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import PageHeader from '../components/PageHeader'
+import { douyinExamples } from '../constants/douyinExamples'
+import { useParseHistory } from '../hooks/useParseHistory'
+import JsonTree from '../components/JsonTree'
+import { parseDouyinShare } from '../services/douyin'
+import type { DouyinResult } from '../types'
+import { downloadRoutes, isLocalDownloadProxy, localDownloadUrl } from '../utils/downloadRoute'
+import { mediaRouteLabel } from '../utils/mediaRoute'
+import { specialRankRouteLabel } from '../utils/rankRoute'
+
+function content(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function friendlyParseError(reason: unknown, input: string) {
+  const raw = reason instanceof Error ? reason.message : '解析失败'
+  if (/UNKNOWN_ERROR|GET_INFO_ERROR/i.test(raw)) {
+    return /直播|正在直播/.test(input)
+      ? '抖音直播接口暂时没有返回完整数据，直播可能已结束，请稍后重试。'
+      : '抖音接口暂时不可用或链接已失效，请稍后重试。'
+  }
+  if (/INVALID_LINK/i.test(raw)) return '未识别到有效的抖音分享链接，请确认分享文本中包含 v.douyin.com 链接。'
+  return raw
+}
+
+function ResultLinks({ result }: { result: DouyinResult }) {
+  const media = useMemo(() => result.media_data || {}, [result.media_data])
+  const rank = useMemo(() => result.rank_data || {}, [result.rank_data])
+  const previews = useMemo(() => {
+    const values = [
+      ...(Array.isArray(media.proxy_preview_path) ? media.proxy_preview_path : []),
+      media.preview_path ? (() => {
+        try {
+          const url = new URL(media.preview_path, window.location.origin)
+          url.searchParams.set('origin', 'true')
+          return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.toString()
+        } catch { return media.preview_path }
+      })() : undefined,
+      media.preview_path_hls,
+      media.preview_path_flv,
+    ]
+    return [...new Set(values.filter(content))]
+  }, [media])
+  const downloads = useMemo(() => downloadRoutes(media), [media])
+  const ranks = [
+    ...(content(rank.rank_list_url) ? [{ url: rank.rank_list_url, label: '用户查询[简略]' }] : []),
+    ...(content(rank.rank_list_url_backup) ? [{ url: rank.rank_list_url_backup, label: '用户反查[Pro]' }] : []),
+    ...(rank.rank_list_special || []).filter(content).map((url, index) => ({ url, label: specialRankRouteLabel(url, index) })),
+  ]
+
+  const downloadButton = ({ url, label, origin }: (typeof downloads)[number]) => {
+    const href = localDownloadUrl(url, origin)
+    return (
+      <Button
+        key={url}
+        href={href}
+        {...(isLocalDownloadProxy(href)
+          ? { target: '_blank', rel: 'noopener noreferrer' }
+          : { download: true })}
+        icon={<CloudDownloadOutlined />}
+      >
+        {label}
+      </Button>
+    )
+  }
+
+  return (
+    <Row gutter={[16, 16]}>
+      <Col xs={24} lg={10}>
+        <Card className="result-card" title="内容信息">
+          <Space direction="vertical" size={4}>
+            <Typography.Title level={4}>{result.desc || result.title || '未命名内容'}</Typography.Title>
+            <Typography.Text type="secondary"><UserOutlined /> {result.nickname || '未知作者'}</Typography.Text>
+            <Typography.Text type="secondary">ID：{result.unique_id || result.room_id || result.song_id || '—'}</Typography.Text>
+            <Typography.Text type="secondary">UID：{result.user_id || result.sec_uid || '—'}</Typography.Text>
+          </Space>
+        </Card>
+      </Col>
+      <Col xs={24} lg={14}>
+        <Card className="result-card" title="可用线路">
+              {!previews.length && !downloads.length && !ranks.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="接口未返回媒体线路" /> : (
+            <Space direction="vertical" size={14} className="full-width">
+              {previews.length > 0 && <div><Typography.Text strong><PlayCircleOutlined /> 预览</Typography.Text><div className="link-grid">{previews.map((url, index) => <Button key={url} href={url} target="_blank" icon={<PlayCircleOutlined />}>{mediaRouteLabel(url, index)}</Button>)}</div></div>}
+              {downloads.length > 0 && <div><Typography.Text strong><CloudDownloadOutlined /> 下载</Typography.Text><div className="link-grid">{downloads.map(downloadButton)}</div></div>}
+              {ranks.length > 0 && <div><Typography.Text strong><LinkOutlined /> 榜单</Typography.Text><div className="link-grid">{ranks.map(({ url, label }) => <Button key={url} href={`/json?url=${encodeURIComponent(url)}`} target="_blank">{label}</Button>)}</div></div>}
+            </Space>
+          )}
+        </Card>
+      </Col>
+    </Row>
+  )
+}
+
+export default function DouyinPage() {
+  const { message } = App.useApp()
+  const navigate = useNavigate()
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<DouyinResult | null>(null)
+  const [error, setError] = useState('')
+  const { history, addHistory, clearHistory } = useParseHistory()
+
+  const search = async (value = input) => {
+    const link = value.trim()
+    if (!link) { message.warning('请先输入分享链接'); return }
+    setLoading(true)
+    setError('')
+    setResult(null)
+    try {
+      const { result: data, proPath } = await parseDouyinShare(link)
+      addHistory(link)
+      if (proPath) {
+        navigate(proPath, { state: { data, parseInput: link } })
+        return
+      }
+      setResult(data)
+    } catch (err) {
+      setError(friendlyParseError(err, link))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="page-container">
+      <PageHeader eyebrow="DOUYIN PARSER" title="抖音智能解析" description="支持视频、直播、图文与音乐分享内容。" />
+      <Card className="search-panel">
+        <Input.Search
+          size="large"
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          onSearch={search}
+          enterButton={loading ? <span className="search-button-label">立即解析</span> : <span className="search-button-content"><SearchOutlined /><span className="search-button-label">立即解析</span></span>}
+          placeholder="粘贴完整的抖音分享文本或链接"
+          loading={loading}
+          allowClear
+        />
+        <Space wrap className="suggestions">
+          <Typography.Text type="secondary">快捷输入</Typography.Text>
+          {douyinExamples.map((item) => <Tag key={item.label} onClick={() => setInput(item.value)}>{item.label}</Tag>)}
+        </Space>
+      </Card>
+
+      {loading && <div className="loading-panel"><Spin size="large" /><Typography.Text type="secondary">正在解析分享内容…</Typography.Text></div>}
+      {error && <Alert className="page-feedback" type="error" showIcon closable message="解析失败" description={error} onClose={() => setError('')} />}
+      {result && <div className="result-section"><ResultLinks result={result} /><Card title="完整响应" className="json-response"><JsonTree data={result} /></Card></div>}
+      {!result && !loading && !error && (
+        <Card
+          className="history-card"
+          title={<Space><HistoryOutlined /> 最近解析</Space>}
+          extra={history.length > 0 && <Button type="text" danger icon={<ClearOutlined />} onClick={clearHistory}>清空</Button>}
+        >
+          {history.length ? <List dataSource={history} renderItem={(item) => <List.Item className="search-history-item" role="button" tabIndex={0} onClick={() => setInput(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setInput(item) } }} actions={[<Button type="link" onClick={(event) => { event.stopPropagation(); setInput(item); void search(item) }}>再次解析</Button>]}><Typography.Text ellipsis>{item}</Typography.Text></List.Item>} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无解析记录" />}
+        </Card>
+      )}
+    </div>
+  )
+}

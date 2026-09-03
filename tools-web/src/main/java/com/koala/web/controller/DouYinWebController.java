@@ -2,7 +2,6 @@ package com.koala.web.controller;
 
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
-import com.koala.service.utils.RestTemplateUtils;
 import com.koala.web.HostManager;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,8 +27,6 @@ public class DouYinWebController {
 
     @Resource(name = "RedisService")
     private RedisService redisService;
-
-    private final RestTemplateUtils restTemplateUtils = new RestTemplateUtils();
 
     @HttpRequestRecorder
     @GetMapping("/v2/searcher")

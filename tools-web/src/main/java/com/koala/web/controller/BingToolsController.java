@@ -44,13 +44,11 @@ public class BingToolsController {
             return formatRespData(GET_INFO_ERROR, null);
         }
         info.setUrl(url);
-        StringBuilder cdnHostPrefix = new StringBuilder(hostManager.getCdnHost());
-        cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
         info.setCdnUrl(
                 CdnServiceGenerator.getCdnService(
                         url,
                         hostManager.getHost(),
-                        cdnHostPrefix.toString(),
+                        hostManager.getCdnHost(),
                         true,
                         null,
                         null,

@@ -1,15 +1,10 @@
 package com.koala.service.utils;
 
 import com.koala.data.models.abogus.AbogusDataModel;
-import com.koala.data.models.abogus.AbogusRespDataModel;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
+import com.koala.service.signature.DouyinSignatureService;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.net.URI;
 
 /**
  * @author koala
@@ -17,30 +12,24 @@ import java.util.Objects;
  * @date 2023/4/9 11:09
  * @description
  */
-@Component
 public class AbogusUtil {
-    private static String host;
+    private static final DouyinSignatureService SIGNATURE_SERVICE = DouyinSignatureService.getInstance();
 
-    @SuppressWarnings("AlibabaCommentsMustBeJavadocFormat")
-    @Value("${abogus.host}")  //删除掉static
-    public void setHost(String host) {
-        AbogusUtil.host = host;
+    private AbogusUtil() {
     }
 
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36";
-
     public static AbogusDataModel encrypt(String url) throws IOException {
-        Map<String, String> params = new HashMap<>(0);
-        params.put("url", url);
-        params.put("userAgent", USER_AGENT);
-        String response = HttpClientUtil.doPostJson(host, GsonUtil.toString(params));
-        if (!ObjectUtils.isEmpty(response)) {
-            AbogusRespDataModel respData = GsonUtil.toBean(response, AbogusRespDataModel.class);
-            if (!Objects.isNull(respData) && !Objects.isNull(respData.getData()) && !ObjectUtils.isEmpty(respData.getData().getUrl())) {
-                return respData.getData();
-            }
-            return null;
+        try {
+            String query = URI.create(url).getRawQuery();
+            String signature = SIGNATURE_SERVICE.generateABogus(query, "");
+            AbogusDataModel result = new AbogusDataModel();
+            result.setAbogus(signature);
+            result.setMstoken(SIGNATURE_SERVICE.generateMsToken());
+            result.setTtwid(SIGNATURE_SERVICE.getTtwid());
+            result.setUrl(XbogusUtil.appendQueryParameter(url, "a_bogus", signature));
+            return result;
+        } catch (RuntimeException exception) {
+            throw new IOException("Unable to generate A-Bogus in process", exception);
         }
-        return null;
     }
 }

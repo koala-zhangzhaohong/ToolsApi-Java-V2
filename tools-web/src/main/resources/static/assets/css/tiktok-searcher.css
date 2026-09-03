@@ -30,6 +30,25 @@ body {
     text-align: center;
 }
 
+.page-nav {
+    padding: 18px 24px 0;
+}
+
+.back-btn {
+    border: 0;
+    border-radius: 12px;
+    background: #f0eaff;
+    color: #7c5cff;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 8px 14px;
+}
+
+.back-btn:hover {
+    background: #e3d8ff;
+}
+
 .header h1 {
     font-weight: 600;
     font-size: 2.5rem;

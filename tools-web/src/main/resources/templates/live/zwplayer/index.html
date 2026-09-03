@@ -4,21 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title th:text="${title}"></title>
-    <link rel="preload" href="../assets/js/zwplayer/css/zwplayer.css" th:href="@{/assets/js/zwplayer/css/zwplayer.css(v=2026)}" as="style">
+    <link rel="preload" href="../assets/js/zwplayer/css/zwplayer.css" th:href="@{/assets/js/zwplayer/css/zwplayer.css(v=3.3.1)}" as="style">
     <!-- 预加载，为什么预加载，因为m3u8需要命中缓存 -->
     <link rel="preconnect" href="douyincdn.com">
     <link rel="preconnect" href="douyinliving.com">
     <!-- css js -->
-    <script src="../assets/js/zwplayer/zwplayer.js" th:src="@{/assets/js/zwplayer/zwplayer.js}"></script>
-    <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css}" rel="stylesheet">
+    <script src="../assets/js/zwplayer/zwplayer.js" th:src="@{/assets/js/zwplayer/zwplayer.js(v=3.3.1)}"></script>
+    <link href="../assets/css/custom-player.css" th:href="@{/assets/css/custom-player.css(v=20260811)}" rel="stylesheet">
 </head>
 <body class="custom-container">
-<div id="video-player" class="zw-video-player-custom">
-    <meta name="referrer" content="never">
+<div class="zw-player-stage">
+    <div id="video-player" class="zw-video-player-custom">
+        <meta name="referrer" content="never">
+    </div>
+    <div id="player-loading" class="zw-player-loading is-visible" role="status" aria-live="polite">
+        <span class="zw-player-loading-spinner"></span>
+        <span>正在加载画面</span>
+    </div>
 </div>
 <script>
     let zw;
     const videoElement = document.getElementById('video-player');
+    const loadingElement = document.getElementById('player-loading');
+    let firstFramePending = true;
     const qualityList = [];
     if (checkContentIsNotEmpty("[[${multi.getFullHd1()}]]")) {
         qualityList.push({
@@ -63,6 +71,23 @@
         return /Android|iPhone|iPad|iPod|BlackBerry|webOS|Windows Phone|SymbianOS|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
+    function setPlayerLoading(loading) {
+        loadingElement.classList.toggle('is-visible', loading);
+    }
+
+    function beginFirstFrameLoading() {
+        firstFramePending = true;
+        setPlayerLoading(true);
+    }
+
+    function finishFirstFrameLoading() {
+        if (!firstFramePending) {
+            return;
+        }
+        firstFramePending = false;
+        setPlayerLoading(false);
+    }
+
     function safeDestroyPlayer() {
         if (zw) {
             if (zw.paused) {
@@ -76,6 +101,7 @@
     }
 
     function initZw() {
+        beginFirstFrameLoading();
         safeDestroyPlayer();
         const info = {
             playerElm: 'video-player',
@@ -88,9 +114,18 @@
             isLive: true,
             onready: function () {
                 console.log('[ZW player]', 'on ready');
+                window.setTimeout(function () {
+                    if (zw && qualityList.length > 1 && typeof zw.createQualitiesMenu === 'function') zw.createQualitiesMenu(qualityList, false);
+                }, 0);
             },
             onmediaevent: function (event) {
                 console.log(event)
+                if (['loadeddata', 'canplay', 'playing', 'timeupdate'].includes(event.type)) {
+                    finishFirstFrameLoading();
+                }
+                if (['pause', 'ended'].includes(event.type)) {
+                    setPlayerLoading(false);
+                }
                 switch (event.type) {
                     case 'play':
                         console.log('[ZW player]', '开始播放');

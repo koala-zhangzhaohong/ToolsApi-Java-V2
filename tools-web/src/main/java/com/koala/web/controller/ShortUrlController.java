@@ -5,6 +5,7 @@ import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.Base64Utils;
 import com.koala.service.utils.ShortKeyGenerator;
 import com.koala.web.HostManager;
+import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -41,7 +43,11 @@ public class ShortUrlController {
     @Resource
     private HostManager hostManager;
 
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
+
     @HttpRequestRecorder
+    @CrossOrigin(origins = "*")
     @GetMapping("/short")
     public String shortUrl(@RequestParam(value = "key", required = false, defaultValue = "") String key, HttpServletRequest request, HttpServletResponse response) throws IOException, URISyntaxException {
         if (StringUtils.hasLength(key)) {
@@ -54,7 +60,7 @@ public class ShortUrlController {
                         return "404/index";
                     }
                     logger.info("[shortUrl] itemKey: {}, url: {}, Sec-Fetch-Dest: {}", itemKey, url, request.getHeader("Sec-Fetch-Dest"));
-                    response.sendRedirect(url);
+                    response.sendRedirect(cdnResourceProxyService.normalizePublicCdnUrl(url));
                     return null;
                 }
             } catch (Exception e) {

@@ -5,9 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URLEncoder;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @SuppressWarnings("ALL")
 public class CdnServiceGenerator {
@@ -20,22 +19,27 @@ public class CdnServiceGenerator {
 
     public static String getCdnService(String url, String host, String cdnHost, Boolean addReferer, String referer, String fileName, String extension, Boolean isDownload, Integer port, Boolean isHttps, Boolean toShortUrl, RedisService redisService) {
         String inputHost = getRegHost(url);
-        String inputPath = url.replaceFirst(inputHost, "");
+        if (inputHost == null || isBlank(cdnHost)) {
+            logger.info("[cdnService] generate failed, url: {}, cdnHost: {}", url, cdnHost);
+            return null;
+        }
+        String inputPath = url.substring(inputHost.length());
         StringBuilder cdnPath = new StringBuilder();
+        String normalizedCdnHost = cdnHost.trim().replaceAll("/+$", "");
         if (!env.equals("test")) {
-            if (isHttps) {
-                cdnPath.append(cdnHost.replaceFirst("http", "https"));
+            if (Boolean.TRUE.equals(isHttps)) {
+                cdnPath.append(normalizedCdnHost.replaceFirst("^http://", "https://"));
             } else {
                 if (port != null) {
-                    cdnPath.append(cdnHost).append(":").append(port);
+                    cdnPath.append(normalizedCdnHost).append(":").append(port);
                 } else {
-                    cdnPath.append(cdnHost);
+                    cdnPath.append(normalizedCdnHost);
                 }
             }
             cdnPath.append("/");
-            if (isHttps) {
-                cdnPath.append("proxy/");
-            }
+            // video-middleware is published by Traefik under /proxy; Traefik strips
+            // this prefix before forwarding /doProxy to the Node service.
+            cdnPath.append("proxy/");
         } else {
             cdnPath.append("http://127.0.0.1:3000").append("/");
         }
@@ -45,7 +49,7 @@ public class CdnServiceGenerator {
             hasParam = true;
             cdnPath.append("addReferer=").append(addReferer);
         }
-        if (referer != null) {
+        if (!isBlank(referer)) {
             if (hasParam) {
                 cdnPath.append("&");
             } else {
@@ -53,7 +57,7 @@ public class CdnServiceGenerator {
             }
             cdnPath.append("referer=").append(URLEncoder.encode(referer, StandardCharsets.UTF_8));
         }
-        if (fileName != null) {
+        if (!isBlank(fileName)) {
             if (hasParam) {
                 cdnPath.append("&");
             } else {
@@ -61,7 +65,7 @@ public class CdnServiceGenerator {
             }
             cdnPath.append("fileName=").append(URLEncoder.encode(fileName, StandardCharsets.UTF_8));
         }
-        if (extension != null) {
+        if (!isBlank(extension)) {
             if (hasParam) {
                 cdnPath.append("&");
             } else {
@@ -100,34 +104,32 @@ public class CdnServiceGenerator {
             return null;
         }
         logger.info("[cdnService] generate success: {}", cdnPath);
-        if (toShortUrl) {
+        if (Boolean.TRUE.equals(toShortUrl)) {
+            if (isBlank(host) || redisService == null) {
+                logger.info("[cdnService] generate short url failed, host or redis service is unavailable");
+                return null;
+            }
             return ShortKeyGenerator.generateShortUrl(cdnPath.toString(), EXPIRE_TIME, host, redisService).getUrl();
         } else {
             return cdnPath.toString();
         }
     }
 
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
     public static String getRegHost(String url) {
-        //使用正则表达式过滤，
-        String re = "((http|ftp|https)://)(([a-zA-Z0-9._-]+)|([0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}))(([a-zA-Z]{2,6})|(:[0-9]{1,4})?)";
-        String str = "";
-        // 编译正则表达式
-        Pattern pattern = Pattern.compile(re);
-        // 忽略大小写的写法
-        // Pattern pat = Pattern.compile(regEx, Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(url);
-        // 若url==http://127.0.0.1:9040或www.baidu.com的，正则表达式表示匹配
-        if (matcher.matches()) {
-            str = url;
-        } else {
-            String[] split2 = url.split(re);
-            if (split2.length > 1) {
-                str = url.substring(0, url.length() - split2[1].length());
-            } else {
-                str = split2[0];
+        try {
+            URI uri = URI.create(url);
+            if (uri.getScheme() == null || uri.getRawAuthority() == null) {
+                return null;
             }
+            return uri.getScheme() + "://" + uri.getRawAuthority();
+        } catch (IllegalArgumentException exception) {
+            logger.warn("[cdnService] invalid origin url: {}", url);
+            return null;
         }
-        return str;
     }
 
 }

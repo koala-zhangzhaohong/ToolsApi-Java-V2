@@ -53,3 +53,6 @@ tools-web/src/main/resources/application-prod-local.properties
 tools-web/src/main/resources/application-docker.properties
 
 .run/*
+
+# 本地 Docker 镜像导出物，仅用于部署传输，不提交仓库
+image-output/

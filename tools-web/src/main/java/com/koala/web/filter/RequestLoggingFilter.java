@@ -29,6 +29,7 @@ public class RequestLoggingFilter implements Filter {
     private MultipartResolver multipartResolver = null;
 
     private static final String[] WHITE_LIST_PATH = new String[]{"/assets/", "/actuator", "/favicon.ico"};
+    private static final Set<String> SENSITIVE_PARAMETERS = Set.of("password", "cookie", "token", "key", "secret");
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -81,7 +82,7 @@ public class RequestLoggingFilter implements Filter {
         Map<String, String> parameterMaps = new HashMap<>(0);
         for (Enumeration<String> names = wrapper.getParameterNames(); names.hasMoreElements(); ) {
             String name = names.nextElement();
-            parameterMaps.put(name, wrapper.getParameter(name));
+            parameterMaps.put(name, isSensitiveParameter(name) ? "******" : wrapper.getParameter(name));
         }
         parameterList.add(parameterMaps);
         map.put("Parameters", parameterList);
@@ -126,5 +127,9 @@ public class RequestLoggingFilter implements Filter {
         } else {
             return request;
         }
+    }
+
+    private boolean isSensitiveParameter(String name) {
+        return name != null && SENSITIVE_PARAMETERS.contains(name.toLowerCase(Locale.ROOT));
     }
 }

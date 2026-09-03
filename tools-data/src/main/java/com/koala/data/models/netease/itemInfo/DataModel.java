@@ -23,7 +23,7 @@ public class DataModel<Object extends Serializable> implements Serializable {
     private Integer code;
     private Integer expi;
     private String type;
-    private Integer gain;
+    private Double gain;
     private Object peak;
     private Integer fee;
     private String uf;

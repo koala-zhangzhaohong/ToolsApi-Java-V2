@@ -19,6 +19,7 @@ import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.*;
 import com.koala.web.HostManager;
+import com.koala.web.service.CdnResourceProxyService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -57,6 +58,7 @@ public class KugouToolsController {
     private static final Logger logger = LoggerFactory.getLogger(KugouToolsController.class);
 
     private final static Long EXPIRE_TIME = 12 * 60 * 60L;
+    private static final int MAX_PARSE_ATTEMPTS = 3;
 
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -68,6 +70,9 @@ public class KugouToolsController {
 
     @Resource
     private KugouCustomParamsUtil customParams;
+
+    @Resource
+    private CdnResourceProxyService cdnResourceProxyService;
 
     @HttpRequestRecorder
     @GetMapping(value = "api/search", produces = {"application/json;charset=utf-8"})
@@ -128,13 +133,24 @@ public class KugouToolsController {
                 "true".equals(musicInfo),
                 "true".equals(lyricInfo)
         );
-        KugouApiBuilder builder = new ConcreteKugouApiBuilder();
-        KugouApiManager manager = new KugouApiManager(builder);
         KugouApiProduct product = null;
-        try {
-            product = manager.construct(redisService, hostManager.getHost(), url, hash, albumId, version, customParams, config);
-        } catch (Exception e) {
-            e.printStackTrace();
+        Exception lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_PARSE_ATTEMPTS && product == null; attempt++) {
+            try {
+                KugouApiBuilder builder = new ConcreteKugouApiBuilder();
+                KugouApiManager manager = new KugouApiManager(builder);
+                product = manager.construct(redisService, hostManager.getHost(), url, hash, albumId, version, customParams, config);
+            } catch (Exception exception) {
+                lastFailure = exception;
+                if (attempt < MAX_PARSE_ATTEMPTS) {
+                    logger.warn("[Kugou] parse attempt {}/{} failed for hash={}, albumId={}, retrying: {}",
+                            attempt, MAX_PARSE_ATTEMPTS, hash, albumId, exception.getMessage());
+                }
+            }
+        }
+        if (product == null) {
+            logger.error("[Kugou] parse failed after {} attempts for hash={}, albumId={}",
+                    MAX_PARSE_ATTEMPTS, hash, albumId, lastFailure);
             return formatRespData(FAILURE, null);
         }
         KugouMusicDataRespModel<?> publicData = product.generateItemInfoRespData();
@@ -291,12 +307,10 @@ public class KugouToolsController {
                 if (Objects.isNull(respData) || respData.getUrl().isEmpty()) {
                     return;
                 }
-                StringBuilder cdnHostPrefix = new StringBuilder(hostManager.getCdnHost());
-                cdnHostPrefix.deleteCharAt(cdnHostPrefix.length() - 1);
                 String url = CdnServiceGenerator.getCdnService(
                         respData.getUrl().getFirst(),
                         hostManager.getHost(),
-                        cdnHostPrefix.toString(),
+                        hostManager.getCdnHost(),
                         true,
                         null,
                         null,
@@ -329,7 +343,8 @@ public class KugouToolsController {
                 String fileName = (StringUtils.hasLength(tmp.getTitle()) ? tmp.getTitle() + artist : UUID.randomUUID().toString().replace("-", "")) + "[" + quality + "]";
                 Optional<MvInfoModel> optional = tmp.getMvInfo().stream().filter(item -> quality.equals(item.getType())).findFirst();
                 if (optional.isPresent()) {
-                    HttpClientUtil.doRelay(optional.get().getPath(), HeaderUtil.getKugouMediaDownloadHeader(), null, 206, HeaderUtil.getMockDownloadKugouFileHeader(fileName, "mp4"), request, response);
+                    cdnResourceProxyService.redirect(response,
+                            cdnResourceProxyService.downloadUrl(optional.get().getPath(), null, fileName, "mp4"));
                 }
             }
         } catch (Exception e) {

@@ -4,7 +4,7 @@ import com.koala.base.enums.TemplateEnum;
 import com.koala.service.custom.http.annotation.HttpRequestRecorder;
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.GsonUtil;
-import com.koala.service.utils.RestTemplateUtils;
+import com.koala.service.utils.HttpClientUtil;
 import com.koala.web.HostManager;
 import com.koala.web.template.index.errorTemplate.NoPermissionTemplateWeb;
 import com.koala.web.template.index.errorTemplate.NotFoundTemplateWeb;
@@ -37,8 +37,6 @@ public class JsonPrinterController {
 
     @Resource(name = "RedisService")
     private RedisService redisService;
-
-    private final RestTemplateUtils restTemplateUtils = new RestTemplateUtils();
 
     private final String[] jsonWhiteList = {"tools/DouYin/api/ranklist/audience", "tools/DouYin/api/user/profile/other"};
 
@@ -73,9 +71,13 @@ public class JsonPrinterController {
 
     private String getData(String path, String key) {
         if (!ObjectUtils.isEmpty(path)) {
-            String jsonResponse = restTemplateUtils.get(path, String.class).getBody();
-            if (!ObjectUtils.isEmpty(jsonResponse)) {
-                return jsonResponse;
+            try {
+                String jsonResponse = HttpClientUtil.doGetWithoutTimeout(path, null, null);
+                if (!ObjectUtils.isEmpty(jsonResponse)) {
+                    return jsonResponse;
+                }
+            } catch (Exception exception) {
+                logger.error("Failed to load JSON printer data from {}", path, exception);
             }
         }
         if (ObjectUtils.isEmpty(key)) {

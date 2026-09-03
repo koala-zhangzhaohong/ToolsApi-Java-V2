@@ -2,15 +2,13 @@ package com.koala.factory.extra.tiktok;
 
 import com.koala.service.data.redis.service.RedisService;
 import com.koala.service.utils.HeaderUtil;
-import com.koala.service.utils.RestTemplateUtils;
+import com.koala.service.utils.HttpClientUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -33,9 +31,6 @@ public class TiktokCookieUtil {
     private static final Long TIKTOK_COOKIE_CACHE_TIME = 14 * 24 * 60 * 60L;
 
     private static final String BASE_URL_TIKTOK = "https://www.douyin.com";
-
-    @Resource
-    private RestTemplate restTemplate;
 
     public void doRefreshTiktokCookieTask() {
         String lock = redisService.get(TIKTOK_COOKIE_LOCK);
@@ -92,9 +87,17 @@ public class TiktokCookieUtil {
                 e.printStackTrace();
             }
         });
-        RestTemplateUtils restTemplateUtils = new RestTemplateUtils(restTemplate);
-        ResponseEntity<String> responseEntity = restTemplateUtils.doPost(BASE_URL_TIKTOK, new HashMap<>(), HeaderUtil.getTiktokRefreshTokenHeader(getCookiesStr(cookies)));
-        List<String> cookieData = responseEntity.getHeaders().get("Set-Cookie");
+        HttpClientUtil.HttpResult responseEntity;
+        try {
+            responseEntity = HttpClientUtil.postFormResponse(
+                    BASE_URL_TIKTOK,
+                    HeaderUtil.getTiktokRefreshTokenHeader(getCookiesStr(cookies)),
+                    Map.of());
+        } catch (Exception exception) {
+            log.warn("[tiktok] refresh cookie request failed", exception);
+            return cookieContent;
+        }
+        List<String> cookieData = responseEntity.headerValues("Set-Cookie");
         StringBuilder cookieString = new StringBuilder(cookieContent);
         if (Objects.isNull(cookieData)) {
             log.info("[tiktok] receive empty tiktok cookie, refresh failed");
@@ -125,7 +128,7 @@ public class TiktokCookieUtil {
     private String getCookiesStr(Map<String, String> cookies) {
         StringBuilder data = new StringBuilder();
         cookies.forEach((key, value) -> data.append(" ").append(key).append("=").append(value).append(";"));
-        return cookies.toString().trim();
+        return data.toString().trim();
     }
 
 }

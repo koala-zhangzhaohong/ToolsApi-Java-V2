@@ -129,7 +129,10 @@ public class CoreWebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(getFirewallInterceptor()).addPathPatterns("/**");
+        String activeProfile = applicationContext.getEnvironment().getProperty("spring.profiles.active");
+        if (!"prod-local".equals(activeProfile)) {
+            registry.addInterceptor(getFirewallInterceptor()).addPathPatterns("/**");
+        }
         WebMvcConfigurer.super.addInterceptors(registry);
     }
 
@@ -154,6 +157,15 @@ public class CoreWebConfig implements WebMvcConfigurer {
         String property = env.getProperty("server.servlet.context-path");
         String path = property == null ? "" : property;
         return (enableHttps ? "https://" : "http://") + ip + (StringUtils.hasLength(port) ? ":" + port : "") + path + "/";
+    }
+
+    @Bean
+    public String getFrontendHost() {
+        Environment env = applicationContext.getEnvironment();
+        String ip = env.getProperty("frontend.real.address", env.getProperty("server.real.address"));
+        String port = env.getProperty("frontend.real.port", "5173");
+        boolean enableHttps = Boolean.parseBoolean(env.getProperty("frontend.real.enableHttps", "false"));
+        return (enableHttps ? "https://" : "http://") + ip + (StringUtils.hasLength(port) ? ":" + port : "") + "/";
     }
 
     @Bean

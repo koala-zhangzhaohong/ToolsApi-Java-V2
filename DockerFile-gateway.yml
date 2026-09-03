@@ -18,25 +18,7 @@ x-tools-api-limits: &tools-api-limits
         cpus: "14.00"
 
 x-tools-api-labels: &tools-api-labels
-  traefik.enable: "true"
-  traefik.docker.network: traefik-gateway-v1
-  traefik.http.routers.tools-api.entrypoints: web
-  traefik.http.routers.tools-api.rule: PathPrefix(`/`)
-  traefik.http.routers.tools-api.middlewares: tools-api-gzip
-  traefik.http.routers.tools-api.observability.accessLogs: "true"
-  traefik.http.routers.tools-api.observability.metrics: "true"
-  traefik.http.routers.tools-api.observability.tracing: "true"
-  traefik.http.routers.tools-api.service: tools-api
-  traefik.http.middlewares.tools-api-gzip.compress: "true"
-  traefik.http.middlewares.tools-api-gzip.compress.encodings: gzip
-  traefik.http.middlewares.tools-api-gzip.compress.excludedcontenttypes: text/event-stream
-  traefik.http.middlewares.tools-api-gzip.compress.minresponsebodybytes: "1024"
-  traefik.http.services.tools-api.loadbalancer.healthcheck.interval: 10s
-  traefik.http.services.tools-api.loadbalancer.healthcheck.path: /actuator/health
-  traefik.http.services.tools-api.loadbalancer.healthcheck.timeout: 3s
-  traefik.http.services.tools-api.loadbalancer.passhostheader: "true"
-  traefik.http.services.tools-api.loadbalancer.server.port: "8080"
-  traefik.http.services.tools-api.loadbalancer.server.scheme: http
+  traefik.enable: "false"
 
 x-observability-labels: &observability-labels
   traefik.enable: "false"
@@ -54,14 +36,38 @@ x-otel-lgtm-labels: &otel-lgtm-labels
 
 x-tools-api-service: &tools-api-service
   <<: [*common, *tools-api-limits]
-  image: tools-api-package:2.1.1.0-docker
+  image: ${TOOLS_API_IMAGE:-tools-api-package:2.0.2.1-docker}
   labels: *tools-api-labels
+  environment:
+    SPRING_PROFILES_ACTIVE: docker
+    TZ: Asia/Shanghai
+    JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
   healthcheck:
     test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/actuator/health || exit 1"]
     interval: 30s
     timeout: 5s
     retries: 5
     start_period: 90s
+  depends_on:
+    - traefik
+
+x-tools-api-environment: &tools-api-environment
+  SPRING_PROFILES_ACTIVE: docker
+  TZ: Asia/Shanghai
+  JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+
+x-tools-api-web-service: &tools-api-web-service
+  <<: [*common]
+  image: ${TOOLS_API_WEB_IMAGE:-tools-api-web-package:2.0.2.1-docker}
+  labels: *tools-api-labels
+  environment:
+    TZ: Asia/Shanghai
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/health || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 15s
   depends_on:
     - traefik
 
@@ -119,14 +125,40 @@ services:
   traefik-middleware-multiple-1:
     <<: *tools-api-service
     container_name: traefik-middleware-multiple-1
+    hostname: traefik-middleware-multiple-1
+    environment:
+      <<: *tools-api-environment
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: tools-api-traefik-middleware-multiple-1
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://traefik-middleware-multiple-1:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://traefik-middleware-multiple-1:8080/actuator/health
 
   traefik-middleware-multiple-2:
     <<: *tools-api-service
     container_name: traefik-middleware-multiple-2
+    hostname: traefik-middleware-multiple-2
+    environment:
+      <<: *tools-api-environment
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: tools-api-traefik-middleware-multiple-2
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://traefik-middleware-multiple-2:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://traefik-middleware-multiple-2:8080/actuator/health
 
   traefik-middleware-multiple-3:
     <<: *tools-api-service
     container_name: traefik-middleware-multiple-3
+    hostname: traefik-middleware-multiple-3
+    environment:
+      <<: *tools-api-environment
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: tools-api-traefik-middleware-multiple-3
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://traefik-middleware-multiple-3:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://traefik-middleware-multiple-3:8080/actuator/health
+
+  traefik-middleware-web-multiple-1:
+    <<: *tools-api-web-service
+    container_name: traefik-middleware-web-multiple-1
+
+  traefik-middleware-web-multiple-2:
+    <<: *tools-api-web-service
+    container_name: traefik-middleware-web-multiple-2
 
 networks:
   traefik-gateway-v1:

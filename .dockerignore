@@ -5,8 +5,12 @@
 ServiceData
 scripts
 DockerFile-gateway.yml
+Dockerfile.remote-build
+image-output
 
 target
+!tools-web/target/
+!tools-web/target/**
 tools-base/target
 tools-data/target
 tools-factory/target
@@ -15,3 +19,6 @@ tools-web/target/*.jar.original
 
 **/.DS_Store
 **/*.log
+tools-frontend/node_modules
+tools-frontend/dist
+tools-frontend/.vite
